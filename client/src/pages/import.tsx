@@ -46,8 +46,108 @@ export default function Import() {
     reader.readAsBinaryString(file);
   };
 
+  const addRandomMinutes = (dateStr: string, timeStr: string) => {
+    // Combine date and time
+    // Assuming dateStr is DD/MM/YYYY or YYYY-MM-DD. 
+    // Excel usually gives dates in various formats, let's try to handle standard ones or just basic parsing
+    // For robustness in this mockup, let's construct a Date object
+    
+    // Handle potential Excel serial dates or string formats
+    let dateObj = new Date();
+    
+    if (timeStr && dateStr) {
+      // Simple parse for "YYYY-MM-DD" or "DD/MM/YYYY"
+      const timeParts = timeStr.split(':');
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
+      
+      // Try to parse date
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        dateObj = d;
+        dateObj.setHours(hours, minutes);
+      }
+    }
+
+    // Add random minutes between 10 and 50
+    const randomMinutes = Math.floor(Math.random() * (50 - 10 + 1)) + 10;
+    dateObj.setMinutes(dateObj.getMinutes() + randomMinutes);
+
+    // Format back to string
+    const newDateStr = dateObj.toLocaleDateString('en-GB'); // DD/MM/YYYY
+    const newTimeStr = dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+    return { date: newDateStr, time: newTimeStr };
+  };
+
   const handleGenerateXml = () => {
     const xmls = data.map(row => {
+      const arrival = addRandomMinutes(row.FECHACITA, row.HORACITA);
+      // We can use the arrival time as base for departure + another random interval if needed, 
+      // or just add another random offset to the original scheduled time as requested.
+      // The prompt says: "sumar entre 10 y 50 minutos" for both arrival and departure.
+      // Let's assume they are independent events relative to the scheduled time (FECHACITA/HORACITA).
+      
+      // However, logically Departure should be AFTER Arrival. 
+      // Let's make Departure = Arrival + Random(10-50) to ensure consistency
+      
+      // Re-calculating based on the Logic requested:
+      // "horallegada ... sumar entre 10 y 50 minutos" -> relative to scheduled time
+      // "horasalida ... sumar entre 10 y 50 minutos" -> implies relative to scheduled time too?
+      // OR relative to arrival? Usually departure is after arrival.
+      // Let's assume relative to scheduled time for arrival, and then ensure departure is later.
+      
+      // Let's implement exactly as requested:
+      // Arrival = Scheduled + Random(10-50)
+      // Departure = Scheduled + Random(10-50) (but let's make sure it's > Arrival + 5 mins at least for realism?)
+      // To stay strict to "sumar entre 10 y 50 minutos", let's do:
+      // Arrival = Scheduled + Random(10, 30)
+      // Departure = Scheduled + Random(35, 50) -> Ensures Departure > Arrival
+      
+      const randomArr = Math.floor(Math.random() * (30 - 10 + 1)) + 10;
+      const randomDep = Math.floor(Math.random() * (50 - 35 + 1)) + 35;
+
+      // Helper to add minutes
+      const addMins = (dStr: string, tStr: string, mins: number) => {
+        // Check if date is Excel serial number (number) or string
+        let dateObj = new Date();
+        
+        // Very basic parsing for the mockup example data which looks like strings
+        if (typeof dStr === 'string' && dStr.includes('/')) {
+             const parts = dStr.split('/'); // DD/MM/YYYY
+             // Note: Date constructor expects MM/DD/YYYY or YYYY-MM-DD
+             // Let's manually construct
+             if (parts.length === 3) {
+                 // Assuming DD/MM/YYYY from the example
+                 dateObj = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+             }
+        } else {
+             dateObj = new Date(dStr);
+        }
+
+        if (tStr) {
+            const tParts = tStr.split(':');
+            dateObj.setHours(parseInt(tParts[0]), parseInt(tParts[1]));
+        }
+        
+        dateObj.setMinutes(dateObj.getMinutes() + mins);
+        
+        // Return DD/MM/YYYY and HH:MM
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const yyyy = dateObj.getFullYear();
+        const hh = String(dateObj.getHours()).padStart(2, '0');
+        const min = String(dateObj.getMinutes()).padStart(2, '0');
+        
+        return {
+            d: `${dd}/${mm}/${yyyy}`,
+            t: `${hh}:${min}`
+        };
+      };
+
+      const arrivalTime = addMins(row.FECHACITA, row.HORACITA, randomArr);
+      const departureTime = addMins(row.FECHACITA, row.HORACITA, randomDep);
+
       return `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
 <acceso>
@@ -65,10 +165,10 @@ export default function Import() {
 <codpuntocontrol>${row.CODPUNTOCONTROL}</codpuntocontrol>
 <latitud>${row.LATITUD}</latitud>
 <longitud>${row.LONGITUD}</longitud>
-<fechallegada>${row.FECHACITA}</fechallegada>
-<horallegada>${row.HORACITA}</horallegada>
-<fechasalida>${row.FECHACITA}</fechasalida>
-<horasalida>${row.HORACITA}</horasalida>
+<fechallegada>${arrivalTime.d}</fechallegada>
+<horallegada>${arrivalTime.t}</horallegada>
+<fechasalida>${departureTime.d}</fechasalida>
+<horasalida>${departureTime.t}</horasalida>
 </variables>
 </root>`;
     });
