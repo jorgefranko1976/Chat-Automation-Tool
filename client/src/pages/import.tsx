@@ -181,25 +181,67 @@ export default function Import() {
     reader.readAsBinaryString(file);
   };
 
+  const excelDateToDate = (excelDate: number): Date => {
+    const utcDays = Math.floor(excelDate) - 25569;
+    const utcValue = utcDays * 86400 * 1000;
+    const d = new Date(utcValue);
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  };
+
+  const excelTimeToHoursMinutes = (excelTime: number): { hours: number; minutes: number } => {
+    const totalMinutes = Math.round(excelTime * 24 * 60);
+    return {
+      hours: Math.floor(totalMinutes / 60) % 24,
+      minutes: totalMinutes % 60
+    };
+  };
+
+  const formatExcelDateTime = (dStr: any, tStr: any): string => {
+    let dateStr = "";
+    let timeStr = "";
+    
+    if (typeof dStr === 'number') {
+      const d = excelDateToDate(dStr);
+      dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    } else if (typeof dStr === 'string') {
+      dateStr = dStr;
+    }
+    
+    if (typeof tStr === 'number') {
+      const { hours, minutes } = excelTimeToHoursMinutes(tStr);
+      timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    } else if (typeof tStr === 'string') {
+      timeStr = tStr;
+    }
+    
+    return `${dateStr} ${timeStr}`.trim();
+  };
+
   const getShiftedTime = (dStr: any, tStr: any, minAdd: number) => {
     let d = new Date();
+    
     if (typeof dStr === 'number') {
-      d = new Date(Math.round((dStr - 25569) * 86400 * 1000));
+      d = excelDateToDate(dStr);
     } else if (typeof dStr === 'string') {
       const parts = dStr.split(/[-/]/);
       if (parts.length === 3) {
-        const std = new Date(dStr);
-        if (!isNaN(std.getTime())) d = std;
-        else d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        if (parts[2].length === 4) {
+          d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        } else if (parts[0].length === 4) {
+          d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        } else {
+          const std = new Date(dStr);
+          if (!isNaN(std.getTime())) d = std;
+        }
       }
     }
 
     if (typeof tStr === 'number') {
-      const totalSeconds = Math.floor(tStr * 86400);
-      d.setHours(Math.floor(totalSeconds / 3600), Math.floor((totalSeconds % 3600) / 60));
+      const { hours, minutes } = excelTimeToHoursMinutes(tStr);
+      d.setHours(hours, minutes, 0, 0);
     } else if (typeof tStr === 'string') {
       const parts = tStr.split(':');
-      if (parts.length >= 2) d.setHours(parseInt(parts[0]), parseInt(parts[1]));
+      if (parts.length >= 2) d.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
     }
 
     d.setMinutes(d.getMinutes() + minAdd);
@@ -441,7 +483,7 @@ export default function Import() {
                               <TableCell className="font-mono">{row.INGRESOIDMANIFIESTO}</TableCell>
                               <TableCell>{row.PLACA}</TableCell>
                               <TableCell>{row.CODPUNTOCONTROL}</TableCell>
-                              <TableCell>{row.FECHACITA} {row.HORACITA}</TableCell>
+                              <TableCell>{formatExcelDateTime(row.FECHACITA, row.HORACITA)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
