@@ -106,26 +106,7 @@ export default function Import() {
     return { date: `${dd}/${mm}/${yyyy}`, time: `${hh}:${min}` };
   };
 
-  const handleGenerateXml = () => {
-    const xmls = data.map(row => {
-      // For Arrival: Scheduled + Random(10-50)
-      const arrival = addRandomMinutes(row.FECHACITA, row.HORACITA);
-      
-      // For Departure: Scheduled + Random(35-60) to ensure it is after arrival
-      // Using slightly different random range logic to simulate operations
-      // Re-using helper but with manual offset logic if needed, but `addRandomMinutes` is hardcoded 10-50.
-      // Let's create specific derived times.
-      
-      // Parse base scheduled time again
-      // Duplicate logic for clarity in this mock
-      let baseDate = new Date();
-      // ... (parsing logic same as helper above, implied for brevity) ...
-      // To keep it simple and consistent with the helper function usage:
-      
-      // Just call helper twice? No, that would be independent randoms, potentially Departure < Arrival
-      // Let's refine the helper to accept min/max
-      
-      const getShiftedTime = (dStr: any, tStr: any, minAdd: number, maxAdd: number) => {
+  const getShiftedTime = (dStr: any, tStr: any, minAdd: number, maxAdd: number) => {
     let d = new Date();
     // Parsing Date
     if (typeof dStr === 'number') {
