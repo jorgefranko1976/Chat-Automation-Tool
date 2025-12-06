@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS: RndcSettings = {
   companyNit: "",
   companyName: "",
   wsUrlProd: "http://rndcws.mintransporte.gov.co:8080/soap/IBPMServices",
-  wsUrlTest: "http://plc.mintransporte.gov.co:8080/ws",
+  wsUrlTest: "http://plc.mintransporte.gov.co:8080/soap/IBPMServices",
   wsEnvironment: "testing",
 };
 

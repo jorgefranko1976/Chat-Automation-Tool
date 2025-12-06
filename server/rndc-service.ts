@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 
-const DEFAULT_RNDC_URL = "https://rndc.mintransporte.gov.co/MenuPrincipal/tablogin/loginWebService.asmx";
+const DEFAULT_RNDC_URL = "http://plc.mintransporte.gov.co:8080/soap/IBPMServices";
 
 interface RndcResponse {
   success: boolean;
@@ -10,15 +10,23 @@ interface RndcResponse {
 }
 
 export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Promise<RndcResponse> {
-  const wsUrl = targetUrl || DEFAULT_RNDC_URL;
+  let wsUrl = targetUrl || DEFAULT_RNDC_URL;
+  
+  if (!wsUrl.includes("/soap/IBPMServices")) {
+    wsUrl = wsUrl.replace(/\/?$/, "/soap/IBPMServices");
+  }
   
   try {
     const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <soap:Body>
-    <RegistrarDatosMin xmlns="http://tempuri.org/">
-      <Mensaje><![CDATA[${xmlRequest}]]></Mensaje>
-    </RegistrarDatosMin>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+               xmlns:tns="urn:BPMServicesIntf-IBPMServices">
+  <soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <tns:AtenderMensajeRNDC>
+      <Request xsi:type="xsd:string"><![CDATA[${xmlRequest}]]></Request>
+    </tns:AtenderMensajeRNDC>
   </soap:Body>
 </soap:Envelope>`;
 
@@ -26,7 +34,7 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
       method: "POST",
       headers: {
         "Content-Type": "text/xml; charset=utf-8",
-        "SOAPAction": "http://tempuri.org/RegistrarDatosMin",
+        "SOAPAction": "urn:BPMServicesIntf-IBPMServices#AtenderMensajeRNDC",
       },
       body: soapEnvelope,
     });
@@ -61,7 +69,10 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
     
     let resultXml = "";
     try {
-      resultXml = parsed?.Envelope?.Body?.RegistrarDatosMinResponse?.RegistrarDatosMinResult || "";
+      resultXml = parsed?.Envelope?.Body?.AtenderMensajeRNDCResponse?.return || 
+                  parsed?.Envelope?.Body?.AtenderMensajeRNDCResponse?.AtenderMensajeRNDCResult ||
+                  parsed?.Envelope?.Body?.["ns1:AtenderMensajeRNDCResponse"]?.return ||
+                  "";
     } catch {
       resultXml = responseText;
     }
