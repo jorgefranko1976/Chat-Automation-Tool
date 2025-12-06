@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { XmlViewer } from "@/components/xml-viewer";
-import { Upload, FileSpreadsheet, ArrowRight, CheckCircle, FileCode, History, Loader2, RefreshCw, Eye } from "lucide-react";
+import { Upload, FileSpreadsheet, ArrowRight, CheckCircle, FileCode, History, Loader2, RefreshCw, Eye, Download, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { useSettings } from "@/hooks/use-settings";
@@ -46,6 +46,13 @@ interface RndcSubmission {
   ingresoidmanifiesto: string;
   numidgps: string;
   numplaca: string;
+  codpuntocontrol: string;
+  latitud: string;
+  longitud: string;
+  fechallegada: string;
+  horallegada: string;
+  fechasalida: string;
+  horasalida: string;
   status: string;
   responseCode: string | null;
   responseMessage: string | null;
@@ -75,6 +82,12 @@ export default function Import() {
   const [selectedSubmission, setSelectedSubmission] = useState<RndcSubmission | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  const [currentBatchResults, setCurrentBatchResults] = useState<RndcSubmission[]>([]);
+  const [currentBatch, setCurrentBatch] = useState<RndcBatch | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
 
   const fetchHistory = async () => {
     setLoadingHistory(true);
@@ -93,9 +106,59 @@ export default function Import() {
     setLoadingHistory(false);
   };
 
+  const fetchBatchResults = useCallback(async (batchId: string): Promise<RndcBatch | null> => {
+    try {
+      const [batchRes, subRes] = await Promise.all([
+        fetch(`/api/rndc/batches/${batchId}`),
+        fetch(`/api/rndc/submissions?batchId=${batchId}`),
+      ]);
+      const batchData = await batchRes.json();
+      const subData = await subRes.json();
+      
+      if (batchData.success) {
+        setCurrentBatch(batchData.batch);
+      }
+      if (subData.success) {
+        setCurrentBatchResults(subData.submissions);
+      }
+      
+      return batchData.success ? batchData.batch : null;
+    } catch (error) {
+      console.error("Error fetching batch results:", error);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  useEffect(() => {
+    if (!currentBatchId || !isPolling) return;
+    
+    let isCancelled = false;
+    
+    const pollResults = async () => {
+      const batch = await fetchBatchResults(currentBatchId);
+      if (isCancelled) return;
+      
+      if (batch && batch.status === "completed") {
+        setIsPolling(false);
+        toast({
+          title: "Procesamiento Completado",
+          description: `${batch.successCount} exitosos, ${batch.errorCount} errores`,
+          className: batch.errorCount > 0 ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200",
+        });
+      }
+    };
+    
+    const intervalId = setInterval(pollResults, 2000);
+    
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [currentBatchId, isPolling, fetchBatchResults]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -228,6 +291,13 @@ export default function Import() {
           description: result.message,
           className: "bg-green-50 border-green-200 text-green-800",
         });
+        
+        setCurrentBatchId(result.batchId);
+        setShowResults(true);
+        setIsPolling(true);
+        
+        await fetchBatchResults(result.batchId);
+        
         setGeneratedSubmissions([]);
         setData([]);
         fetchHistory();
@@ -238,6 +308,47 @@ export default function Import() {
       toast({ title: "Error", description: "Error de conexión al servidor", variant: "destructive" });
     }
     setIsSending(false);
+  };
+
+  const handleCloseResults = () => {
+    setShowResults(false);
+    setCurrentBatchId(null);
+    setCurrentBatch(null);
+    setCurrentBatchResults([]);
+    setIsPolling(false);
+  };
+
+  const handleExportResults = () => {
+    if (currentBatchResults.length === 0) return;
+    
+    const exportData = currentBatchResults.map(sub => ({
+      Manifiesto: sub.ingresoidmanifiesto,
+      Placa: sub.numplaca,
+      "NumID GPS": sub.numidgps,
+      "Punto Control": sub.codpuntocontrol,
+      Latitud: sub.latitud,
+      Longitud: sub.longitud,
+      "Fecha Llegada": sub.fechallegada,
+      "Hora Llegada": sub.horallegada,
+      "Fecha Salida": sub.fechasalida,
+      "Hora Salida": sub.horasalida,
+      Estado: sub.status === "success" ? "Exitoso" : sub.status === "error" ? "Error" : sub.status,
+      "Código Respuesta": sub.responseCode || "",
+      "Mensaje Respuesta": sub.responseMessage || "",
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Respuestas RNDC");
+    
+    const now = new Date();
+    const filename = `respuestas_rndc_${now.toISOString().split('T')[0]}_${now.getHours()}${now.getMinutes()}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    
+    toast({
+      title: "Archivo Exportado",
+      description: `Se ha descargado ${filename}`,
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -494,6 +605,141 @@ export default function Import() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {showResults && (
+          <Card className="animate-in fade-in slide-in-from-bottom-4" data-testid="card-results">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  Respuestas del RNDC
+                  {isPolling && <Loader2 className="h-4 w-4 animate-spin text-blue-500" />}
+                </CardTitle>
+                <CardDescription>
+                  {currentBatch ? (
+                    <>
+                      Total: {currentBatch.totalRecords} | 
+                      Exitosos: <span className="text-green-600">{currentBatch.successCount}</span> | 
+                      Errores: <span className="text-red-600">{currentBatch.errorCount}</span> | 
+                      Pendientes: <span className="text-amber-600">{currentBatch.pendingCount}</span>
+                    </>
+                  ) : (
+                    "Procesando..."
+                  )}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => currentBatchId && fetchBatchResults(currentBatchId)}
+                  disabled={isPolling}
+                  data-testid="button-refresh-results"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isPolling ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleExportResults}
+                  disabled={currentBatchResults.length === 0}
+                  data-testid="button-export-results"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar Excel
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleCloseResults}
+                  data-testid="button-close-results"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {currentBatchResults.length === 0 ? (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Esperando respuestas del RNDC...
+                </div>
+              ) : (
+                <div className="rounded-md border max-h-[500px] overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Manifiesto</TableHead>
+                        <TableHead>Placa</TableHead>
+                        <TableHead>NumID GPS</TableHead>
+                        <TableHead>Fecha/Hora Llegada</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Mensaje Respuesta</TableHead>
+                        <TableHead>Ver</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {currentBatchResults.map((sub) => (
+                        <TableRow 
+                          key={sub.id} 
+                          className={sub.status === "error" ? "bg-red-50" : sub.status === "success" ? "bg-green-50" : ""}
+                          data-testid={`row-result-${sub.id}`}
+                        >
+                          <TableCell className="font-mono">{sub.ingresoidmanifiesto}</TableCell>
+                          <TableCell>{sub.numplaca}</TableCell>
+                          <TableCell className="font-mono text-xs">{sub.numidgps}</TableCell>
+                          <TableCell className="text-xs">
+                            {sub.fechallegada} {sub.horallegada}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {sub.responseCode || "-"}
+                          </TableCell>
+                          <TableCell className="max-w-[300px] text-xs">
+                            {sub.responseMessage || (sub.status === "pending" ? "Pendiente..." : "-")}
+                          </TableCell>
+                          <TableCell>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" onClick={() => setSelectedSubmission(sub)} data-testid={`button-view-result-${sub.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl max-h-[80vh]">
+                                <DialogHeader>
+                                  <DialogTitle>Detalle del Envío - {sub.ingresoidmanifiesto}</DialogTitle>
+                                </DialogHeader>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <div>
+                                    <h4 className="font-semibold mb-2">XML Enviado</h4>
+                                    <ScrollArea className="h-[300px] rounded-md border p-2 bg-slate-50">
+                                      <pre className="text-xs whitespace-pre-wrap">{sub.xmlRequest}</pre>
+                                    </ScrollArea>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold mb-2">Respuesta RNDC</h4>
+                                    <ScrollArea className="h-[300px] rounded-md border p-2 bg-slate-50">
+                                      <pre className="text-xs whitespace-pre-wrap">{sub.xmlResponse || "Sin respuesta aún"}</pre>
+                                    </ScrollArea>
+                                  </div>
+                                </div>
+                                <div className="mt-4 flex gap-4 text-sm">
+                                  <div><strong>Código:</strong> {sub.responseCode || "-"}</div>
+                                  <div><strong>Mensaje:</strong> {sub.responseMessage || "-"}</div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );

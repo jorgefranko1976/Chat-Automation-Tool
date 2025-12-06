@@ -73,14 +73,13 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/rndc/batch/:id", async (req, res) => {
+  app.get("/api/rndc/batches/:id", async (req, res) => {
     try {
       const batch = await storage.getRndcBatch(req.params.id);
       if (!batch) {
         return res.status(404).json({ success: false, message: "Lote no encontrado" });
       }
-      const submissions = await storage.getRndcSubmissionsByBatch(req.params.id);
-      res.json({ success: true, batch, submissions });
+      res.json({ success: true, batch });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener lote" });
     }
@@ -89,8 +88,15 @@ export async function registerRoutes(
   app.get("/api/rndc/submissions", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
-      const submissions = await storage.getRecentSubmissions(limit);
-      res.json({ success: true, submissions });
+      const batchId = req.query.batchId as string | undefined;
+      
+      if (batchId) {
+        const submissions = await storage.getRndcSubmissionsByBatch(batchId);
+        res.json({ success: true, submissions });
+      } else {
+        const submissions = await storage.getRecentSubmissions(limit);
+        res.json({ success: true, submissions });
+      }
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener envíos" });
     }
