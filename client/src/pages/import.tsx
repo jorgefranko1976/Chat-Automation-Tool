@@ -145,18 +145,14 @@ export default function Import() {
 
   const handleGenerateXml = () => {
     const xmls = data.map(row => {
-      // Logic: Both Arrival and Departure should be Scheduled + Random(60, 90)
-      // BUT Departure must be >= Arrival.
-      // So we generate two randoms in that range and sort them.
-      
-      const r1 = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
-      const r2 = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
-      
-      const arrOffset = Math.min(r1, r2);
-      const depOffset = Math.max(r1, r2) === arrOffset ? arrOffset + 5 : Math.max(r1, r2); // Ensure at least 5 min diff if equal
-
+      // Arrival: FECHACITA/HORACITA + Random(60, 90) minutes
+      const arrOffset = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
       const arrivalTime = getShiftedTime(row.FECHACITA, row.HORACITA, arrOffset, arrOffset);
-      const departureTime = getShiftedTime(row.FECHACITA, row.HORACITA, depOffset, depOffset);
+      
+      // Departure: Arrival + Random(90, 140) minutes (1h30m to 2h20m after arrival)
+      const stayDuration = Math.floor(Math.random() * (140 - 90 + 1)) + 90;
+      const totalDepOffset = arrOffset + stayDuration;
+      const departureTime = getShiftedTime(row.FECHACITA, row.HORACITA, totalDepOffset, totalDepOffset);
 
       return `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
