@@ -19,6 +19,7 @@ const submitBatchSchema = z.object({
     horasalida: z.string(),
     xmlRequest: z.string(),
   })),
+  wsUrl: z.string().url().optional(),
 });
 
 export async function registerRoutes(
@@ -29,7 +30,7 @@ export async function registerRoutes(
   app.post("/api/rndc/submit-batch", async (req, res) => {
     try {
       const parsed = submitBatchSchema.parse(req.body);
-      const { submissions } = parsed;
+      const { submissions, wsUrl } = parsed;
 
       const batch = await storage.createRndcBatch({
         totalRecords: submissions.length,
@@ -49,7 +50,7 @@ export async function registerRoutes(
         )
       );
 
-      processSubmissionsAsync(batch.id, createdSubmissions.map(s => s.id));
+      processSubmissionsAsync(batch.id, createdSubmissions.map(s => s.id), wsUrl);
 
       res.json({
         success: true,
@@ -110,7 +111,7 @@ export async function registerRoutes(
   return httpServer;
 }
 
-async function processSubmissionsAsync(batchId: string, submissionIds: string[]) {
+async function processSubmissionsAsync(batchId: string, submissionIds: string[], wsUrl?: string) {
   let successCount = 0;
   let errorCount = 0;
 
@@ -125,7 +126,7 @@ async function processSubmissionsAsync(batchId: string, submissionIds: string[])
 
         await storage.updateRndcSubmission(submissionId, { status: "processing" });
 
-        const response = await sendXmlToRndc(submission.xmlRequest);
+        const response = await sendXmlToRndc(submission.xmlRequest, wsUrl);
 
         await storage.updateRndcSubmission(submissionId, {
           status: response.success ? "success" : "error",

@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 
-const RNDC_WEBSERVICE_URL = "https://rndc.mintransporte.gov.co/MenuPrincipal/tablogin/loginWebService.asmx";
+const DEFAULT_RNDC_URL = "https://rndc.mintransporte.gov.co/MenuPrincipal/tablogin/loginWebService.asmx";
 
 interface RndcResponse {
   success: boolean;
@@ -9,7 +9,9 @@ interface RndcResponse {
   rawXml: string;
 }
 
-export async function sendXmlToRndc(xmlRequest: string): Promise<RndcResponse> {
+export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Promise<RndcResponse> {
+  const wsUrl = targetUrl || DEFAULT_RNDC_URL;
+  
   try {
     const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -20,7 +22,7 @@ export async function sendXmlToRndc(xmlRequest: string): Promise<RndcResponse> {
   </soap:Body>
 </soap:Envelope>`;
 
-    const response = await fetch(RNDC_WEBSERVICE_URL, {
+    const response = await fetch(wsUrl, {
       method: "POST",
       headers: {
         "Content-Type": "text/xml; charset=utf-8",

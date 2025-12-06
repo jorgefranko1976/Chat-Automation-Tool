@@ -208,12 +208,16 @@ export default function Import() {
   const handleSendAll = async () => {
     if (generatedSubmissions.length === 0) return;
 
+    const wsUrl = settings.wsEnvironment === "production" 
+      ? settings.wsUrlProd 
+      : settings.wsUrlTest;
+
     setIsSending(true);
     try {
       const response = await fetch("/api/rndc/submit-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissions: generatedSubmissions }),
+        body: JSON.stringify({ submissions: generatedSubmissions, wsUrl }),
       });
 
       const result = await response.json();
