@@ -77,17 +77,42 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
       resultXml = responseText;
     }
 
-    let code = "000";
-    let message = "Respuesta recibida";
-    let success = true;
+    let code = "";
+    let message = "";
+    let success = false;
 
     if (resultXml) {
-      const resultParsed = parser.parse(resultXml);
-      if (resultParsed?.root?.respuesta) {
-        code = resultParsed.root.respuesta.codigo || "000";
-        message = resultParsed.root.respuesta.mensaje || "Sin mensaje";
-        success = code === "00" || code === "0" || code === "000";
+      try {
+        const resultParsed = parser.parse(resultXml);
+        
+        if (resultParsed?.root?.ingresoid) {
+          success = true;
+          code = String(resultParsed.root.ingresoid);
+          message = `Registro aceptado. IngresoID: ${code}`;
+        } else if (resultParsed?.root?.errormsg) {
+          success = false;
+          const errorMsg = String(resultParsed.root.errormsg);
+          const errorMatch = errorMsg.match(/error\s+(\w+):/i);
+          code = errorMatch ? errorMatch[1].toUpperCase() : "ERROR";
+          message = errorMsg;
+        } else if (resultParsed?.root?.respuesta) {
+          code = String(resultParsed.root.respuesta.codigo || "000");
+          message = String(resultParsed.root.respuesta.mensaje || "Sin mensaje");
+          success = code === "00" || code === "0" || code === "000";
+        } else {
+          code = "UNKNOWN";
+          message = "Respuesta no reconocida";
+          success = false;
+        }
+      } catch {
+        code = "PARSE_ERROR";
+        message = "Error al parsear respuesta del RNDC";
+        success = false;
       }
+    } else {
+      code = "EMPTY";
+      message = "Respuesta vacía del servidor";
+      success = false;
     }
 
     return {
@@ -107,7 +132,7 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
   }
 }
 
-export function parseRndcResponse(xmlResponse: string): { code: string; message: string } {
+export function parseRndcResponse(xmlResponse: string): { code: string; message: string; success: boolean } {
   try {
     const parser = new XMLParser({
       ignoreAttributes: false,
@@ -116,15 +141,36 @@ export function parseRndcResponse(xmlResponse: string): { code: string; message:
     
     const parsed = parser.parse(xmlResponse);
     
-    if (parsed?.root?.respuesta) {
+    if (parsed?.root?.ingresoid) {
+      const ingresoId = String(parsed.root.ingresoid);
       return {
-        code: parsed.root.respuesta.codigo || "UNKNOWN",
-        message: parsed.root.respuesta.mensaje || "Sin mensaje",
+        code: ingresoId,
+        message: `Registro aceptado. IngresoID: ${ingresoId}`,
+        success: true,
       };
     }
     
-    return { code: "PARSE_ERROR", message: "No se pudo parsear la respuesta" };
+    if (parsed?.root?.errormsg) {
+      const errorMsg = String(parsed.root.errormsg);
+      const errorMatch = errorMsg.match(/error\s+(\w+):/i);
+      return {
+        code: errorMatch ? errorMatch[1].toUpperCase() : "ERROR",
+        message: errorMsg,
+        success: false,
+      };
+    }
+    
+    if (parsed?.root?.respuesta) {
+      const code = String(parsed.root.respuesta.codigo || "UNKNOWN");
+      return {
+        code,
+        message: String(parsed.root.respuesta.mensaje || "Sin mensaje"),
+        success: code === "00" || code === "0" || code === "000",
+      };
+    }
+    
+    return { code: "UNKNOWN", message: "Respuesta no reconocida", success: false };
   } catch {
-    return { code: "PARSE_ERROR", message: "Error al parsear XML de respuesta" };
+    return { code: "PARSE_ERROR", message: "Error al parsear XML de respuesta", success: false };
   }
 }
