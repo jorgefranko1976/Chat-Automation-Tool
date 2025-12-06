@@ -69,14 +69,25 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
       };
     }
     
-    let resultXml = "";
+    let resultRaw: any = null;
     try {
-      resultXml = parsed?.Envelope?.Body?.AtenderMensajeRNDCResponse?.return || 
+      resultRaw = parsed?.Envelope?.Body?.AtenderMensajeRNDCResponse?.return || 
                   parsed?.Envelope?.Body?.AtenderMensajeRNDCResponse?.AtenderMensajeRNDCResult ||
                   parsed?.Envelope?.Body?.["ns1:AtenderMensajeRNDCResponse"]?.return ||
-                  "";
+                  null;
     } catch {
-      resultXml = responseText;
+      resultRaw = null;
+    }
+
+    let resultXml = "";
+    if (resultRaw) {
+      if (typeof resultRaw === "string") {
+        resultXml = resultRaw;
+      } else if (typeof resultRaw === "object" && resultRaw["#text"]) {
+        resultXml = resultRaw["#text"];
+      } else if (typeof resultRaw === "object") {
+        resultXml = JSON.stringify(resultRaw);
+      }
     }
 
     let code = "";
@@ -91,9 +102,9 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
           success = true;
           code = String(resultParsed.root.ingresoid);
           message = `Registro aceptado. IngresoID: ${code}`;
-        } else if (resultParsed?.root?.errormsg) {
+        } else if (resultParsed?.root?.ErrorMSG || resultParsed?.root?.errormsg) {
           success = false;
-          const errorMsg = String(resultParsed.root.errormsg);
+          const errorMsg = String(resultParsed.root.ErrorMSG || resultParsed.root.errormsg);
           const errorMatch = errorMsg.match(/error\s+(\w+):/i);
           code = errorMatch ? errorMatch[1].toUpperCase() : "ERROR";
           message = errorMsg;
