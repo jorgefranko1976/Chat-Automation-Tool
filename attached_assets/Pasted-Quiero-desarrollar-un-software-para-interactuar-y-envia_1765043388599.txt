@@ -1,0 +1,415 @@
+Quiero desarrollar un software para interactuar y enviar informacion al RNDC en colombia.
+NOTA: Somos una empresa de carga por carretera Habilitada por el ministerio de transporte de colombia, tenemos Flota propia y Flota tercerizada, Ademas efectuamos las labores de Monitoreo de flota propia (GPS-TRACKING) es decir que tambien somos una EMF (Empresa de monitoreo de flota)  y debemos reportar los tiempos logisticos al RNDC a travez del WEB-SERVICE.
+
+La aplicacion tendra los siguientes modulos
+
+1.- Monitoreo: -> Proceso que realiza la empresa de Monitoreo de Flota.
+La EMF debe solicitar al RNDC la lista de manifiestos en los que han sido autorizados por
+las ETC para hacer la labor de monitoreo, se hace únicamente por medio del
+WebService.
+El ciclo de repetición entre solicitud y solicitud no podrá ser inferior a 5 minutos (No puede
+ser cada 2 minutos), con el fin de evitar sobrecargas innecesarias en el RNDC.
+La EMF podrá realizar tres tipos de consultas:
+
+1. Nuevos Manifiestos de carga autorizados con relación a la última consulta
+realizada “<manifiestos>nuevos</manifiestos>”
+EJEMPLO XML: para solicitar los Manifiestos autorizados desde la última vez que
+solicitó la empresa de monitoreo de flota, y que no sean mayores a 24 horas de
+expedidos.
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>usuariogps</username>
+<password>passwordgps</password>
+</acceso>
+<solicitud>
+<tipo>9</tipo>
+<procesoid>4</procesoid>
+</solicitud>
+<documento>
+<numidgps>9999999999</numidgps>
+<manifiestos>NUEVOS</manifiestos>
+</documento>
+</root>
+2. Todos los manifiestos de carga autorizados en las últimas 24 horas
+“<manifiestos>todos</manifiestos>”. Esta funcionalidad es útil cuando la empresa
+de monitoreo de flota tiene dudas en la transmisión de los datos. Esta solicitud solo
+se puede hacer una vez cada 24 horas.
+Ejemplo xml para una solicitud de todos los manifiestos en los cuales ha sido
+autorizado en las últimas 24 horas
+
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>usuariogps</username>
+<password>passwordgps</password>
+</acceso>
+<solicitud>
+<tipo>9</tipo>
+<procesoid>4</procesoid>
+</solicitud>
+<documento>
+<numidgps>9999999999</numidgps>
+<manifiestos>TODOS</manifiestos>
+</documento>
+</root>
+3. Consulta por manifiesto relacionando el número de radicado como llave única.
+Esto con el fin de obtener información de los puntos de control de un único
+manifiesto.
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>usuariogps</username>
+<password>passwordgps</password>
+</acceso>
+<solicitud>
+<tipo>9</tipo>
+<procesoid>4</procesoid>
+</solicitud>
+<documento>
+<numidgps>9999999999</numidgps>
+<ingresoidmanifiesto>123456789</ingresoidmanifiesto>
+</documento>
+</root>
+Información que envía el RNDC a empresa de Monitoreo.
+i. Numero Radicado de Manifiesto (Llave Única)
+ii. Consecutivo de Manifiesto
+iii. Placa Vehículo (automotor)
+iv. Código secuencial del punto de control
+v. Dirección del punto de control
+vi. Municipio del punto de control
+vii. Coordenadas georreferenciadas del punto de control
+viii. Fecha y Hora cita de la llegada al punto de control
+ix. Tiempo pactado en punto de control. (dato numérico sin decimales
+equivalente a minutos)
+El RNDC envía mínimo 1 punto de control por cada manifiesto de acuerdo al ámbito de
+aplicación de la metodologia. El punto de cargue puede llevar código secuencial 1 y el
+punto de descargue código secuencial 2 así sucesivamente si hay más puntos de
+control.
+La fecha y hora de la cita puede llegar vacía para ciertos puntos de control los cuales
+no se realizan operaciones de cargue y/o descargue, estos puntos de control son
+definidos por el Ministerio de transporte.
+Ejemplo del xml de respuesta del RNDC.
+
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<root>
+<documento>
+<ingresoidmanifiesto>123456789</ingresoidmanifiesto>
+<numnitempresatransporte>9999999999</numnitempresatransporte>
+<nummanifiestocarga>111</nummanifiestocarga>
+<fechaexpedicionmanifiesto>03/09/2014</fechaexpedicionmanifiesto>
+<numplaca>bod874</numplaca>
+<puntoscontrol>
+<puntocontrol>
+<codpuntocontrol>1</codpuntocontrol >
+<codmunicipio>11001000</codmunicipio>
+<direccion>calle 1 3-51 parque industrial xxx</direccion>
+<fechacita>2018/11/05</ fechacita>
+<horacita>16:07</ horacita>
+<latitud>5.417198</ latitud>
+<longitud>-72.290611</ longitud>
+<tiempopactado>65</tiempopactado >
+</puntocontrol>
+<puntocontrol>
+<codpuntocontrol>2</codpuntocontrol>
+<codmunicipio>5001000</codmunicipio>
+<direccion>calle 30 -40</direccion>
+<fechacita>2018/11/06</ fechacita>
+<horacita>08:00</ horacita>
+<latitud>4.417198</ latitud>
+<longitud>-73.290611</ longitud>
+<tiempopactado>125</tiempopactado >
+</puntocontrol>
+</puntoscontrol>
+</documento>
+<documento>
+…..
+/documento>
+<documento>
+…..
+</documento>
+<documento>
+<ingresoidmanifiesto>123456789</ingresoidmanifiesto>
+<ajuste>1</ajuste>
+<numnitempresatransporte>9999999999</numnitempresatransporte>
+<nummanifiestocarga>111</nummanifiestocarga>
+<fechaexpedicionmanifiesto>03/09/2014</fechaexpedicionmanifiesto>
+<numplaca>bod874</numplaca>
+<puntoscontrol>
+<puntocontrol>
+<codpuntocontrol>2</codpuntocontrol>
+<ajuste>1</ajuste>
+<codmunicipio>11001000</codmunicipio>
+<direccion>calle 1 3-51 parque industrial xxx</direccion>
+<fechacita>2018/11/05</ fechacita>
+<horacita>16:07</ horacita>
+<latitud>5.417198</ latitud>
+<longitud>-72.290611</ longitud>
+<tiempopactado>65</tiempopactado >
+</puntocontrol>
+</puntoscontrol>
+</documento>
+</root>
+Cuando un punto de control presenta la etiqueta <ajuste>, esto indica que la ETC ha realizado
+modificaciones en los atributos previamente definidos para dicho punto de control. Como
+resultado de estos cambios, la información se envía nuevamente con las nuevas condiciones en
+la consulta, con el fin de actualizar el monitoreo y asegurar que se reporten los tiempos logísticos
+reales.
+1. Cambio en la Fecha y hora del Punto de control
+2. Cambio en la sede del Punto de control
+3. Cambio en la sede y fecha y hora del Punto de control
+4. Anulación de Manifiesto de carga (Suspensión de Monitoreo)
+5. Transbordo NO planeado. (Evento en carretera que suspende el viaje con la
+misma placa.)
+Esta opción permite mantener la trazabilidad y la integridad del seguimiento, adaptándose de
+manera dinámica a los ajustes operativos realizados por la ETC.
+Nota: Si la empresa de monitoreo de flota solicita información de los puntos de control de los
+Manifiestos de carga con frecuencia inferior a los 15 minutos (es decir con periodos menores a
+15 minutos), el RNDC responderá con el mensaje de error:
+GPS200 La empresa de monitoreo de flota debe esperar 15 minutos para volver a consultar manifiestos autorizadas.
+
+1.1 -> Monitoreo -> Registro.
+
+El Sistema RNDC, recibe un registro a nivel de manifiesto y punto de control. y devuelve
+el número de Radicado a la EMF, en señal de aceptación de la calidad de la
+información. Por lo tanto, cada manifiesto de carga tendrá dos o más números de
+radicado de RMM.
+
+La EMF debe enviar la información del RMM máximo en las siguientes 72 horas a partir de
+la fecha y hora de llegada de cada punto de control.
+En caso de que el vehículo dure mas de las 72 horas en el punto de control, la EMF debe
+realizar el RMM con los datos de la fecha y hora de llega y con la etiqueta
+<sinsalida>S</sinsalida>
+En caso de superarse el tiempo estipulado y la empresa de monitoreo de todos modos
+envía el registro de monitoreo de manifiesto, el RNDC no recibe el registro y entrega un
+mensaje de error tipo “72 horas vencidas”. La EMF debe realizar el registro de novedades
+monitoreo de manifiesto (RNMM).
+En caso de presentarse alguna novedad de monitoreo por la cual no se pueda realizar
+el registro de tiempos logísticos de los puntos de control de los manifiestos autorizados, la
+EMF debe emitir el RNMM identificando la novedad por la cual no se pudo cumplir con
+el reporte de tiempos logísticos.
+Ejemplo para registro de monitoreo de manifiesto Punto Control 1 .
+
+
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>usuariogps</username>
+<password>passwordgps</password>
+</acceso>
+<solicitud>
+<tipo>1</tipo>
+<procesoid>60</procesoid>
+</solicitud>
+<variables>
+<numidgps>9999999999</numidgps>
+<ingresoidmanifiesto>123456789</ingresoidmanifiesto>
+<numplaca>bod875</numplaca>
+<codpuntocontrol>1</codpuntocontrol>
+<latitud>123.456</latitud>
+<longitud>123.456</longitud>
+<fechallegada>01/01/2017</fechallegada>
+<horallegada>08:32</horallegada>
+<fechasalida>01/01/2017</fechasalida>
+<horasalida>10:32</horasalida>
+</variables>
+</root> 
+
+Punto Control 2.
+
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>usuariogps</username>
+<password>passwordgps</password>
+</acceso>
+<solicitud>
+<tipo>1</tipo>
+<procesoid>60</procesoid>
+</solicitud>
+<variables>
+<numidgps>9999999999</numidgps>
+<ingresoidmanifiesto>123456789</ingresoidmanifiesto>
+<numplaca>bod875</numplaca>
+<codpuntocontrol>2</codpuntocontrol>
+<latitud>123.456</latitud>
+<longitud>123.456</longitud>
+<fechallegada>02/01/2017</fechallegada>
+<horallegada>08:32</horallegada>
+<fechasalida>02/01/2017</fechasalida>
+<horasalida>10:32</horasalida>
+</variables>
+</root> 
+
+Ejemplo respuesta aceptación RNDC al registro de monitoreo de manifiesto.
+
+
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<ingresoid>123456</ingresoid>
+</root>
+
+Ejemplo respuesta no aceptación RNDC al registro de monitoreo de manifiesto.
+
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<errormsg>error rmm020: falta el nro. radicado de manifiesto. usuario:169</errormsg>
+</root
+
+______________________________________________________________________________
+
+1.2 Monitoreo ->Cumplir Tiempos Manifiesto -> Desde Excel->
+
+Consiste en un archvo excel que contiene la informacion de Documentos del Proceso: Manifiestos entregados a Empresas GPS para monitorear.
+
+Ejm:
+INGRESOID	FECHAINGRESO	ESTADO	USUARIO	NUMIDGPS	CODIGOEMPRESA	INGRESOIDMANIFIESTO	CODPUNTOCONTROL	PLACA	LATITUD	LONGITUD	FECHACITA	HORACITA	TIPO	DIRECCION	TIEMPOPACTADO	NUMNITEMPRESATRANSPORTE
+122073829	5/12/2025 17:36	CE	TIEMPOS@0739	9013690938	739	111954381	2	VMT301	5.08364	-73.37227	5/12/2025	17:00	D	GRANJAS VIA GARAGOA	    2520	9013690938
+122073828	5/12/2025 17:36	CE	TIEMPOS@0739	9013690938	739	111954381	1	VMT301	4.72987	-74.19123	5/12/2025	8:00	C	KM2 VIA FUNZA SIBERIA	2520	9013690938
+122073827	5/12/2025 17:36	CE	TIEMPOS@0739	9013690938	739	111953859	2	WHK426	4.27344	-74.41674	5/12/2025	16:00	D	ARBELAEZ CUNDINAMARCA	2520	9013690938
+122073826	5/12/2025 17:36	CE	TIEMPOS@0739	9013690938	739	111953859	1	WHK426	4.72987	-74.19123	5/12/2025	7:00	C	KM2 VIA FUNZA SIBERIA	2520	9013690938
+122073825	5/12/2025 17:36	CE	TIEMPOS@0739	9013690938	739	111953650	2	SVE829	4.27344	-74.41674	5/12/2025	16:00	D	ARBELAEZ CUNDINAMARCA	2520	9013690938
+122073824	5/12/2025 17:36	CE	TIEMPOS@0739	9013690938	739	111953650	1	SVE829	4.72987	-74.19123	5/12/2025	6:00	C	KM2 VIA FUNZA SIBERIA	2520	9013690938
+
+
+estos datos deberan convertirse para poder enviar el xml del punto de control 1 y punto de control 2 de la siguiente manera
+
+Punto Control 1
+<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>usuariogps</username>  //// Lo sacara del modulo Configuracion UsuarioGPS ////
+<password>passwordgps</password>   ///// Lo sacara del Moudulo Configuracion PasswordGPS ////
+</acceso>
+<solicitud>
+<tipo>1</tipo>
+<procesoid>60</procesoid>
+</solicitud>
+<variables>
+<numidgps>9999999999</numidgps>  //// NUMIDGPS ////
+<ingresoidmanifiesto>123456789</ingresoidmanifiesto> ////INGRESOIDMANIFIESTO ////
+<numplaca>bod875</numplaca> ////PLACA ////
+<codpuntocontrol>1</codpuntocontrol>  //// CODPUNTOCONTROL /////
+<latitud>123.456</latitud> //// LATITUD ////
+<longitud>123.456</longitud> ///// LONGITUD ////
+<fechallegada>01/01/2017</fechallegada>  //// FECHACITA /////
+<horallegada>08:32</horallegada> //// HORACITA /////
+<fechasalida>01/01/2017</fechasalida> //// FECHACITA /////
+<horasalida>10:32</horasalida> //// HORACITA /////
+</variables>
+</root> 
+
+ y generara el XML - que enviara al ministerio de transporte a travez de sus sistema de Webservice . Nota: el archivo debera generarse y mostrarse al usuario antes de ser enviado en modo produccion pra que este lo audite y corrija si es necesrario.
+ Luego a travez de un Boton ENVIAR  AL RNDC  se enviara  al RNDC el archivo final .
+ 
+2. -> Cumplir Remesa
+3. -> Cumplir Manifiesto
+4. -> Configuracion -> en este modulo  se guardaran los datos de  Conexion a la base de datos postgres , IP, User, Pass, BD, Tambien se guardaran datos de la empresa como el nombre el nIt el telefono,  Lo Mismo que la Ip a la que debe conectarse el Webservise
+
+
+El webservice del RNDC es con tecnología SOAP y la información es con formato XML.
+Es fundamental entender la arquitectura del RNDC WEB-SERVICE, ya que de esta forma
+para un desarrollador es posible entender la estructura, el funcionamiento y la interacción
+entre las distintas partes de la aplicación.
+El siguiente es el WSDL (Web-Service Definition Language)
+
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+xmlns:tns="http://tempuri.org/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" name=
+"IBPMServicesservice" targetNamespace="http://tempuri.org/">
+<message name="AtenderMensajeRNDC0Request">
+<part name="Request" type="xs:string"/>
+</message>
+<message name="AtenderMensajeRNDC0Response">
+<part name="return" type="xs:string"/>
+</message>
+<message name="AtenderMensajeBPM1Request">
+<part name="Request" type="xs:string"/>
+</message>
+<message name="AtenderMensajeBPM1Response">
+<part name="return" type="xs:string"/>
+</message>
+<portType name="IBPMServices">
+<operation name="AtenderMensajeRNDC">
+<input message="tns:AtenderMensajeRNDC0Request"/>
+<output message="tns:AtenderMensajeRNDC0Response"/>
+</operation>
+<operation name="AtenderMensajeBPM">
+<input message="tns:AtenderMensajeBPM1Request"/>
+<output message="tns:AtenderMensajeBPM1Response"/>
+</operation>
+</portType>
+<binding name="IBPMServicesbinding" type="tns:IBPMServices">
+<binding xmlns="http://schemas.xmlsoap.org/wsdl/soap/" style="rpc" transport="http://schemas.xmlsoap.
+org/soap/http"/>
+<operation name="AtenderMensajeRNDC">
+<operation xmlns="http://schemas.xmlsoap.org/wsdl/soap/" soapAction="urn:BPMServicesIntfIBPMServices#AtenderMensajeRNDC" style="rpc"/>
+<input>
+<body xmlns="http://schemas.xmlsoap.org/wsdl/soap/" use="encoded" encodingStyle="http://schemas.xm
+lsoap.org/soap/encoding/" namespace="urn:BPMServicesIntf-IBPMServices"/>
+</input>
+<output>
+<body xmlns="http://schemas.xmlsoap.org/wsdl/soap/" use="encoded" encodingStyle="http://schemas.xm
+lsoap.org/soap/encoding/" namespace="urn:BPMServicesIntf-IBPMServices"/>
+</output>
+</operation>
+<operation name="AtenderMensajeBPM">
+<operation xmlns="http://schemas.xmlsoap.org/wsdl/soap/" soapAction="urn:BPMServicesIntfIBPMServices#AtenderMensajeBPM" style="rpc"/>
+<input>
+<body xmlns="http://schemas.xmlsoap.org/wsdl/soap/" use="encoded" encodingStyle="http://schemas.xm
+lsoap.org/soap/encoding/" namespace="urn:BPMServicesIntf-IBPMServices"/>
+</input>
+<output>
+<body xmlns="http://schemas.xmlsoap.org/wsdl/soap/" use="encoded" encodingStyle="http://schemas.xm
+lsoap.org/soap/encoding/" namespace="urn:BPMServicesIntf-IBPMServices"/>
+</output>
+</operation>
+</binding>
+<service name="IBPMServicesservice">
+<port name="IBPMServicesPort" binding="tns:IBPMServicesbinding">
+<address xmlns="http://schemas.xmlsoap.org/wsdl/soap/" location="http://rndcws.mintransporte.gov.co:8
+080/soap/IBPMServices"/>
+</port>
+</service>
+</definitions>
+
+
+ 
+Las solicitudes SOAP se enrutan a través de un proxy local configurado en el servidor de desarrollo. Esto permite realizar peticiones al RNDC sin problemas de CORS.
+
+Las Empresas de Transporte pueden realizar sus pruebas del Web Service
+en otra IP. El WSDL lo pueden accesar en:
+http://plc.mintransporte.gov.co:8080/ws
+
+para el envío de información al RNDC se usa el método “AtenderMensajeRNDC”. El único
+parámetro que se debe enviar en este método es “Request”, el cual es una cadena en 
+formato XML. El método envía una respuesta también en formato XML con el número de
+radicación o con el texto del error (o errores).
+El “Request” del método “AtenderMensajeRNDC” del Web-Service del RNDC debe tener la
+siguiente estructura en XML:
+Elemento principal <root> con cuatro elementos secundarios: <acceso>, <solicitud>,
+<variables> y <documento>.
+A continuación un ejemplo ilustrativo:
+
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+ Seguridad del acceso.
+ </acceso>
+ <solicitud>
+ Qué se desea hacer y en cual proceso.
+ </solicitud>
+ <variables>
+ Detalle de la información que se envía.
+ </variables>
+<documento>
+ Datos para filtrar el documento del proceso a consultar.
+</documento>
+</root>
+La respuesta que genera el Web-Service cuando los registros se han realizado
+satisfactoriamente tiene siempre el siguiente formato:
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<root>
+<ingresoid>12</ingresoid>
+</root>
+En donde el número 12, es el consecutivo de radicado. Es decir, este consecutivo cambia
+cada vez que se acepta un registro nuevo sin errores.
