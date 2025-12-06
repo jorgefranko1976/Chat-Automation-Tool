@@ -11,8 +11,10 @@ import { XmlViewer } from "@/components/xml-viewer";
 import { MapPin, Clock, Send, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function Tracking() {
+  const { settings } = useSettings();
   const [selectedCp, setSelectedCp] = useState<ControlPoint | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,15 +45,15 @@ export default function Tracking() {
     const xml = `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
 <acceso>
-<username>usuariogps</username>
-<password>passwordgps</password>
+<username>${settings.usernameGps}</username>
+<password>${settings.passwordGps}</password>
 </acceso>
 <solicitud>
 <tipo>1</tipo>
 <procesoid>60</procesoid>
 </solicitud>
 <variables>
-<numidgps>9999999999</numidgps>
+<numidgps>${settings.companyNit}</numidgps>
 <ingresoidmanifiesto>123456789</ingresoidmanifiesto>
 <numplaca>bod875</numplaca>
 <codpuntocontrol>${selectedCp.sequence}</codpuntocontrol>

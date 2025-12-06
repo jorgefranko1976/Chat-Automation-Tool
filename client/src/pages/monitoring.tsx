@@ -10,8 +10,10 @@ import { ManifestCard } from "@/components/manifest-card";
 import { MOCK_MANIFESTS } from "@/lib/mock-data";
 import { RefreshCw, Search, Clock, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useSettings } from "@/hooks/use-settings";
 
 export default function Monitoring() {
+  const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(300); // 5 minutes in seconds
   const [canRequest, setCanRequest] = useState(true);
@@ -43,15 +45,15 @@ export default function Monitoring() {
     const base = `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
 <acceso>
-<username>usuariogps</username>
-<password>********</password>
+<username>${settings.usernameGps}</username>
+<password>${settings.passwordGps}</password>
 </acceso>
 <solicitud>
 <tipo>9</tipo>
 <procesoid>4</procesoid>
 </solicitud>
 <documento>
-<numidgps>9999999999</numidgps>`;
+<numidgps>${settings.companyNit}</numidgps>`;
 
     if (type === 'SPECIFIC' && id) {
       return `${base}
@@ -88,7 +90,7 @@ export default function Monitoring() {
 <root>
 <documento>
 <ingresoidmanifiesto>123456789</ingresoidmanifiesto>
-<numnitempresatransporte>9999999999</numnitempresatransporte>
+<numnitempresatransporte>${settings.companyNit}</numnitempresatransporte>
 <nummanifiestocarga>111</nummanifiestocarga>
 <fechaexpedicionmanifiesto>03/09/2014</fechaexpedicionmanifiesto>
 <numplaca>bod874</numplaca>

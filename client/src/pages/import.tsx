@@ -7,6 +7,7 @@ import { XmlViewer } from "@/components/xml-viewer";
 import { Upload, FileSpreadsheet, ArrowRight, CheckCircle, FileCode } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
+import { useSettings } from "@/hooks/use-settings";
 
 interface ExcelRow {
   INGRESOID: string;
@@ -20,6 +21,7 @@ interface ExcelRow {
 }
 
 export default function Import() {
+  const { settings } = useSettings();
   const [data, setData] = useState<ExcelRow[]>([]);
   const [generatedXmls, setGeneratedXmls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,15 +51,15 @@ export default function Import() {
       return `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
 <acceso>
-<username>usuariogps</username>
-<password>passwordgps</password>
+<username>${settings.usernameGps}</username>
+<password>${settings.passwordGps}</password>
 </acceso>
 <solicitud>
 <tipo>1</tipo>
 <procesoid>60</procesoid>
 </solicitud>
 <variables>
-<numidgps>9999999999</numidgps>
+<numidgps>${settings.companyNit}</numidgps>
 <ingresoidmanifiesto>${row.INGRESOID}</ingresoidmanifiesto>
 <numplaca>${row.PLACA}</numplaca>
 <codpuntocontrol>${row.CODPUNTOCONTROL}</codpuntocontrol>
