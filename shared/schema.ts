@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,3 +16,54 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const rndcSubmissions = pgTable("rndc_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchId: varchar("batch_id").notNull(),
+  ingresoidmanifiesto: varchar("ingresoidmanifiesto").notNull(),
+  numidgps: varchar("numidgps").notNull(),
+  numplaca: varchar("numplaca").notNull(),
+  codpuntocontrol: varchar("codpuntocontrol").notNull(),
+  latitud: varchar("latitud").notNull(),
+  longitud: varchar("longitud").notNull(),
+  fechallegada: varchar("fechallegada").notNull(),
+  horallegada: varchar("horallegada").notNull(),
+  fechasalida: varchar("fechasalida").notNull(),
+  horasalida: varchar("horasalida").notNull(),
+  xmlRequest: text("xml_request").notNull(),
+  xmlResponse: text("xml_response"),
+  status: varchar("status").notNull().default("pending"),
+  responseCode: varchar("response_code"),
+  responseMessage: text("response_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertRndcSubmissionSchema = createInsertSchema(rndcSubmissions).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+});
+
+export type InsertRndcSubmission = z.infer<typeof insertRndcSubmissionSchema>;
+export type RndcSubmission = typeof rndcSubmissions.$inferSelect;
+
+export const rndcBatches = pgTable("rndc_batches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  totalRecords: integer("total_records").notNull(),
+  successCount: integer("success_count").default(0),
+  errorCount: integer("error_count").default(0),
+  pendingCount: integer("pending_count").notNull(),
+  status: varchar("status").notNull().default("processing"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertRndcBatchSchema = createInsertSchema(rndcBatches).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export type InsertRndcBatch = z.infer<typeof insertRndcBatchSchema>;
+export type RndcBatch = typeof rndcBatches.$inferSelect;

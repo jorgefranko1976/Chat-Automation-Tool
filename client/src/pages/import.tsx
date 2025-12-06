@@ -1,10 +1,14 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { XmlViewer } from "@/components/xml-viewer";
-import { Upload, FileSpreadsheet, ArrowRight, CheckCircle, FileCode } from "lucide-react";
+import { Upload, FileSpreadsheet, ArrowRight, CheckCircle, FileCode, History, Loader2, RefreshCw, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { useSettings } from "@/hooks/use-settings";
@@ -22,11 +26,76 @@ interface ExcelRow {
   NUMIDGPS: string;
 }
 
+interface GeneratedSubmission {
+  ingresoidmanifiesto: string;
+  numidgps: string;
+  numplaca: string;
+  codpuntocontrol: string;
+  latitud: string;
+  longitud: string;
+  fechallegada: string;
+  horallegada: string;
+  fechasalida: string;
+  horasalida: string;
+  xmlRequest: string;
+}
+
+interface RndcSubmission {
+  id: string;
+  batchId: string;
+  ingresoidmanifiesto: string;
+  numidgps: string;
+  numplaca: string;
+  status: string;
+  responseCode: string | null;
+  responseMessage: string | null;
+  xmlRequest: string;
+  xmlResponse: string | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+
+interface RndcBatch {
+  id: string;
+  totalRecords: number;
+  successCount: number;
+  errorCount: number;
+  pendingCount: number;
+  status: string;
+  createdAt: string;
+}
+
 export default function Import() {
   const { settings } = useSettings();
   const [data, setData] = useState<ExcelRow[]>([]);
-  const [generatedXmls, setGeneratedXmls] = useState<string[]>([]);
+  const [generatedSubmissions, setGeneratedSubmissions] = useState<GeneratedSubmission[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [batches, setBatches] = useState<RndcBatch[]>([]);
+  const [submissions, setSubmissions] = useState<RndcSubmission[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<RndcSubmission | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const [batchRes, subRes] = await Promise.all([
+        fetch("/api/rndc/batches"),
+        fetch("/api/rndc/submissions?limit=50"),
+      ]);
+      const batchData = await batchRes.json();
+      const subData = await subRes.json();
+      if (batchData.success) setBatches(batchData.batches);
+      if (subData.success) setSubmissions(subData.submissions);
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo cargar el historial", variant: "destructive" });
+    }
+    setLoadingHistory(false);
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -40,6 +109,7 @@ export default function Import() {
       const ws = wb.Sheets[wsname];
       const jsonData = XLSX.utils.sheet_to_json(ws) as ExcelRow[];
       setData(jsonData);
+      setGeneratedSubmissions([]);
       toast({
         title: "Archivo Procesado",
         description: `Se han cargado ${jsonData.length} registros exitosamente.`,
@@ -48,113 +118,48 @@ export default function Import() {
     reader.readAsBinaryString(file);
   };
 
-  const addRandomMinutes = (dateStr: string, timeStr: string) => {
-    // Excel often imports time as a decimal (fraction of a day) or date string.
-    // If we get raw strings from CSV/Excel like "5/12/2025" and "17:00"
-    
-    let dateObj = new Date();
-    
-    // Handle potential Excel serial dates or string formats
-    if (dateStr) {
-      if (typeof dateStr === 'number') {
-        // Excel serial date
-        dateObj = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
-      } else if (typeof dateStr === 'string') {
-         // Try parsing MM/DD/YYYY or DD/MM/YYYY
-         // Given the screenshot shows 5/12/2025, likely M/D/Y or D/M/Y depending on locale.
-         // Let's assume DD/MM/YYYY based on previous context or try standard Date parse
-         const parts = dateStr.split(/[-/]/);
-         if (parts.length === 3) {
-            // Assuming M/D/Y or D/M/Y. 
-            // Let's try to be safe, assuming standard JS Date parsing works for valid strings
-             const d = new Date(dateStr);
-             if (!isNaN(d.getTime())) {
-                 dateObj = d;
-             } else {
-                // Fallback manual parse for DD/MM/YYYY
-                dateObj = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
-             }
-         }
-      }
-    }
-
-    if (timeStr) {
-      if (typeof timeStr === 'number') {
-          // Time as fraction of day
-          const totalSeconds = Math.floor(timeStr * 86400);
-          const hours = Math.floor(totalSeconds / 3600);
-          const minutes = Math.floor((totalSeconds % 3600) / 60);
-          dateObj.setHours(hours, minutes);
-      } else if (typeof timeStr === 'string') {
-         const timeParts = timeStr.split(':');
-         if (timeParts.length >= 2) {
-             dateObj.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]));
-         }
-      }
-    }
-
-    // Add random minutes between 10 and 50
-    const randomMinutes = Math.floor(Math.random() * (50 - 10 + 1)) + 10;
-    dateObj.setMinutes(dateObj.getMinutes() + randomMinutes);
-
-    // Format back to string DD/MM/YYYY and HH:MM
-    const dd = String(dateObj.getDate()).padStart(2, '0');
-    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const yyyy = dateObj.getFullYear();
-    const hh = String(dateObj.getHours()).padStart(2, '0');
-    const min = String(dateObj.getMinutes()).padStart(2, '0');
-
-    return { date: `${dd}/${mm}/${yyyy}`, time: `${hh}:${min}` };
-  };
-
-  const getShiftedTime = (dStr: any, tStr: any, minAdd: number, maxAdd: number) => {
+  const getShiftedTime = (dStr: any, tStr: any, minAdd: number) => {
     let d = new Date();
-    // Parsing Date
     if (typeof dStr === 'number') {
-        d = new Date(Math.round((dStr - 25569) * 86400 * 1000));
+      d = new Date(Math.round((dStr - 25569) * 86400 * 1000));
     } else if (typeof dStr === 'string') {
-        const parts = dStr.split(/[-/]/);
-        if (parts.length === 3) {
-             // Attempt standard parse first
-             const std = new Date(dStr);
-             if (!isNaN(std.getTime())) d = std;
-             else d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
-        }
+      const parts = dStr.split(/[-/]/);
+      if (parts.length === 3) {
+        const std = new Date(dStr);
+        if (!isNaN(std.getTime())) d = std;
+        else d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      }
     }
-    
-    // Parsing Time
+
     if (typeof tStr === 'number') {
-        const totalSeconds = Math.floor(tStr * 86400);
-        d.setHours(Math.floor(totalSeconds / 3600), Math.floor((totalSeconds % 3600) / 60));
+      const totalSeconds = Math.floor(tStr * 86400);
+      d.setHours(Math.floor(totalSeconds / 3600), Math.floor((totalSeconds % 3600) / 60));
     } else if (typeof tStr === 'string') {
-        const parts = tStr.split(':');
-        if (parts.length >= 2) d.setHours(parseInt(parts[0]), parseInt(parts[1]));
+      const parts = tStr.split(':');
+      if (parts.length >= 2) d.setHours(parseInt(parts[0]), parseInt(parts[1]));
     }
-    
-    const rand = Math.floor(Math.random() * (maxAdd - minAdd + 1)) + minAdd;
-    d.setMinutes(d.getMinutes() + rand);
-    
+
+    d.setMinutes(d.getMinutes() + minAdd);
+
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yyyy = d.getFullYear();
     const hh = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
-    
-    return { d: `${dd}/${mm}/${yyyy}`, t: `${hh}:${min}`, raw: d };
+
+    return { d: `${dd}/${mm}/${yyyy}`, t: `${hh}:${min}` };
   };
 
   const handleGenerateXml = () => {
-    const xmls = data.map(row => {
-      // Arrival: FECHACITA/HORACITA + Random(60, 90) minutes
+    const subs = data.map(row => {
       const arrOffset = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
-      const arrivalTime = getShiftedTime(row.FECHACITA, row.HORACITA, arrOffset, arrOffset);
-      
-      // Departure: Arrival + Random(90, 140) minutes (1h30m to 2h20m after arrival)
       const stayDuration = Math.floor(Math.random() * (140 - 90 + 1)) + 90;
       const totalDepOffset = arrOffset + stayDuration;
-      const departureTime = getShiftedTime(row.FECHACITA, row.HORACITA, totalDepOffset, totalDepOffset);
 
-      return `<?xml version='1.0' encoding='iso-8859-1' ?>
+      const arrivalTime = getShiftedTime(row.FECHACITA, row.HORACITA, arrOffset);
+      const departureTime = getShiftedTime(row.FECHACITA, row.HORACITA, totalDepOffset);
+
+      const xmlRequest = `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
 <acceso>
 <username>${settings.usernameGps}</username>
@@ -177,29 +182,75 @@ export default function Import() {
 <horasalida>${departureTime.t}</horasalida>
 </variables>
 </root>`;
+
+      return {
+        ingresoidmanifiesto: String(row.INGRESOIDMANIFIESTO),
+        numidgps: String(row.NUMIDGPS),
+        numplaca: String(row.PLACA),
+        codpuntocontrol: String(row.CODPUNTOCONTROL),
+        latitud: String(row.LATITUD),
+        longitud: String(row.LONGITUD),
+        fechallegada: arrivalTime.d,
+        horallegada: arrivalTime.t,
+        fechasalida: departureTime.d,
+        horasalida: departureTime.t,
+        xmlRequest,
+      };
     });
-    setGeneratedXmls(xmls);
+
+    setGeneratedSubmissions(subs);
     toast({
       title: "XMLs Generados",
-      description: "Revise la vista previa antes de enviar.",
+      description: `${subs.length} XMLs listos para enviar.`,
     });
   };
 
-  const handleSendAll = () => {
-    toast({
-      title: "Enviando al RNDC",
-      description: `Iniciando transmisión de ${generatedXmls.length} reportes...`,
-    });
-    // Simulate process
-    setTimeout(() => {
-      toast({
-        title: "Transmisión Completada",
-        description: "Todos los reportes han sido aceptados.",
-        className: "bg-green-50 border-green-200 text-green-800",
+  const handleSendAll = async () => {
+    if (generatedSubmissions.length === 0) return;
+
+    setIsSending(true);
+    try {
+      const response = await fetch("/api/rndc/submit-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissions: generatedSubmissions }),
       });
-      setGeneratedXmls([]);
-      setData([]);
-    }, 2000);
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Lote Enviado",
+          description: result.message,
+          className: "bg-green-50 border-green-200 text-green-800",
+        });
+        setGeneratedSubmissions([]);
+        setData([]);
+        fetchHistory();
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error de conexión al servidor", variant: "destructive" });
+    }
+    setIsSending(false);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "success":
+        return <Badge className="bg-green-100 text-green-800" data-testid="badge-success">Exitoso</Badge>;
+      case "error":
+        return <Badge variant="destructive" data-testid="badge-error">Error</Badge>;
+      case "processing":
+        return <Badge className="bg-blue-100 text-blue-800" data-testid="badge-processing">Procesando</Badge>;
+      case "pending":
+        return <Badge variant="secondary" data-testid="badge-pending">Pendiente</Badge>;
+      case "completed":
+        return <Badge className="bg-green-100 text-green-800" data-testid="badge-completed">Completado</Badge>;
+      default:
+        return <Badge variant="outline" data-testid="badge-unknown">{status}</Badge>;
+    }
   };
 
   return (
@@ -207,96 +258,238 @@ export default function Import() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold tracking-tight">Importación Masiva</h1>
-          <p className="text-muted-foreground">Cargue archivos Excel para generar reportes masivos (Cumplir Tiempos).</p>
+          <p className="text-muted-foreground">Cargue archivos Excel, genere XMLs y envíe al RNDC.</p>
         </div>
 
-        <Card className="border-dashed border-2">
-          <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
-            <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-              <FileSpreadsheet className="h-8 w-8" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-lg font-semibold">Arrastre su archivo Excel aquí</h3>
-              <p className="text-sm text-muted-foreground">O haga clic para seleccionar</p>
-            </div>
-            <input 
-              type="file" 
-              accept=".xlsx, .xls" 
-              className="hidden" 
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-            />
-            <Button onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" /> Seleccionar Archivo
-            </Button>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="upload" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="upload" data-testid="tab-upload">
+              <Upload className="mr-2 h-4 w-4" /> Nuevo Envío
+            </TabsTrigger>
+            <TabsTrigger value="history" data-testid="tab-history" onClick={fetchHistory}>
+              <History className="mr-2 h-4 w-4" /> Historial
+            </TabsTrigger>
+          </TabsList>
 
-        {data.length > 0 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+          <TabsContent value="upload" className="space-y-6">
+            <Card className="border-dashed border-2">
+              <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
+                <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                  <FileSpreadsheet className="h-8 w-8" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold">Arrastre su archivo Excel aquí</h3>
+                  <p className="text-sm text-muted-foreground">O haga clic para seleccionar</p>
+                </div>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  data-testid="input-file"
+                />
+                <Button onClick={() => fileInputRef.current?.click()} data-testid="button-select-file">
+                  <Upload className="mr-2 h-4 w-4" /> Seleccionar Archivo
+                </Button>
+              </CardContent>
+            </Card>
+
+            {data.length > 0 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Vista Previa de Datos</CardTitle>
+                      <CardDescription>{data.length} registros encontrados</CardDescription>
+                    </div>
+                    <Button onClick={handleGenerateXml} disabled={generatedSubmissions.length > 0} data-testid="button-generate-xml">
+                      Generar XMLs <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-[300px] overflow-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>NumID GPS</TableHead>
+                            <TableHead>Manifiesto</TableHead>
+                            <TableHead>Placa</TableHead>
+                            <TableHead>Punto Control</TableHead>
+                            <TableHead>Cita</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {data.slice(0, 10).map((row, i) => (
+                            <TableRow key={i} data-testid={`row-data-${i}`}>
+                              <TableCell className="font-mono">{row.NUMIDGPS}</TableCell>
+                              <TableCell className="font-mono">{row.INGRESOIDMANIFIESTO}</TableCell>
+                              <TableCell>{row.PLACA}</TableCell>
+                              <TableCell>{row.CODPUNTOCONTROL}</TableCell>
+                              <TableCell>{row.FECHACITA} {row.HORACITA}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {data.length > 10 && (
+                      <p className="text-xs text-muted-foreground mt-2 text-center">Mostrando primeros 10 registros...</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {generatedSubmissions.length > 0 && (
+                  <div className="grid gap-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <FileCode className="h-5 w-5" /> XMLs Generados ({generatedSubmissions.length})
+                      </h3>
+                      <Button
+                        onClick={handleSendAll}
+                        className="bg-green-600 hover:bg-green-700"
+                        disabled={isSending}
+                        data-testid="button-send-all"
+                      >
+                        {isSending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...
+                          </>
+                        ) : (
+                          <>
+                            Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <XmlViewer xml={generatedSubmissions[0]?.xmlRequest || ""} title="Ejemplo Registro #1" />
+                      {generatedSubmissions.length > 1 && (
+                        <XmlViewer xml={generatedSubmissions[1]?.xmlRequest || ""} title="Ejemplo Registro #2" />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Vista Previa de Datos</CardTitle>
-                  <CardDescription>{data.length} registros encontrados</CardDescription>
+                  <CardTitle>Lotes Enviados</CardTitle>
+                  <CardDescription>Historial de envíos masivos al RNDC</CardDescription>
                 </div>
-                <Button onClick={handleGenerateXml} disabled={generatedXmls.length > 0}>
-                  Generar XMLs <ArrowRight className="ml-2 h-4 w-4" />
+                <Button variant="outline" size="sm" onClick={fetchHistory} disabled={loadingHistory} data-testid="button-refresh">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loadingHistory ? 'animate-spin' : ''}`} />
+                  Actualizar
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="max-h-[300px] overflow-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>NumID GPS</TableHead>
-                        <TableHead>Ingreso ID Manifest</TableHead>
-                        <TableHead>Placa</TableHead>
-                        <TableHead>Punto Control</TableHead>
-                        <TableHead>Cita</TableHead>
-                        <TableHead>Coords</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.slice(0, 10).map((row, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-mono">{row.NUMIDGPS}</TableCell>
-                          <TableCell className="font-mono">{row.INGRESOIDMANIFIESTO}</TableCell>
-                          <TableCell>{row.PLACA}</TableCell>
-                          <TableCell>{row.CODPUNTOCONTROL}</TableCell>
-                          <TableCell>{row.FECHACITA} {row.HORACITA}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{row.LATITUD}, {row.LONGITUD}</TableCell>
+                {batches.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No hay lotes enviados aún</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>Exitosos</TableHead>
+                          <TableHead>Errores</TableHead>
+                          <TableHead>Estado</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                {data.length > 10 && (
-                  <p className="text-xs text-muted-foreground mt-2 text-center">Mostrando primeros 10 registros...</p>
+                      </TableHeader>
+                      <TableBody>
+                        {batches.map((batch) => (
+                          <TableRow key={batch.id} data-testid={`row-batch-${batch.id}`}>
+                            <TableCell>{new Date(batch.createdAt).toLocaleString('es-CO')}</TableCell>
+                            <TableCell>{batch.totalRecords}</TableCell>
+                            <TableCell className="text-green-600">{batch.successCount}</TableCell>
+                            <TableCell className="text-red-600">{batch.errorCount}</TableCell>
+                            <TableCell>{getStatusBadge(batch.status)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            {generatedXmls.length > 0 && (
-              <div className="grid gap-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <FileCode className="h-5 w-5" /> XMLs Generados
-                  </h3>
-                  <Button onClick={handleSendAll} className="bg-green-600 hover:bg-green-700">
-                    Enviar {generatedXmls.length} Reportes al RNDC <CheckCircle className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <XmlViewer xml={generatedXmls[0]} title="Ejemplo Registro #1" />
-                  {generatedXmls.length > 1 && (
-                    <XmlViewer xml={generatedXmls[1]} title="Ejemplo Registro #2" />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+            <Card>
+              <CardHeader>
+                <CardTitle>Detalle de Envíos</CardTitle>
+                <CardDescription>Últimos 50 registros enviados</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {submissions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No hay envíos registrados</p>
+                ) : (
+                  <div className="rounded-md border max-h-[400px] overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Manifiesto</TableHead>
+                          <TableHead>Placa</TableHead>
+                          <TableHead>NumID GPS</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Respuesta</TableHead>
+                          <TableHead>Ver</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {submissions.map((sub) => (
+                          <TableRow key={sub.id} data-testid={`row-submission-${sub.id}`}>
+                            <TableCell className="font-mono">{sub.ingresoidmanifiesto}</TableCell>
+                            <TableCell>{sub.numplaca}</TableCell>
+                            <TableCell className="font-mono text-xs">{sub.numidgps}</TableCell>
+                            <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-xs">
+                              {sub.responseMessage || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" onClick={() => setSelectedSubmission(sub)} data-testid={`button-view-${sub.id}`}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[80vh]">
+                                  <DialogHeader>
+                                    <DialogTitle>Detalle del Envío - {sub.ingresoidmanifiesto}</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <div>
+                                      <h4 className="font-semibold mb-2">XML Enviado</h4>
+                                      <ScrollArea className="h-[300px] rounded-md border p-2 bg-slate-50">
+                                        <pre className="text-xs whitespace-pre-wrap">{sub.xmlRequest}</pre>
+                                      </ScrollArea>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold mb-2">Respuesta RNDC</h4>
+                                      <ScrollArea className="h-[300px] rounded-md border p-2 bg-slate-50">
+                                        <pre className="text-xs whitespace-pre-wrap">{sub.xmlResponse || "Sin respuesta aún"}</pre>
+                                      </ScrollArea>
+                                    </div>
+                                  </div>
+                                  <div className="mt-4 flex gap-4 text-sm">
+                                    <div><strong>Código:</strong> {sub.responseCode || "-"}</div>
+                                    <div><strong>Mensaje:</strong> {sub.responseMessage || "-"}</div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
