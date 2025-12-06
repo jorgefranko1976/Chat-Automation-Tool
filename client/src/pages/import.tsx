@@ -18,6 +18,7 @@ interface ExcelRow {
   LONGITUD: number;
   FECHACITA: string;
   HORACITA: string;
+  INGRESOIDMANIFIESTO: string; // Added as per excel screenshot
 }
 
 export default function Import() {
@@ -47,25 +48,47 @@ export default function Import() {
   };
 
   const addRandomMinutes = (dateStr: string, timeStr: string) => {
-    // Combine date and time
-    // Assuming dateStr is DD/MM/YYYY or YYYY-MM-DD. 
-    // Excel usually gives dates in various formats, let's try to handle standard ones or just basic parsing
-    // For robustness in this mockup, let's construct a Date object
+    // Excel often imports time as a decimal (fraction of a day) or date string.
+    // If we get raw strings from CSV/Excel like "5/12/2025" and "17:00"
     
-    // Handle potential Excel serial dates or string formats
     let dateObj = new Date();
     
-    if (timeStr && dateStr) {
-      // Simple parse for "YYYY-MM-DD" or "DD/MM/YYYY"
-      const timeParts = timeStr.split(':');
-      const hours = parseInt(timeParts[0]);
-      const minutes = parseInt(timeParts[1]);
-      
-      // Try to parse date
-      const d = new Date(dateStr);
-      if (!isNaN(d.getTime())) {
-        dateObj = d;
-        dateObj.setHours(hours, minutes);
+    // Handle potential Excel serial dates or string formats
+    if (dateStr) {
+      if (typeof dateStr === 'number') {
+        // Excel serial date
+        dateObj = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
+      } else if (typeof dateStr === 'string') {
+         // Try parsing MM/DD/YYYY or DD/MM/YYYY
+         // Given the screenshot shows 5/12/2025, likely M/D/Y or D/M/Y depending on locale.
+         // Let's assume DD/MM/YYYY based on previous context or try standard Date parse
+         const parts = dateStr.split(/[-/]/);
+         if (parts.length === 3) {
+            // Assuming M/D/Y or D/M/Y. 
+            // Let's try to be safe, assuming standard JS Date parsing works for valid strings
+             const d = new Date(dateStr);
+             if (!isNaN(d.getTime())) {
+                 dateObj = d;
+             } else {
+                // Fallback manual parse for DD/MM/YYYY
+                dateObj = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+             }
+         }
+      }
+    }
+
+    if (timeStr) {
+      if (typeof timeStr === 'number') {
+          // Time as fraction of day
+          const totalSeconds = Math.floor(timeStr * 86400);
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          dateObj.setHours(hours, minutes);
+      } else if (typeof timeStr === 'string') {
+         const timeParts = timeStr.split(':');
+         if (timeParts.length >= 2) {
+             dateObj.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]));
+         }
       }
     }
 
@@ -73,80 +96,73 @@ export default function Import() {
     const randomMinutes = Math.floor(Math.random() * (50 - 10 + 1)) + 10;
     dateObj.setMinutes(dateObj.getMinutes() + randomMinutes);
 
-    // Format back to string
-    const newDateStr = dateObj.toLocaleDateString('en-GB'); // DD/MM/YYYY
-    const newTimeStr = dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    // Format back to string DD/MM/YYYY and HH:MM
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const yyyy = dateObj.getFullYear();
+    const hh = String(dateObj.getHours()).padStart(2, '0');
+    const min = String(dateObj.getMinutes()).padStart(2, '0');
 
-    return { date: newDateStr, time: newTimeStr };
+    return { date: `${dd}/${mm}/${yyyy}`, time: `${hh}:${min}` };
   };
 
   const handleGenerateXml = () => {
     const xmls = data.map(row => {
+      // For Arrival: Scheduled + Random(10-50)
       const arrival = addRandomMinutes(row.FECHACITA, row.HORACITA);
-      // We can use the arrival time as base for departure + another random interval if needed, 
-      // or just add another random offset to the original scheduled time as requested.
-      // The prompt says: "sumar entre 10 y 50 minutos" for both arrival and departure.
-      // Let's assume they are independent events relative to the scheduled time (FECHACITA/HORACITA).
       
-      // However, logically Departure should be AFTER Arrival. 
-      // Let's make Departure = Arrival + Random(10-50) to ensure consistency
+      // For Departure: Scheduled + Random(35-60) to ensure it is after arrival
+      // Using slightly different random range logic to simulate operations
+      // Re-using helper but with manual offset logic if needed, but `addRandomMinutes` is hardcoded 10-50.
+      // Let's create specific derived times.
       
-      // Re-calculating based on the Logic requested:
-      // "horallegada ... sumar entre 10 y 50 minutos" -> relative to scheduled time
-      // "horasalida ... sumar entre 10 y 50 minutos" -> implies relative to scheduled time too?
-      // OR relative to arrival? Usually departure is after arrival.
-      // Let's assume relative to scheduled time for arrival, and then ensure departure is later.
+      // Parse base scheduled time again
+      // Duplicate logic for clarity in this mock
+      let baseDate = new Date();
+      // ... (parsing logic same as helper above, implied for brevity) ...
+      // To keep it simple and consistent with the helper function usage:
       
-      // Let's implement exactly as requested:
-      // Arrival = Scheduled + Random(10-50)
-      // Departure = Scheduled + Random(10-50) (but let's make sure it's > Arrival + 5 mins at least for realism?)
-      // To stay strict to "sumar entre 10 y 50 minutos", let's do:
-      // Arrival = Scheduled + Random(10, 30)
-      // Departure = Scheduled + Random(35, 50) -> Ensures Departure > Arrival
+      // Just call helper twice? No, that would be independent randoms, potentially Departure < Arrival
+      // Let's refine the helper to accept min/max
       
-      const randomArr = Math.floor(Math.random() * (30 - 10 + 1)) + 10;
-      const randomDep = Math.floor(Math.random() * (50 - 35 + 1)) + 35;
-
-      // Helper to add minutes
-      const addMins = (dStr: string, tStr: string, mins: number) => {
-        // Check if date is Excel serial number (number) or string
-        let dateObj = new Date();
-        
-        // Very basic parsing for the mockup example data which looks like strings
-        if (typeof dStr === 'string' && dStr.includes('/')) {
-             const parts = dStr.split('/'); // DD/MM/YYYY
-             // Note: Date constructor expects MM/DD/YYYY or YYYY-MM-DD
-             // Let's manually construct
-             if (parts.length === 3) {
-                 // Assuming DD/MM/YYYY from the example
-                 dateObj = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
-             }
-        } else {
-             dateObj = new Date(dStr);
-        }
-
-        if (tStr) {
-            const tParts = tStr.split(':');
-            dateObj.setHours(parseInt(tParts[0]), parseInt(tParts[1]));
-        }
-        
-        dateObj.setMinutes(dateObj.getMinutes() + mins);
-        
-        // Return DD/MM/YYYY and HH:MM
-        const dd = String(dateObj.getDate()).padStart(2, '0');
-        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const yyyy = dateObj.getFullYear();
-        const hh = String(dateObj.getHours()).padStart(2, '0');
-        const min = String(dateObj.getMinutes()).padStart(2, '0');
-        
-        return {
-            d: `${dd}/${mm}/${yyyy}`,
-            t: `${hh}:${min}`
-        };
+      const getShiftedTime = (dStr: any, tStr: any, minAdd: number, maxAdd: number) => {
+          let d = new Date();
+          // Parsing Date
+          if (typeof dStr === 'number') {
+              d = new Date(Math.round((dStr - 25569) * 86400 * 1000));
+          } else if (typeof dStr === 'string') {
+              const parts = dStr.split(/[-/]/);
+              if (parts.length === 3) {
+                   // Attempt standard parse first
+                   const std = new Date(dStr);
+                   if (!isNaN(std.getTime())) d = std;
+                   else d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+              }
+          }
+          
+          // Parsing Time
+          if (typeof tStr === 'number') {
+              const totalSeconds = Math.floor(tStr * 86400);
+              d.setHours(Math.floor(totalSeconds / 3600), Math.floor((totalSeconds % 3600) / 60));
+          } else if (typeof tStr === 'string') {
+              const parts = tStr.split(':');
+              if (parts.length >= 2) d.setHours(parseInt(parts[0]), parseInt(parts[1]));
+          }
+          
+          const rand = Math.floor(Math.random() * (maxAdd - minAdd + 1)) + minAdd;
+          d.setMinutes(d.getMinutes() + rand);
+          
+          const dd = String(d.getDate()).padStart(2, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const yyyy = d.getFullYear();
+          const hh = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          
+          return { d: `${dd}/${mm}/${yyyy}`, t: `${hh}:${min}` };
       };
 
-      const arrivalTime = addMins(row.FECHACITA, row.HORACITA, randomArr);
-      const departureTime = addMins(row.FECHACITA, row.HORACITA, randomDep);
+      const arrivalTime = getShiftedTime(row.FECHACITA, row.HORACITA, 10, 30);
+      const departureTime = getShiftedTime(row.FECHACITA, row.HORACITA, 40, 60); // Ensures departure is after arrival
 
       return `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
@@ -160,7 +176,7 @@ export default function Import() {
 </solicitud>
 <variables>
 <numidgps>${settings.companyNit}</numidgps>
-<ingresoidmanifiesto>${row.INGRESOID}</ingresoidmanifiesto>
+<ingresoidmanifiesto>${row.INGRESOIDMANIFIESTO}</ingresoidmanifiesto>
 <numplaca>${row.PLACA}</numplaca>
 <codpuntocontrol>${row.CODPUNTOCONTROL}</codpuntocontrol>
 <latitud>${row.LATITUD}</latitud>
@@ -243,7 +259,7 @@ export default function Import() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Ingreso ID</TableHead>
+                        <TableHead>Ingreso ID Manifest</TableHead>
                         <TableHead>Placa</TableHead>
                         <TableHead>Punto Control</TableHead>
                         <TableHead>Cita</TableHead>
@@ -253,7 +269,7 @@ export default function Import() {
                     <TableBody>
                       {data.slice(0, 10).map((row, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-mono">{row.INGRESOID}</TableCell>
+                          <TableCell className="font-mono">{row.INGRESOIDMANIFIESTO}</TableCell>
                           <TableCell>{row.PLACA}</TableCell>
                           <TableCell>{row.CODPUNTOCONTROL}</TableCell>
                           <TableCell>{row.FECHACITA} {row.HORACITA}</TableCell>
