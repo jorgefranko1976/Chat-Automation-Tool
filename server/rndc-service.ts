@@ -16,6 +16,8 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
     wsUrl = wsUrl.replace(/\/?$/, "/soap/IBPMServices");
   }
   
+  const cleanedXml = xmlRequest.replace(/<\?xml[^?]*\?>\s*/gi, '').trim();
+  
   try {
     const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
@@ -25,7 +27,7 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
                xmlns:tns="urn:BPMServicesIntf-IBPMServices">
   <soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
     <tns:AtenderMensajeRNDC>
-      <Request xsi:type="xsd:string"><![CDATA[${xmlRequest}]]></Request>
+      <Request xsi:type="xsd:string">${cleanedXml}</Request>
     </tns:AtenderMensajeRNDC>
   </soap:Body>
 </soap:Envelope>`;
