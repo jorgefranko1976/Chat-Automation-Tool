@@ -126,43 +126,55 @@ export default function Import() {
       // Let's refine the helper to accept min/max
       
       const getShiftedTime = (dStr: any, tStr: any, minAdd: number, maxAdd: number) => {
-          let d = new Date();
-          // Parsing Date
-          if (typeof dStr === 'number') {
-              d = new Date(Math.round((dStr - 25569) * 86400 * 1000));
-          } else if (typeof dStr === 'string') {
-              const parts = dStr.split(/[-/]/);
-              if (parts.length === 3) {
-                   // Attempt standard parse first
-                   const std = new Date(dStr);
-                   if (!isNaN(std.getTime())) d = std;
-                   else d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
-              }
-          }
-          
-          // Parsing Time
-          if (typeof tStr === 'number') {
-              const totalSeconds = Math.floor(tStr * 86400);
-              d.setHours(Math.floor(totalSeconds / 3600), Math.floor((totalSeconds % 3600) / 60));
-          } else if (typeof tStr === 'string') {
-              const parts = tStr.split(':');
-              if (parts.length >= 2) d.setHours(parseInt(parts[0]), parseInt(parts[1]));
-          }
-          
-          const rand = Math.floor(Math.random() * (maxAdd - minAdd + 1)) + minAdd;
-          d.setMinutes(d.getMinutes() + rand);
-          
-          const dd = String(d.getDate()).padStart(2, '0');
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const yyyy = d.getFullYear();
-          const hh = String(d.getHours()).padStart(2, '0');
-          const min = String(d.getMinutes()).padStart(2, '0');
-          
-          return { d: `${dd}/${mm}/${yyyy}`, t: `${hh}:${min}` };
-      };
+    let d = new Date();
+    // Parsing Date
+    if (typeof dStr === 'number') {
+        d = new Date(Math.round((dStr - 25569) * 86400 * 1000));
+    } else if (typeof dStr === 'string') {
+        const parts = dStr.split(/[-/]/);
+        if (parts.length === 3) {
+             // Attempt standard parse first
+             const std = new Date(dStr);
+             if (!isNaN(std.getTime())) d = std;
+             else d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+        }
+    }
+    
+    // Parsing Time
+    if (typeof tStr === 'number') {
+        const totalSeconds = Math.floor(tStr * 86400);
+        d.setHours(Math.floor(totalSeconds / 3600), Math.floor((totalSeconds % 3600) / 60));
+    } else if (typeof tStr === 'string') {
+        const parts = tStr.split(':');
+        if (parts.length >= 2) d.setHours(parseInt(parts[0]), parseInt(parts[1]));
+    }
+    
+    const rand = Math.floor(Math.random() * (maxAdd - minAdd + 1)) + minAdd;
+    d.setMinutes(d.getMinutes() + rand);
+    
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    
+    return { d: `${dd}/${mm}/${yyyy}`, t: `${hh}:${min}`, raw: d };
+  };
 
-      const arrivalTime = getShiftedTime(row.FECHACITA, row.HORACITA, 10, 30);
-      const departureTime = getShiftedTime(row.FECHACITA, row.HORACITA, 40, 60); // Ensures departure is after arrival
+  const handleGenerateXml = () => {
+    const xmls = data.map(row => {
+      // Logic: Both Arrival and Departure should be Scheduled + Random(60, 90)
+      // BUT Departure must be >= Arrival.
+      // So we generate two randoms in that range and sort them.
+      
+      const r1 = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
+      const r2 = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
+      
+      const arrOffset = Math.min(r1, r2);
+      const depOffset = Math.max(r1, r2) === arrOffset ? arrOffset + 5 : Math.max(r1, r2); // Ensure at least 5 min diff if equal
+
+      const arrivalTime = getShiftedTime(row.FECHACITA, row.HORACITA, arrOffset, arrOffset);
+      const departureTime = getShiftedTime(row.FECHACITA, row.HORACITA, depOffset, depOffset);
 
       return `<?xml version='1.0' encoding='iso-8859-1' ?>
 <root>
