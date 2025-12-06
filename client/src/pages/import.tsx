@@ -18,7 +18,8 @@ interface ExcelRow {
   LONGITUD: number;
   FECHACITA: string;
   HORACITA: string;
-  INGRESOIDMANIFIESTO: string; // Added as per excel screenshot
+  INGRESOIDMANIFIESTO: string;
+  NUMIDGPS: string;
 }
 
 export default function Import() {
@@ -168,7 +169,7 @@ export default function Import() {
 <procesoid>60</procesoid>
 </solicitud>
 <variables>
-<numidgps>${settings.companyNit}</numidgps>
+<numidgps>${row.NUMIDGPS}</numidgps>
 <ingresoidmanifiesto>${row.INGRESOIDMANIFIESTO}</ingresoidmanifiesto>
 <numplaca>${row.PLACA}</numplaca>
 <codpuntocontrol>${row.CODPUNTOCONTROL}</codpuntocontrol>
@@ -252,6 +253,7 @@ export default function Import() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>NumID GPS</TableHead>
                         <TableHead>Ingreso ID Manifest</TableHead>
                         <TableHead>Placa</TableHead>
                         <TableHead>Punto Control</TableHead>
@@ -262,6 +264,7 @@ export default function Import() {
                     <TableBody>
                       {data.slice(0, 10).map((row, i) => (
                         <TableRow key={i}>
+                          <TableCell className="font-mono">{row.NUMIDGPS}</TableCell>
                           <TableCell className="font-mono">{row.INGRESOIDMANIFIESTO}</TableCell>
                           <TableCell>{row.PLACA}</TableCell>
                           <TableCell>{row.CODPUNTOCONTROL}</TableCell>
