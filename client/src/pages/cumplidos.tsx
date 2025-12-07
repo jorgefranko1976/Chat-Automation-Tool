@@ -219,8 +219,10 @@ export default function Cumplidos() {
   }, [manifiestoCurrentBatchId, isPollingManifiesto, fetchManifiestoBatchResults]);
 
   const excelDateToDate = (excelDate: number): Date => {
-    const parsed = XLSX.SSF.parse_date_code(excelDate);
-    return new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
+    const utcDays = Math.floor(excelDate) - 25569;
+    const utcValue = utcDays * 86400 * 1000;
+    const d = new Date(utcValue);
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   };
 
   const excelTimeToHoursMinutes = (excelTime: number): { hours: number; minutes: number } => {
@@ -294,10 +296,10 @@ export default function Cumplidos() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary", cellDates: true });
+      const wb = XLSX.read(bstr, { type: "binary" });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
-      const jsonData = XLSX.utils.sheet_to_json(ws, { raw: false, dateNF: 'dd/mm/yyyy' }) as CumplidoExcelRow[];
+      const jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
       setData(jsonData);
       setGeneratedSubmissions([]);
       toast({
@@ -509,10 +511,10 @@ export default function Cumplidos() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary", cellDates: true });
+      const wb = XLSX.read(bstr, { type: "binary" });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
-      const jsonData = XLSX.utils.sheet_to_json(ws, { raw: false, dateNF: 'dd/mm/yyyy' }) as CumplidoExcelRow[];
+      const jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
       setManifiestoData(jsonData);
       setManifiestoSubmissions([]);
       toast({
