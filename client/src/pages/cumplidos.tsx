@@ -121,6 +121,14 @@ export default function Cumplidos() {
   const [manifiestoPage, setManifiestoPage] = useState(1);
   const pageSize = 20;
 
+  // History states
+  const [historyRemesaBatches, setHistoryRemesaBatches] = useState<CumplidoBatch[]>([]);
+  const [historyManifiestoBatches, setHistoryManifiestoBatches] = useState<CumplidoBatch[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedHistoryBatchId, setSelectedHistoryBatchId] = useState<string | null>(null);
+  const [selectedHistorySubmissions, setSelectedHistorySubmissions] = useState<any[]>([]);
+  const [historyType, setHistoryType] = useState<"remesa" | "manifiesto">("remesa");
+
   const fetchBatchResults = useCallback(async (batchId: string) => {
     try {
       const [batchRes, subRes] = await Promise.all([
@@ -222,6 +230,41 @@ export default function Cumplidos() {
       clearInterval(intervalId);
     };
   }, [manifiestoCurrentBatchId, isPollingManifiesto, fetchManifiestoBatchResults]);
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const [remesaRes, manifiestoRes] = await Promise.all([
+        fetch("/api/rndc/cumplidos/history?type=cumplido_remesa"),
+        fetch("/api/rndc/cumplidos/history?type=cumplido_manifiesto"),
+      ]);
+      const remesaData = await remesaRes.json();
+      const manifiestoData = await manifiestoRes.json();
+      
+      if (remesaData.success) setHistoryRemesaBatches(remesaData.batches);
+      if (manifiestoData.success) setHistoryManifiestoBatches(manifiestoData.batches);
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo cargar el historial", variant: "destructive" });
+    }
+    setLoadingHistory(false);
+  };
+
+  const fetchHistoryBatchDetails = async (batchId: string, type: "remesa" | "manifiesto") => {
+    try {
+      const endpoint = type === "remesa" 
+        ? `/api/rndc/cumplido-remesa/${batchId}`
+        : `/api/rndc/cumplido-manifiesto/${batchId}`;
+      const response = await fetch(endpoint);
+      const data = await response.json();
+      if (data.success) {
+        setSelectedHistorySubmissions(data.submissions);
+        setSelectedHistoryBatchId(batchId);
+        setHistoryType(type);
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo cargar los detalles", variant: "destructive" });
+    }
+  };
 
   const excelDateToDate = (excelDate: number): Date => {
     const utcDays = Math.floor(excelDate) - 25569;
@@ -726,12 +769,15 @@ export default function Cumplidos() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="remesa" data-testid="tab-remesa">
               <FileCheck className="mr-2 h-4 w-4" /> Cumplir Remesa
             </TabsTrigger>
             <TabsTrigger value="manifiesto" data-testid="tab-manifiesto">
               <FileCode className="mr-2 h-4 w-4" /> Cumplir Manifiesto
+            </TabsTrigger>
+            <TabsTrigger value="historial" data-testid="tab-historial" onClick={fetchHistory}>
+              <History className="mr-2 h-4 w-4" /> Historial
             </TabsTrigger>
           </TabsList>
 
@@ -1198,6 +1244,183 @@ export default function Cumplidos() {
                             <TableCell>{getStatusBadge(result.status)}</TableCell>
                             <TableCell className="font-mono">{result.responseCode || "-"}</TableCell>
                             <TableCell className="max-w-[300px] truncate">{result.responseMessage || "-"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="historial" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Historial de Cumplidos</CardTitle>
+                  <CardDescription>Lotes de remesas y manifiestos enviados al RNDC</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchHistory} disabled={loadingHistory} data-testid="button-refresh-history">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loadingHistory ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Cumplidos Remesa</h3>
+                  {historyRemesaBatches.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No hay lotes de remesas enviados aún</p>
+                  ) : (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead>Exitosos</TableHead>
+                            <TableHead>Errores</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead>Ver</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {historyRemesaBatches.map((batch) => (
+                            <TableRow key={batch.id} data-testid={`row-history-remesa-${batch.id}`}>
+                              <TableCell>{new Date(batch.createdAt).toLocaleString('es-CO')}</TableCell>
+                              <TableCell>{batch.totalRecords}</TableCell>
+                              <TableCell className="text-green-600">{batch.successCount}</TableCell>
+                              <TableCell className="text-red-600">{batch.errorCount}</TableCell>
+                              <TableCell>{getStatusBadge(batch.status)}</TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => fetchHistoryBatchDetails(batch.id, "remesa")}
+                                  data-testid={`button-view-remesa-batch-${batch.id}`}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Cumplidos Manifiesto</h3>
+                  {historyManifiestoBatches.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No hay lotes de manifiestos enviados aún</p>
+                  ) : (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead>Exitosos</TableHead>
+                            <TableHead>Errores</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead>Ver</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {historyManifiestoBatches.map((batch) => (
+                            <TableRow key={batch.id} data-testid={`row-history-manifiesto-${batch.id}`}>
+                              <TableCell>{new Date(batch.createdAt).toLocaleString('es-CO')}</TableCell>
+                              <TableCell>{batch.totalRecords}</TableCell>
+                              <TableCell className="text-green-600">{batch.successCount}</TableCell>
+                              <TableCell className="text-red-600">{batch.errorCount}</TableCell>
+                              <TableCell>{getStatusBadge(batch.status)}</TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => fetchHistoryBatchDetails(batch.id, "manifiesto")}
+                                  data-testid={`button-view-manifiesto-batch-${batch.id}`}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {selectedHistoryBatchId && selectedHistorySubmissions.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Detalle del Lote</CardTitle>
+                    <CardDescription>
+                      {selectedHistorySubmissions.filter(s => s.status === "success").length} exitosos, {" "}
+                      {selectedHistorySubmissions.filter(s => s.status === "error").length} errores
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => { setSelectedHistoryBatchId(null); setSelectedHistorySubmissions([]); }}
+                    data-testid="button-close-history-details"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-h-[400px] overflow-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{historyType === "remesa" ? "Consecutivo" : "Manifiesto"}</TableHead>
+                          <TableHead>NIT Empresa</TableHead>
+                          <TableHead>Placa</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Mensaje</TableHead>
+                          <TableHead>XML</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedHistorySubmissions.map((sub, i) => (
+                          <TableRow key={i} data-testid={`row-history-detail-${i}`}>
+                            <TableCell className="font-mono">
+                              {historyType === "remesa" ? sub.consecutivoRemesa : sub.numManifiestoCarga}
+                            </TableCell>
+                            <TableCell className="font-mono">{sub.numNitEmpresa}</TableCell>
+                            <TableCell>{sub.numPlaca}</TableCell>
+                            <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                            <TableCell className="font-mono">{sub.responseCode || "-"}</TableCell>
+                            <TableCell className="max-w-[200px] truncate">{sub.responseMessage || "-"}</TableCell>
+                            <TableCell>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" data-testid={`button-view-history-xml-${i}`}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[80vh]">
+                                  <DialogHeader>
+                                    <DialogTitle>
+                                      XML {historyType === "remesa" ? `Remesa ${sub.consecutivoRemesa}` : `Manifiesto ${sub.numManifiestoCarga}`}
+                                    </DialogTitle>
+                                  </DialogHeader>
+                                  <ScrollArea className="h-[60vh]">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                      <XmlViewer xml={sub.xmlCumplidoRequest || ""} title="XML Enviado" />
+                                      <XmlViewer xml={sub.xmlResponse || ""} title="XML Respuesta" />
+                                    </div>
+                                  </ScrollArea>
+                                </DialogContent>
+                              </Dialog>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

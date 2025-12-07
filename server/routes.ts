@@ -206,6 +206,7 @@ export async function registerRoutes(
       const { submissions, wsUrl } = parsed;
 
       const batch = await storage.createRndcBatch({
+        type: "cumplido_remesa",
         totalRecords: submissions.length,
         successCount: 0,
         errorCount: 0,
@@ -263,6 +264,7 @@ export async function registerRoutes(
       const { submissions, wsUrl } = parsed;
 
       const batch = await storage.createRndcBatch({
+        type: "cumplido_manifiesto",
         totalRecords: submissions.length,
         successCount: 0,
         errorCount: 0,
@@ -305,6 +307,22 @@ export async function registerRoutes(
       res.json({ success: true, submissions });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener cumplidos manifiesto" });
+    }
+  });
+
+  app.get("/api/rndc/cumplidos/history", async (req, res) => {
+    try {
+      const type = req.query.type as string;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      if (!type || !["cumplido_remesa", "cumplido_manifiesto"].includes(type)) {
+        return res.status(400).json({ success: false, message: "Tipo inválido. Use cumplido_remesa o cumplido_manifiesto" });
+      }
+      
+      const batches = await storage.getRndcBatchesByType(type, limit);
+      res.json({ success: true, batches });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener historial de cumplidos" });
     }
   });
 

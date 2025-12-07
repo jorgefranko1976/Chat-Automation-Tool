@@ -44,6 +44,8 @@ export interface IStorage {
   getCumplidoManifiestoSubmission(id: string): Promise<CumplidoManifiestoSubmission | undefined>;
   updateCumplidoManifiestoSubmission(id: string, updates: Partial<CumplidoManifiestoSubmission>): Promise<CumplidoManifiestoSubmission | undefined>;
   getCumplidoManifiestoSubmissionsByBatch(batchId: string): Promise<CumplidoManifiestoSubmission[]>;
+  
+  getRndcBatchesByType(type: string, limit?: number): Promise<RndcBatch[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -144,6 +146,10 @@ export class DatabaseStorage implements IStorage {
 
   async getCumplidoManifiestoSubmissionsByBatch(batchId: string): Promise<CumplidoManifiestoSubmission[]> {
     return db.select().from(cumplidoManifiestoSubmissions).where(eq(cumplidoManifiestoSubmissions.batchId, batchId)).orderBy(desc(cumplidoManifiestoSubmissions.createdAt));
+  }
+
+  async getRndcBatchesByType(type: string, limit = 50): Promise<RndcBatch[]> {
+    return db.select().from(rndcBatches).where(eq(rndcBatches.type, type)).orderBy(desc(rndcBatches.createdAt)).limit(limit);
   }
 }
 
