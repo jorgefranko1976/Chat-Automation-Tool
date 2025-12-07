@@ -219,10 +219,12 @@ export default function Cumplidos() {
   }, [manifiestoCurrentBatchId, isPollingManifiesto, fetchManifiestoBatchResults]);
 
   const excelDateToDate = (excelDate: number): Date => {
-    const utcDays = Math.floor(excelDate) - 25569;
-    const utcValue = utcDays * 86400 * 1000;
-    const d = new Date(utcValue);
-    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const dateValue = Math.floor(excelDate);
+    const resultMs = excelEpoch.getTime() + (dateValue * msPerDay);
+    const resultDate = new Date(resultMs);
+    return new Date(resultDate.getUTCFullYear(), resultDate.getUTCMonth(), resultDate.getUTCDate());
   };
 
   const excelTimeToHoursMinutes = (excelTime: number): { hours: number; minutes: number } => {
