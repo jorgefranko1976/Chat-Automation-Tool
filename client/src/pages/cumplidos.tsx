@@ -312,10 +312,10 @@ export default function Cumplidos() {
       let jsonData: CumplidoExcelRow[];
       
       if (file.name.endsWith('.csv')) {
-        const wb = XLSX.read(content, { type: "string", raw: false });
+        const wb = XLSX.read(content, { type: "string", raw: true });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+        jsonData = XLSX.utils.sheet_to_json(ws, { raw: true }) as CumplidoExcelRow[];
       } else {
         const wb = XLSX.read(content, { type: "binary" });
         const wsname = wb.SheetNames[0];
@@ -546,10 +546,10 @@ export default function Cumplidos() {
       let jsonData: CumplidoExcelRow[];
       
       if (file.name.endsWith('.csv')) {
-        const wb = XLSX.read(content, { type: "string", raw: false });
+        const wb = XLSX.read(content, { type: "string", raw: true });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+        jsonData = XLSX.utils.sheet_to_json(ws, { raw: true }) as CumplidoExcelRow[];
       } else {
         const wb = XLSX.read(content, { type: "binary" });
         const wsname = wb.SheetNames[0];
