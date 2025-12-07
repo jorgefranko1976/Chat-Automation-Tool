@@ -102,6 +102,11 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
           success = true;
           code = String(resultParsed.root.ingresoid);
           message = `Registro aceptado. IngresoID: ${code}`;
+        } else if (resultParsed?.root?.documento?.ingresoid) {
+          // Query response with documento wrapper
+          success = true;
+          code = String(resultParsed.root.documento.ingresoid);
+          message = `Consulta exitosa. IngresoID: ${code}`;
         } else if (resultParsed?.root?.ErrorMSG || resultParsed?.root?.errormsg) {
           success = false;
           const errorMsg = String(resultParsed.root.ErrorMSG || resultParsed.root.errormsg);
