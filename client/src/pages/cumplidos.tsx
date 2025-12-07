@@ -219,13 +219,8 @@ export default function Cumplidos() {
   }, [manifiestoCurrentBatchId, isPollingManifiesto, fetchManifiestoBatchResults]);
 
   const excelDateToDate = (excelDate: number): Date => {
-    const adjustedSerial = excelDate >= 60 ? excelDate - 1 : excelDate;
-    const dayValue = Math.floor(adjustedSerial);
-    const excelEpoch = new Date(Date.UTC(1899, 11, 31, 12, 0, 0));
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const resultMs = excelEpoch.getTime() + (dayValue * msPerDay);
-    const resultDate = new Date(resultMs);
-    return new Date(resultDate.getUTCFullYear(), resultDate.getUTCMonth(), resultDate.getUTCDate(), 12, 0, 0);
+    const parsed = XLSX.SSF.parse_date_code(excelDate);
+    return new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
   };
 
   const excelTimeToHoursMinutes = (excelTime: number): { hours: number; minutes: number } => {
