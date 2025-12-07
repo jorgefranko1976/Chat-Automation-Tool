@@ -295,11 +295,21 @@ export default function Cumplidos() {
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+      const content = evt.target?.result as string;
+      let jsonData: CumplidoExcelRow[];
+      
+      if (file.name.endsWith('.csv')) {
+        const wb = XLSX.read(content, { type: "string", raw: false });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+      } else {
+        const wb = XLSX.read(content, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+      }
+      
       setData(jsonData);
       setGeneratedSubmissions([]);
       toast({
@@ -307,7 +317,12 @@ export default function Cumplidos() {
         description: `Se han cargado ${jsonData.length} registros exitosamente.`,
       });
     };
-    reader.readAsBinaryString(file);
+    
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
   };
 
   const generateQueryXml = (row: CumplidoExcelRow): string => {
@@ -510,11 +525,21 @@ export default function Cumplidos() {
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+      const content = evt.target?.result as string;
+      let jsonData: CumplidoExcelRow[];
+      
+      if (file.name.endsWith('.csv')) {
+        const wb = XLSX.read(content, { type: "string", raw: false });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+      } else {
+        const wb = XLSX.read(content, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+      }
+      
       setManifiestoData(jsonData);
       setManifiestoSubmissions([]);
       toast({
@@ -522,7 +547,12 @@ export default function Cumplidos() {
         description: `Se han cargado ${jsonData.length} manifiestos.`,
       });
     };
-    reader.readAsBinaryString(file);
+    
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
   };
 
   const generateCumplidoManifiestoXml = (row: CumplidoExcelRow): string => {
@@ -689,12 +719,12 @@ export default function Cumplidos() {
                   <FileSpreadsheet className="h-8 w-8" />
                 </div>
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold">Cargar Excel de Remesas</h3>
+                  <h3 className="text-lg font-semibold">Cargar CSV/Excel de Remesas</h3>
                   <p className="text-sm text-muted-foreground">Archivo con datos de remesas a cumplir</p>
                 </div>
                 <input
                   type="file"
-                  accept=".xlsx, .xls"
+                  accept=".xlsx, .xls, .csv"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
@@ -903,12 +933,12 @@ export default function Cumplidos() {
                   <FileSpreadsheet className="h-8 w-8" />
                 </div>
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold">Cargar Excel de Manifiestos</h3>
+                  <h3 className="text-lg font-semibold">Cargar CSV/Excel de Manifiestos</h3>
                   <p className="text-sm text-muted-foreground">Archivo con datos de manifiestos a cumplir</p>
                 </div>
                 <input
                   type="file"
-                  accept=".xlsx, .xls"
+                  accept=".xlsx, .xls, .csv"
                   className="hidden"
                   ref={manifiestoFileInputRef}
                   onChange={handleManifiestoFileUpload}
