@@ -163,21 +163,28 @@ export async function registerRoutes(
         const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
         
         let data: any = {};
+        let parsedXml: any = null;
         try {
-          const parsed = parser.parse(response.rawXml);
-          if (parsed?.root?.resultado) {
-            const resultado = parsed.root.resultado;
+          parsedXml = parser.parse(response.rawXml);
+          console.log("[RNDC Query] Parsed XML structure:", JSON.stringify(parsedXml, null, 2));
+          
+          if (parsedXml?.root?.resultado) {
+            const resultado = parsedXml.root.resultado;
             if (Array.isArray(resultado)) {
               data = resultado[0] || {};
             } else {
               data = resultado;
             }
+            console.log("[RNDC Query] Extracted data:", JSON.stringify(data, null, 2));
+          } else {
+            console.log("[RNDC Query] No 'resultado' field found in parsed XML");
           }
-        } catch {
+        } catch (parseError) {
+          console.log("[RNDC Query] XML parse error:", parseError);
           data = {};
         }
 
-        res.json({ success: true, data, rawXml: response.rawXml });
+        res.json({ success: true, data, rawXml: response.rawXml, parsedStructure: parsedXml });
       } else {
         res.json({ success: false, message: response.message, rawXml: response.rawXml });
       }
