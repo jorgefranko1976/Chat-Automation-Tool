@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { XmlViewer } from "@/components/xml-viewer";
-import { Upload, FileSpreadsheet, ArrowRight, CheckCircle, FileCode, History, Loader2, RefreshCw, Eye, Download, X, FileCheck } from "lucide-react";
+import { Upload, FileSpreadsheet, ArrowRight, CheckCircle, FileCode, History, Loader2, RefreshCw, Eye, Download, X, FileCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { useSettings } from "@/hooks/use-settings";
@@ -115,6 +115,11 @@ export default function Cumplidos() {
   const [isPollingManifiesto, setIsPollingManifiesto] = useState(false);
   const [manifiestoCurrentBatch, setManifiestoCurrentBatch] = useState<CumplidoBatch | null>(null);
   const manifiestoFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pagination states
+  const [remesaPage, setRemesaPage] = useState(1);
+  const [manifiestoPage, setManifiestoPage] = useState(1);
+  const pageSize = 20;
 
   const fetchBatchResults = useCallback(async (batchId: string) => {
     try {
@@ -312,6 +317,7 @@ export default function Cumplidos() {
       
       setData(jsonData);
       setGeneratedSubmissions([]);
+      setRemesaPage(1);
       toast({
         title: "Archivo Procesado",
         description: `Se han cargado ${jsonData.length} registros exitosamente.`,
@@ -545,6 +551,7 @@ export default function Cumplidos() {
       
       setManifiestoData(jsonData);
       setManifiestoSubmissions([]);
+      setManifiestoPage(1);
       toast({
         title: "Archivo Procesado",
         description: `Se han cargado ${jsonData.length} manifiestos.`,
@@ -767,10 +774,11 @@ export default function Cumplidos() {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="max-h-[300px] overflow-auto rounded-md border">
+                    <div className="max-h-[400px] overflow-auto rounded-md border">
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-[50px]">#</TableHead>
                             <TableHead>Consecutivo</TableHead>
                             <TableHead>NIT Empresa</TableHead>
                             <TableHead>Placa</TableHead>
@@ -781,8 +789,9 @@ export default function Cumplidos() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {data.slice(0, 10).map((row, i) => (
-                            <TableRow key={i} data-testid={`row-cumplido-${i}`}>
+                          {data.slice((remesaPage - 1) * pageSize, remesaPage * pageSize).map((row, i) => (
+                            <TableRow key={i} data-testid={`row-cumplido-${(remesaPage - 1) * pageSize + i}`}>
+                              <TableCell className="text-muted-foreground">{(remesaPage - 1) * pageSize + i + 1}</TableCell>
                               <TableCell className="font-mono">{row.CONSECUTIVOREMESA}</TableCell>
                               <TableCell className="font-mono">{row.NUMNITEMPRESATRANSPORTE}</TableCell>
                               <TableCell>{row.NUMPLACA}</TableCell>
@@ -795,8 +804,35 @@ export default function Cumplidos() {
                         </TableBody>
                       </Table>
                     </div>
-                    {data.length > 10 && (
-                      <p className="text-xs text-muted-foreground mt-2 text-center">Mostrando primeros 10 registros...</p>
+                    {data.length > pageSize && (
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-sm text-muted-foreground">
+                          Mostrando {(remesaPage - 1) * pageSize + 1} - {Math.min(remesaPage * pageSize, data.length)} de {data.length} registros
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRemesaPage(p => Math.max(1, p - 1))}
+                            disabled={remesaPage === 1}
+                            data-testid="button-prev-remesa"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="text-sm font-medium">
+                            Página {remesaPage} de {Math.ceil(data.length / pageSize)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRemesaPage(p => Math.min(Math.ceil(data.length / pageSize), p + 1))}
+                            disabled={remesaPage >= Math.ceil(data.length / pageSize)}
+                            data-testid="button-next-remesa"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -973,10 +1009,11 @@ export default function Cumplidos() {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="max-h-[300px] overflow-auto rounded-md border">
+                    <div className="max-h-[400px] overflow-auto rounded-md border">
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-[50px]">#</TableHead>
                             <TableHead>Manifiesto</TableHead>
                             <TableHead>NIT (NUMIDGPS)</TableHead>
                             <TableHead>Placa</TableHead>
@@ -986,8 +1023,9 @@ export default function Cumplidos() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {manifiestoData.slice(0, 10).map((row, i) => (
-                            <TableRow key={i} data-testid={`row-manifiesto-${i}`}>
+                          {manifiestoData.slice((manifiestoPage - 1) * pageSize, manifiestoPage * pageSize).map((row, i) => (
+                            <TableRow key={i} data-testid={`row-manifiesto-${(manifiestoPage - 1) * pageSize + i}`}>
+                              <TableCell className="text-muted-foreground">{(manifiestoPage - 1) * pageSize + i + 1}</TableCell>
                               <TableCell className="font-mono">{row.CONSECUTIVOREMESA}</TableCell>
                               <TableCell className="font-mono">{row.NUMIDGPS}</TableCell>
                               <TableCell>{row.NUMPLACA}</TableCell>
@@ -999,8 +1037,35 @@ export default function Cumplidos() {
                         </TableBody>
                       </Table>
                     </div>
-                    {manifiestoData.length > 10 && (
-                      <p className="text-xs text-muted-foreground mt-2 text-center">Mostrando primeros 10 registros...</p>
+                    {manifiestoData.length > pageSize && (
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-sm text-muted-foreground">
+                          Mostrando {(manifiestoPage - 1) * pageSize + 1} - {Math.min(manifiestoPage * pageSize, manifiestoData.length)} de {manifiestoData.length} registros
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setManifiestoPage(p => Math.max(1, p - 1))}
+                            disabled={manifiestoPage === 1}
+                            data-testid="button-prev-manifiesto"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="text-sm font-medium">
+                            Página {manifiestoPage} de {Math.ceil(manifiestoData.length / pageSize)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setManifiestoPage(p => Math.min(Math.ceil(manifiestoData.length / pageSize), p + 1))}
+                            disabled={manifiestoPage >= Math.ceil(manifiestoData.length / pageSize)}
+                            data-testid="button-next-manifiesto"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
