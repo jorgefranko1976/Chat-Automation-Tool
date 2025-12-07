@@ -4,12 +4,15 @@ import {
   users,
   rndcSubmissions,
   rndcBatches,
+  cumplidoRemesaSubmissions,
   type User,
   type InsertUser,
   type RndcSubmission,
   type InsertRndcSubmission,
   type RndcBatch,
   type InsertRndcBatch,
+  type CumplidoRemesaSubmission,
+  type InsertCumplidoRemesaSubmission,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -28,6 +31,11 @@ export interface IStorage {
   getRndcSubmissionsByBatch(batchId: string): Promise<RndcSubmission[]>;
   getPendingSubmissions(limit?: number): Promise<RndcSubmission[]>;
   getRecentSubmissions(limit?: number): Promise<RndcSubmission[]>;
+  
+  createCumplidoRemesaSubmission(submission: InsertCumplidoRemesaSubmission): Promise<CumplidoRemesaSubmission>;
+  getCumplidoRemesaSubmission(id: string): Promise<CumplidoRemesaSubmission | undefined>;
+  updateCumplidoRemesaSubmission(id: string, updates: Partial<CumplidoRemesaSubmission>): Promise<CumplidoRemesaSubmission | undefined>;
+  getCumplidoRemesaSubmissionsByBatch(batchId: string): Promise<CumplidoRemesaSubmission[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -90,6 +98,25 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentSubmissions(limit = 100): Promise<RndcSubmission[]> {
     return db.select().from(rndcSubmissions).orderBy(desc(rndcSubmissions.createdAt)).limit(limit);
+  }
+
+  async createCumplidoRemesaSubmission(submission: InsertCumplidoRemesaSubmission): Promise<CumplidoRemesaSubmission> {
+    const [newSubmission] = await db.insert(cumplidoRemesaSubmissions).values(submission).returning();
+    return newSubmission;
+  }
+
+  async getCumplidoRemesaSubmission(id: string): Promise<CumplidoRemesaSubmission | undefined> {
+    const [submission] = await db.select().from(cumplidoRemesaSubmissions).where(eq(cumplidoRemesaSubmissions.id, id));
+    return submission;
+  }
+
+  async updateCumplidoRemesaSubmission(id: string, updates: Partial<CumplidoRemesaSubmission>): Promise<CumplidoRemesaSubmission | undefined> {
+    const [submission] = await db.update(cumplidoRemesaSubmissions).set(updates).where(eq(cumplidoRemesaSubmissions.id, id)).returning();
+    return submission;
+  }
+
+  async getCumplidoRemesaSubmissionsByBatch(batchId: string): Promise<CumplidoRemesaSubmission[]> {
+    return db.select().from(cumplidoRemesaSubmissions).where(eq(cumplidoRemesaSubmissions.batchId, batchId)).orderBy(desc(cumplidoRemesaSubmissions.createdAt));
   }
 }
 

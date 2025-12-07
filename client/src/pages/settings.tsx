@@ -60,27 +60,58 @@ export default function Settings() {
                 <CardTitle>Credenciales RNDC</CardTitle>
                 <CardDescription>Datos de acceso para el WebService del Ministerio de Transporte</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="usernameGps">Usuario GPS</Label>
-                  <Input 
-                    id="usernameGps"
-                    value={formData.usernameGps} 
-                    onChange={(e) => handleChange("usernameGps", e.target.value)}
-                    placeholder="Ingrese su usuario GPS"
-                    data-testid="input-username"
-                  />
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-muted-foreground">Credenciales GPS (Tiempos)</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="usernameGps">Usuario GPS</Label>
+                      <Input 
+                        id="usernameGps"
+                        value={formData.usernameGps} 
+                        onChange={(e) => handleChange("usernameGps", e.target.value)}
+                        placeholder="Ej: TIEMPOS@0739"
+                        data-testid="input-username-gps"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="passwordGps">Contraseña GPS</Label>
+                      <Input 
+                        id="passwordGps"
+                        type="password" 
+                        value={formData.passwordGps}
+                        onChange={(e) => handleChange("passwordGps", e.target.value)}
+                        placeholder="Contraseña GPS"
+                        data-testid="input-password-gps"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="passwordGps">Contraseña GPS</Label>
-                  <Input 
-                    id="passwordGps"
-                    type="password" 
-                    value={formData.passwordGps}
-                    onChange={(e) => handleChange("passwordGps", e.target.value)}
-                    placeholder="Ingrese su contraseña GPS"
-                    data-testid="input-password"
-                  />
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-muted-foreground">Credenciales RNDC (Cumplidos)</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="usernameRndc">Usuario RNDC</Label>
+                      <Input 
+                        id="usernameRndc"
+                        value={formData.usernameRndc} 
+                        onChange={(e) => handleChange("usernameRndc", e.target.value)}
+                        placeholder="Ej: TRANSPORTES@739"
+                        data-testid="input-username-rndc"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="passwordRndc">Contraseña RNDC</Label>
+                      <Input 
+                        id="passwordRndc"
+                        type="password" 
+                        value={formData.passwordRndc}
+                        onChange={(e) => handleChange("passwordRndc", e.target.value)}
+                        placeholder="Contraseña RNDC"
+                        data-testid="input-password-rndc"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <Button onClick={handleSave} className="w-full sm:w-auto" data-testid="button-save-credentials">
                   <Save className="mr-2 h-4 w-4" /> Guardar Configuración

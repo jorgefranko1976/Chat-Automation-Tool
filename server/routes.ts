@@ -22,6 +22,30 @@ const submitBatchSchema = z.object({
   wsUrl: z.string().url().optional(),
 });
 
+const queryRndcSchema = z.object({
+  xmlRequest: z.string(),
+  wsUrl: z.string().url().optional(),
+});
+
+const cumplidoRemesaBatchSchema = z.object({
+  submissions: z.array(z.object({
+    consecutivoRemesa: z.string(),
+    numNitEmpresa: z.string(),
+    numPlaca: z.string(),
+    origen: z.string().optional(),
+    destino: z.string().optional(),
+    fechaEntradaCargue: z.string(),
+    horaEntradaCargue: z.string(),
+    fechaEntradaDescargue: z.string(),
+    horaEntradaDescargue: z.string(),
+    cantidadCargada: z.string(),
+    cantidadEntregada: z.string(),
+    xmlQueryRequest: z.string().optional(),
+    xmlCumplidoRequest: z.string(),
+  })),
+  wsUrl: z.string().url().optional(),
+});
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -114,6 +138,99 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/rndc/query", async (req, res) => {
+    try {
+      const parsed = queryRndcSchema.parse(req.body);
+      const { xmlRequest, wsUrl } = parsed;
+
+      const response = await sendXmlToRndc(xmlRequest, wsUrl);
+
+      if (response.success) {
+        const { XMLParser } = await import("fast-xml-parser");
+        const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+        
+        let data: any = {};
+        try {
+          const parsed = parser.parse(response.rawXml);
+          if (parsed?.root?.resultado) {
+            const resultado = parsed.root.resultado;
+            if (Array.isArray(resultado)) {
+              data = resultado[0] || {};
+            } else {
+              data = resultado;
+            }
+          }
+        } catch {
+          data = {};
+        }
+
+        res.json({ success: true, data, rawXml: response.rawXml });
+      } else {
+        res.json({ success: false, message: response.message, rawXml: response.rawXml });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en consulta";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.post("/api/rndc/cumplido-remesa-batch", async (req, res) => {
+    try {
+      const parsed = cumplidoRemesaBatchSchema.parse(req.body);
+      const { submissions, wsUrl } = parsed;
+
+      const batch = await storage.createRndcBatch({
+        totalRecords: submissions.length,
+        successCount: 0,
+        errorCount: 0,
+        pendingCount: submissions.length,
+        status: "processing",
+      });
+
+      const createdSubmissions = await Promise.all(
+        submissions.map(sub =>
+          storage.createCumplidoRemesaSubmission({
+            batchId: batch.id,
+            consecutivoRemesa: sub.consecutivoRemesa,
+            numNitEmpresa: sub.numNitEmpresa,
+            numPlaca: sub.numPlaca,
+            origen: sub.origen || null,
+            destino: sub.destino || null,
+            fechaEntradaCargue: sub.fechaEntradaCargue,
+            horaEntradaCargue: sub.horaEntradaCargue,
+            fechaEntradaDescargue: sub.fechaEntradaDescargue,
+            horaEntradaDescargue: sub.horaEntradaDescargue,
+            cantidadCargada: sub.cantidadCargada,
+            cantidadEntregada: sub.cantidadEntregada,
+            xmlQueryRequest: sub.xmlQueryRequest || null,
+            xmlCumplidoRequest: sub.xmlCumplidoRequest,
+            status: "pending",
+          })
+        )
+      );
+
+      processCumplidoRemesaAsync(batch.id, createdSubmissions.map(s => s.id), wsUrl);
+
+      res.json({
+        success: true,
+        batchId: batch.id,
+        message: `Lote creado con ${submissions.length} cumplidos. Procesando...`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al crear lote de cumplidos";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.get("/api/rndc/cumplido-remesa/:batchId", async (req, res) => {
+    try {
+      const submissions = await storage.getCumplidoRemesaSubmissionsByBatch(req.params.batchId);
+      res.json({ success: true, submissions });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener cumplidos" });
+    }
+  });
+
   return httpServer;
 }
 
@@ -159,6 +276,77 @@ async function processSubmissionsAsync(batchId: string, submissionIds: string[],
           });
         } catch {
           console.error(`Failed to update submission ${submissionId} status`);
+        }
+      }
+
+      const pendingCount = submissionIds.length - successCount - errorCount;
+      try {
+        await storage.updateRndcBatch(batchId, {
+          successCount,
+          errorCount,
+          pendingCount,
+        });
+      } catch {
+        console.error(`Failed to update batch ${batchId} progress`);
+      }
+    }
+  } finally {
+    try {
+      await storage.updateRndcBatch(batchId, {
+        status: "completed",
+        completedAt: new Date(),
+        successCount,
+        errorCount,
+        pendingCount: 0,
+      });
+    } catch {
+      console.error(`Failed to mark batch ${batchId} as completed`);
+    }
+  }
+}
+
+async function processCumplidoRemesaAsync(batchId: string, submissionIds: string[], wsUrl?: string) {
+  let successCount = 0;
+  let errorCount = 0;
+
+  try {
+    for (const submissionId of submissionIds) {
+      try {
+        const submission = await storage.getCumplidoRemesaSubmission(submissionId);
+        if (!submission) {
+          errorCount++;
+          continue;
+        }
+
+        await storage.updateCumplidoRemesaSubmission(submissionId, { status: "processing" });
+
+        const response = await sendXmlToRndc(submission.xmlCumplidoRequest, wsUrl);
+
+        await storage.updateCumplidoRemesaSubmission(submissionId, {
+          status: response.success ? "success" : "error",
+          xmlResponse: response.rawXml,
+          responseCode: response.code,
+          responseMessage: response.message,
+          processedAt: new Date(),
+        });
+
+        if (response.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        errorCount++;
+        try {
+          await storage.updateCumplidoRemesaSubmission(submissionId, {
+            status: "error",
+            responseMessage: error instanceof Error ? error.message : "Error desconocido",
+            processedAt: new Date(),
+          });
+        } catch {
+          console.error(`Failed to update cumplido ${submissionId} status`);
         }
       }
 

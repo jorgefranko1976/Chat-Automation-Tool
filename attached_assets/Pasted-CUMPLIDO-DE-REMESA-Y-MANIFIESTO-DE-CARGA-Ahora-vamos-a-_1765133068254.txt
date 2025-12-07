@@ -1,0 +1,87 @@
+CUMPLIDO DE  REMESA Y MANIFIESTO DE CARGA
+Ahora vamos a crear el modulo de  Cumplir remesa y cumplir Manifiesto de  carga , aunque son dos modulos separados  es decir son 2 procesos diferentes  y con logica diferente.
+ 1.- EL MODULO EMPIEZA CON EL CARGUE DE LA INFORMACION A TRAVEZ DE UN EXCEL  QUE CONTIENE LOS SIGUIENTES CAMPOS:
+ 
+ INGRESOID	FECHAINGRESO	ESTADO	USUARIO	INTERACTIVO	NUMNITEMPRESATRANSPORTE	CODIGOEMPRESA	CONSECUTIVOREMESA	NUMIDGPS	NUMMANIFIESTOCARGA	INGRESOIDREMESA	INGRESOIDMANIFIESTO	CODMUNICIPIOORIGEN	ORIGEN	CODMUNICIPIODESTINO	DESTINO	NUMPLACA	FECHALLEGADACARGUE	HORALLEGADACARGUE	FECHASALIDACARGUE	HORASALIDACARGUE	FECHALLEGADADESCARGUE	HORALLEGADADESCARGUE	FECHASALIDADESCARGUE	HORASALIDADESCARGUE	LATITUDCARGUE	LONGITUDCARGUE	LATITUDDESCARGUE	LONGITUDDESCARGUE	OBSERVACIONES	FECHAENTRADACARGUE	HORAENTRADACARGUE	FECHAENTRADADESCARGUE	HORAENTRADADESCARGUE
+63919	6/12/2025 16:41	AC	TIEMPOS@0739	N	9013690938	739	66628	9013690938	66628	152040707	111921230	25286000	FUNZA CUNDINAMARCA	25053000	ARBELAEZ CUNDINAMARCA	TND676	3/12/2025	11:19	3/12/2025	13:27	3/12/2025	17:19	3/12/2025	18:54	4.72987	-74.19123	4.27344	-74.41674	 		 		 
+63918	6/12/2025 16:41	AC	TIEMPOS@0739	N	9013690938	739	66595	9013690938	66595	152014847	111904860	25473000	MOSQUERA CUNDINAMARCA	25053000	ARBELAEZ CUNDINAMARCA	SUA918	3/12/2025	8:15	3/12/2025	9:56	3/12/2025	17:19	3/12/2025	19:22	4.69874	-74.19367	4.27344	-74.41674	 		 		 
+63916	6/12/2025 16:40	AC	TIEMPOS@0739	N	9013690938	739	66582	9013690938	66582	152014800	111904535	25286000	FUNZA CUNDINAMARCA	25053000	ARBELAEZ CUNDINAMARCA	AJE382	3/12/2025	7:22	3/12/2025	9:38	3/12/2025	17:23	3/12/2025	19:19	4.72987	-74.19123	4.27344	-74.41674	 		 		 
+63915	6/12/2025 16:40	AC	TIEMPOS@0739	N	9013690938	739	66584	9013690938	66584	152014803	111904624	25286000	FUNZA CUNDINAMARCA	25053000	ARBELAEZ CUNDINAMARCA	LTA352	3/12/2025	7:18	3/12/2025	9:30	3/12/2025	17:12	3/12/2025	18:50	4.72987	-74.19123	4.27344	-74.41674	 		 		 
+
+XML PARA CUMPLIR REMESA.
+
+<<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:BPMServicesIntf-IBPMServices">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <urn:AtenderMensajeRNDC>
+            <Request>
+                <root>
+                    <acceso>
+                        <username>TRANSPORTES@739</username> //// Lo sacara del modulo Configuracion UsuarioRNDC ////
+                        <password>Alejandro_1971</password> ///// Lo sacara del Moudulo Configuracion PasswordRNDC ////
+                    </acceso>
+                    <solicitud>
+                        <tipo>1</tipo> //// CAMPO FIJO /////
+                        <procesoid>5</procesoid> //// CAMPO FIJO /////
+                    </solicitud>
+                    <variables>
+                        <NUMNITEMPRESATRANSPORTE>9013690938</NUMNITEMPRESATRANSPORTE> //// NUMIDGPS ////
+                        <CONSECUTIVOREMESA>66628</CONSECUTIVOREMESA> //// CONSECUTIVOREMESA ////
+                        <TIPOCUMPLIDOREMESA>C</TIPOCUMPLIDOREMESA> //// CAMPO FIJO /////
+                        <CANTIDADCARGADA>10000</CANTIDADCARGADA> ////COLOCAR EL RESULTADO DE LA CONSULTA DEL CAMPO CANTIDAD CARGADA ////
+                        <CANTIDADENTREGADA>10000</CANTIDADENTREGADA> ////
+                        <UNIDADMEDIDACAPACIDAD>1</UNIDADMEDIDACAPACIDAD> //// CAMPO FIJO /////                       
+                        <FECHAENTRADACARGUE>03/12/2025</FECHAENTRADACARGUE> ////FECHALLEGADACARGUE ////
+                        <HORAENTRADACARGUEREMESA>11:19</HORAENTRADACARGUEREMESA> //// HORALLEGADACARGUE + 5 MINUTOS ////                
+                        <FECHAENTRADADESCARGUE>03/12/2025</FECHAENTRADADESCARGUE> //// FECHALLEGADADESCARGUE ////
+                        <HORAENTRADADESCARGUECUMPLIDO>17:19</HORAENTRADADESCARGUECUMPLIDO> //// HORALLEGADADESCARGUE ////                        
+                    </variables>
+                </root>
+            </Request>
+        </urn:AtenderMensajeRNDC>
+    </soapenv:Body>
+</soapenv:Envelope>
+
+______________________________________________________________________________
+CONSULTA PARA CANTIDAD CARGADA
+
+XML:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:BPMServicesIntf-IBPMServices">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <urn:AtenderMensajeRNDC>
+            <Request>
+                <root>
+                    <acceso>
+                        <username>TRANSPORTES@739</username> //// Lo sacara del modulo Configuracion UsuarioRNDC ////
+                        <password>Alejandro_1971</password> ///// Lo sacara del Moudulo Configuracion PasswordRNDC ////
+                    </acceso>
+                    <solicitud>
+                        <tipo>3</tipo>
+                        <procesoid>3</procesoid>
+                    </solicitud>
+                    <variables>INGRESOID,FECHAING,CANTIDADCARGADA</variables>
+                    <documento>
+                        <NUMNITEMPRESATRANSPORTE>'9013690938'</NUMNITEMPRESATRANSPORTE> //// NUMIDGPS ////
+                        <CONSECUTIVOREMESA>'66628'</CONSECUTIVOREMESA> //// CONSECUTIVOREMESA ////
+                    </documento>
+                </root>
+            </Request>
+        </urn:AtenderMensajeRNDC>
+    </soapenv:Body>
+</soapenv:Envelope>
+
+RESPUESTA RNDC DESPUES DE ENVIAR EL XML PARA CUMPLIR COMPLETO 
+
+<?xml version="1.0"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/">
+    <SOAP-ENV:Body SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:NS1="urn:BPMServicesIntf-IBPMServices">
+        <NS1:AtenderMensajeRNDCResponse>
+            <return xsi:type="xsd:string">&lt;?xml version="1.0" encoding="ISO-8859-1" ?&gt;
+&lt;root&gt;
+&lt;ingresoid&gt;130406524&lt;/ingresoid&gt;
+&lt;/root&gt;</return>
+        </NS1:AtenderMensajeRNDCResponse>
+    </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>

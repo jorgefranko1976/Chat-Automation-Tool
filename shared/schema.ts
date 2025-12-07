@@ -67,3 +67,36 @@ export const insertRndcBatchSchema = createInsertSchema(rndcBatches).omit({
 
 export type InsertRndcBatch = z.infer<typeof insertRndcBatchSchema>;
 export type RndcBatch = typeof rndcBatches.$inferSelect;
+
+export const cumplidoRemesaSubmissions = pgTable("cumplido_remesa_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchId: varchar("batch_id").notNull(),
+  consecutivoRemesa: varchar("consecutivo_remesa").notNull(),
+  numNitEmpresa: varchar("num_nit_empresa").notNull(),
+  numPlaca: varchar("num_placa").notNull(),
+  origen: varchar("origen"),
+  destino: varchar("destino"),
+  fechaEntradaCargue: varchar("fecha_entrada_cargue").notNull(),
+  horaEntradaCargue: varchar("hora_entrada_cargue").notNull(),
+  fechaEntradaDescargue: varchar("fecha_entrada_descargue").notNull(),
+  horaEntradaDescargue: varchar("hora_entrada_descargue").notNull(),
+  cantidadCargada: varchar("cantidad_cargada").notNull(),
+  cantidadEntregada: varchar("cantidad_entregada").notNull(),
+  xmlQueryRequest: text("xml_query_request"),
+  xmlCumplidoRequest: text("xml_cumplido_request").notNull(),
+  xmlResponse: text("xml_response"),
+  status: varchar("status").notNull().default("pending"),
+  responseCode: varchar("response_code"),
+  responseMessage: text("response_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertCumplidoRemesaSubmissionSchema = createInsertSchema(cumplidoRemesaSubmissions).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+});
+
+export type InsertCumplidoRemesaSubmission = z.infer<typeof insertCumplidoRemesaSubmissionSchema>;
+export type CumplidoRemesaSubmission = typeof cumplidoRemesaSubmissions.$inferSelect;

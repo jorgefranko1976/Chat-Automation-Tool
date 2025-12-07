@@ -7,6 +7,8 @@ export type WsEnvironment = "testing" | "production";
 export interface RndcSettings {
   usernameGps: string;
   passwordGps: string;
+  usernameRndc: string;
+  passwordRndc: string;
   companyNit: string;
   companyName: string;
   wsUrlProd: string;
@@ -17,6 +19,8 @@ export interface RndcSettings {
 const DEFAULT_SETTINGS: RndcSettings = {
   usernameGps: "",
   passwordGps: "",
+  usernameRndc: "",
+  passwordRndc: "",
   companyNit: "",
   companyName: "",
   wsUrlProd: "http://rndcws.mintransporte.gov.co:8080/soap/IBPMServices",
