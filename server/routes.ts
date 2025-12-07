@@ -163,28 +163,34 @@ export async function registerRoutes(
         const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
         
         let data: any = {};
-        let parsedXml: any = null;
         try {
-          parsedXml = parser.parse(response.rawXml);
-          console.log("[RNDC Query] Parsed XML structure:", JSON.stringify(parsedXml, null, 2));
+          const parsedXml = parser.parse(response.rawXml);
           
-          if (parsedXml?.root?.resultado) {
-            const resultado = parsedXml.root.resultado;
-            if (Array.isArray(resultado)) {
-              data = resultado[0] || {};
-            } else {
-              data = resultado;
-            }
-            console.log("[RNDC Query] Extracted data:", JSON.stringify(data, null, 2));
-          } else {
-            console.log("[RNDC Query] No 'resultado' field found in parsed XML");
+          // Try to find data in different possible locations
+          let rawData: any = null;
+          if (parsedXml?.root?.documento) {
+            rawData = parsedXml.root.documento;
+          } else if (parsedXml?.root?.resultado) {
+            rawData = parsedXml.root.resultado;
           }
+          
+          if (rawData) {
+            if (Array.isArray(rawData)) {
+              rawData = rawData[0] || {};
+            }
+            // Normalize field names to uppercase for consistent access
+            for (const key of Object.keys(rawData)) {
+              data[key.toUpperCase()] = rawData[key];
+            }
+          }
+          
+          console.log("[RNDC Query] Extracted data:", JSON.stringify(data, null, 2));
         } catch (parseError) {
           console.log("[RNDC Query] XML parse error:", parseError);
           data = {};
         }
 
-        res.json({ success: true, data, rawXml: response.rawXml, parsedStructure: parsedXml });
+        res.json({ success: true, data, rawXml: response.rawXml });
       } else {
         res.json({ success: false, message: response.message, rawXml: response.rawXml });
       }
