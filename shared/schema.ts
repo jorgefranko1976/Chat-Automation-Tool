@@ -50,6 +50,7 @@ export type RndcSubmission = typeof rndcSubmissions.$inferSelect;
 
 export const rndcBatches = pgTable("rndc_batches", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: varchar("type").notNull().default("puntos_control"),
   totalRecords: integer("total_records").notNull(),
   successCount: integer("success_count").default(0),
   errorCount: integer("error_count").default(0),
