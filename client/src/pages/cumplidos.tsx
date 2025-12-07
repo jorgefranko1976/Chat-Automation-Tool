@@ -574,7 +574,8 @@ export default function Cumplidos() {
   };
 
   const generateCumplidoManifiestoXml = (row: CumplidoExcelRow): string => {
-    const fechaDescargue = parseDateTime(row.FECHALLEGADADESCARGUE, row.HORALLEGADADESCARGUE, 0);
+    // FECHAENTREGADOCUMENTOS = FECHAENTRADADESCARGUE + 1 día (1440 minutos)
+    const fechaEntregaDocumentos = parseDateTime(row.FECHALLEGADADESCARGUE, row.HORALLEGADADESCARGUE, 1440);
 
     return `<root>
 <acceso>
@@ -589,7 +590,7 @@ export default function Cumplidos() {
 <NUMNITEMPRESATRANSPORTE>${row.NUMIDGPS}</NUMNITEMPRESATRANSPORTE>
 <NUMMANIFIESTOCARGA>${row.CONSECUTIVOREMESA}</NUMMANIFIESTOCARGA>
 <TIPOCUMPLIDOMANIFIESTO>C</TIPOCUMPLIDOMANIFIESTO>
-<FECHAENTREGADOCUMENTOS>${fechaDescargue.date}</FECHAENTREGADOCUMENTOS>
+<FECHAENTREGADOCUMENTOS>${fechaEntregaDocumentos.date}</FECHAENTREGADOCUMENTOS>
 </variables>
 </root>`;
   };
@@ -598,7 +599,8 @@ export default function Cumplidos() {
     if (manifiestoData.length === 0) return;
 
     const submissions: CumplidoManifiestoSubmission[] = manifiestoData.map(row => {
-      const fechaDescargue = parseDateTime(row.FECHALLEGADADESCARGUE, row.HORALLEGADADESCARGUE, 0);
+      // FECHAENTREGADOCUMENTOS = FECHAENTRADADESCARGUE + 1 día (1440 minutos)
+      const fechaEntregaDocumentos = parseDateTime(row.FECHALLEGADADESCARGUE, row.HORALLEGADADESCARGUE, 1440);
       
       return {
         numManifiestoCarga: String(row.CONSECUTIVOREMESA),
@@ -606,7 +608,7 @@ export default function Cumplidos() {
         numPlaca: String(row.NUMPLACA),
         origen: String(row.ORIGEN || ''),
         destino: String(row.DESTINO || ''),
-        fechaEntregaDocumentos: fechaDescargue.date,
+        fechaEntregaDocumentos: fechaEntregaDocumentos.date,
         xmlCumplidoRequest: generateCumplidoManifiestoXml(row),
         status: "ready",
       };
