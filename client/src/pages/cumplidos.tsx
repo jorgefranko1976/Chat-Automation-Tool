@@ -503,6 +503,9 @@ export default function Cumplidos() {
       "Estado": sub.status === "success" ? "Exitoso" : sub.status === "error" ? "Error" : sub.status,
       "Código Respuesta": sub.responseCode || "",
       "Mensaje Respuesta": sub.responseMessage || "",
+      "Fecha Procesamiento": sub.processedAt ? new Date(sub.processedAt).toLocaleString('es-CO') : "",
+      "XML Enviado": sub.xmlCumplidoRequest || "",
+      "XML Respuesta": sub.xmlResponse || "",
     }));
     
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -661,6 +664,9 @@ export default function Cumplidos() {
       "Estado": sub.status === "success" ? "Exitoso" : sub.status === "error" ? "Error" : sub.status,
       "Código Respuesta": sub.responseCode || "",
       "Mensaje Respuesta": sub.responseMessage || "",
+      "Fecha Procesamiento": sub.processedAt ? new Date(sub.processedAt).toLocaleString('es-CO') : "",
+      "XML Enviado": sub.xmlCumplidoRequest || "",
+      "XML Respuesta": sub.xmlResponse || "",
     }));
     
     const ws = XLSX.utils.json_to_sheet(exportData);
