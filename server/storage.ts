@@ -5,6 +5,7 @@ import {
   rndcSubmissions,
   rndcBatches,
   cumplidoRemesaSubmissions,
+  cumplidoManifiestoSubmissions,
   type User,
   type InsertUser,
   type RndcSubmission,
@@ -13,6 +14,8 @@ import {
   type InsertRndcBatch,
   type CumplidoRemesaSubmission,
   type InsertCumplidoRemesaSubmission,
+  type CumplidoManifiestoSubmission,
+  type InsertCumplidoManifiestoSubmission,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -36,6 +39,11 @@ export interface IStorage {
   getCumplidoRemesaSubmission(id: string): Promise<CumplidoRemesaSubmission | undefined>;
   updateCumplidoRemesaSubmission(id: string, updates: Partial<CumplidoRemesaSubmission>): Promise<CumplidoRemesaSubmission | undefined>;
   getCumplidoRemesaSubmissionsByBatch(batchId: string): Promise<CumplidoRemesaSubmission[]>;
+  
+  createCumplidoManifiestoSubmission(submission: InsertCumplidoManifiestoSubmission): Promise<CumplidoManifiestoSubmission>;
+  getCumplidoManifiestoSubmission(id: string): Promise<CumplidoManifiestoSubmission | undefined>;
+  updateCumplidoManifiestoSubmission(id: string, updates: Partial<CumplidoManifiestoSubmission>): Promise<CumplidoManifiestoSubmission | undefined>;
+  getCumplidoManifiestoSubmissionsByBatch(batchId: string): Promise<CumplidoManifiestoSubmission[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -117,6 +125,25 @@ export class DatabaseStorage implements IStorage {
 
   async getCumplidoRemesaSubmissionsByBatch(batchId: string): Promise<CumplidoRemesaSubmission[]> {
     return db.select().from(cumplidoRemesaSubmissions).where(eq(cumplidoRemesaSubmissions.batchId, batchId)).orderBy(desc(cumplidoRemesaSubmissions.createdAt));
+  }
+
+  async createCumplidoManifiestoSubmission(submission: InsertCumplidoManifiestoSubmission): Promise<CumplidoManifiestoSubmission> {
+    const [newSubmission] = await db.insert(cumplidoManifiestoSubmissions).values(submission).returning();
+    return newSubmission;
+  }
+
+  async getCumplidoManifiestoSubmission(id: string): Promise<CumplidoManifiestoSubmission | undefined> {
+    const [submission] = await db.select().from(cumplidoManifiestoSubmissions).where(eq(cumplidoManifiestoSubmissions.id, id));
+    return submission;
+  }
+
+  async updateCumplidoManifiestoSubmission(id: string, updates: Partial<CumplidoManifiestoSubmission>): Promise<CumplidoManifiestoSubmission | undefined> {
+    const [submission] = await db.update(cumplidoManifiestoSubmissions).set(updates).where(eq(cumplidoManifiestoSubmissions.id, id)).returning();
+    return submission;
+  }
+
+  async getCumplidoManifiestoSubmissionsByBatch(batchId: string): Promise<CumplidoManifiestoSubmission[]> {
+    return db.select().from(cumplidoManifiestoSubmissions).where(eq(cumplidoManifiestoSubmissions.batchId, batchId)).orderBy(desc(cumplidoManifiestoSubmissions.createdAt));
   }
 }
 

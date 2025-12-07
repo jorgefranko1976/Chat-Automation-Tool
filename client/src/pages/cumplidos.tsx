@@ -78,6 +78,19 @@ interface CumplidoBatch {
   createdAt: string;
 }
 
+interface CumplidoManifiestoSubmission {
+  numManifiestoCarga: string;
+  numNitEmpresa: string;
+  numPlaca: string;
+  origen: string;
+  destino: string;
+  fechaEntregaDocumentos: string;
+  xmlCumplidoRequest: string;
+  status: string;
+  responseCode?: string;
+  responseMessage?: string;
+}
+
 export default function Cumplidos() {
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState("remesa");
@@ -92,6 +105,16 @@ export default function Cumplidos() {
   const [isPolling, setIsPolling] = useState(false);
   const [currentBatch, setCurrentBatch] = useState<CumplidoBatch | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [manifiestoData, setManifiestoData] = useState<CumplidoExcelRow[]>([]);
+  const [manifiestoSubmissions, setManifiestoSubmissions] = useState<CumplidoManifiestoSubmission[]>([]);
+  const [isSendingManifiesto, setIsSendingManifiesto] = useState(false);
+  const [manifiestoCurrentBatchId, setManifiestoCurrentBatchId] = useState<string | null>(null);
+  const [manifestoBatchResults, setManifestoBatchResults] = useState<any[]>([]);
+  const [showManifiestoResults, setShowManifiestoResults] = useState(false);
+  const [isPollingManifiesto, setIsPollingManifiesto] = useState(false);
+  const [manifiestoCurrentBatch, setManifiestoCurrentBatch] = useState<CumplidoBatch | null>(null);
+  const manifiestoFileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchBatchResults = useCallback(async (batchId: string) => {
     try {
@@ -112,6 +135,29 @@ export default function Cumplidos() {
       return batchData.success ? batchData.batch : null;
     } catch (error) {
       console.error("Error fetching batch results:", error);
+      return null;
+    }
+  }, []);
+
+  const fetchManifiestoBatchResults = useCallback(async (batchId: string) => {
+    try {
+      const [batchRes, subRes] = await Promise.all([
+        fetch(`/api/rndc/batches/${batchId}`),
+        fetch(`/api/rndc/cumplido-manifiesto/${batchId}`),
+      ]);
+      const batchData = await batchRes.json();
+      const subData = await subRes.json();
+      
+      if (batchData.success) {
+        setManifiestoCurrentBatch(batchData.batch);
+      }
+      if (subData.success) {
+        setManifestoBatchResults(subData.submissions);
+      }
+      
+      return batchData.success ? batchData.batch : null;
+    } catch (error) {
+      console.error("Error fetching manifiesto batch results:", error);
       return null;
     }
   }, []);
@@ -143,6 +189,34 @@ export default function Cumplidos() {
       clearInterval(intervalId);
     };
   }, [currentBatchId, isPolling, fetchBatchResults]);
+
+  useEffect(() => {
+    if (!manifiestoCurrentBatchId || !isPollingManifiesto) return;
+    
+    let isCancelled = false;
+    
+    const pollResults = async () => {
+      const batch = await fetchManifiestoBatchResults(manifiestoCurrentBatchId);
+      if (isCancelled) return;
+      
+      if (batch && batch.status === "completed") {
+        setIsPollingManifiesto(false);
+        toast({
+          title: "Procesamiento Completado",
+          description: `${batch.successCount} exitosos, ${batch.errorCount} errores`,
+          className: batch.errorCount > 0 ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200",
+        });
+      }
+    };
+    
+    pollResults();
+    const intervalId = setInterval(pollResults, 2000);
+    
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [manifiestoCurrentBatchId, isPollingManifiesto, fetchManifiestoBatchResults]);
 
   const excelDateToDate = (excelDate: number): Date => {
     const utcDays = Math.floor(excelDate) - 25569;
@@ -430,6 +504,149 @@ export default function Cumplidos() {
     });
   };
 
+  const handleManifiestoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const bstr = evt.target?.result;
+      const wb = XLSX.read(bstr, { type: "binary" });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const jsonData = XLSX.utils.sheet_to_json(ws) as CumplidoExcelRow[];
+      setManifiestoData(jsonData);
+      setManifiestoSubmissions([]);
+      toast({
+        title: "Archivo Procesado",
+        description: `Se han cargado ${jsonData.length} manifiestos.`,
+      });
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const generateCumplidoManifiestoXml = (row: CumplidoExcelRow): string => {
+    const fechaDescargue = parseDateTime(row.FECHALLEGADADESCARGUE, row.HORALLEGADADESCARGUE, 0);
+
+    return `<root>
+<acceso>
+<username>${settings.usernameRndc}</username>
+<password>${settings.passwordRndc}</password>
+</acceso>
+<solicitud>
+<tipo>1</tipo>
+<procesoid>6</procesoid>
+</solicitud>
+<variables>
+<NUMNITEMPRESATRANSPORTE>${row.NUMIDGPS}</NUMNITEMPRESATRANSPORTE>
+<NUMMANIFIESTOCARGA>${row.CONSECUTIVOREMESA}</NUMMANIFIESTOCARGA>
+<TIPOCUMPLIDOMANIFIESTO>C</TIPOCUMPLIDOMANIFIESTO>
+<FECHAENTREGADOCUMENTOS>${fechaDescargue.date}</FECHAENTREGADOCUMENTOS>
+</variables>
+</root>`;
+  };
+
+  const handleGenerateManifiestoXmls = () => {
+    if (manifiestoData.length === 0) return;
+
+    const submissions: CumplidoManifiestoSubmission[] = manifiestoData.map(row => {
+      const fechaDescargue = parseDateTime(row.FECHALLEGADADESCARGUE, row.HORALLEGADADESCARGUE, 0);
+      
+      return {
+        numManifiestoCarga: String(row.CONSECUTIVOREMESA),
+        numNitEmpresa: String(row.NUMIDGPS),
+        numPlaca: String(row.NUMPLACA),
+        origen: String(row.ORIGEN || ''),
+        destino: String(row.DESTINO || ''),
+        fechaEntregaDocumentos: fechaDescargue.date,
+        xmlCumplidoRequest: generateCumplidoManifiestoXml(row),
+        status: "ready",
+      };
+    });
+
+    setManifiestoSubmissions(submissions);
+    toast({
+      title: "XMLs Generados",
+      description: `Se generaron ${submissions.length} XMLs listos para enviar.`,
+      className: "bg-green-50 border-green-200",
+    });
+  };
+
+  const handleSendManifiestos = async () => {
+    if (manifiestoSubmissions.length === 0) return;
+
+    const wsUrl = settings.wsEnvironment === "production" 
+      ? settings.wsUrlProd 
+      : settings.wsUrlTest;
+
+    setIsSendingManifiesto(true);
+    try {
+      const response = await fetch("/api/rndc/cumplido-manifiesto-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissions: manifiestoSubmissions, wsUrl }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Lote Enviado",
+          description: result.message,
+          className: "bg-green-50 border-green-200 text-green-800",
+        });
+        
+        setManifiestoCurrentBatchId(result.batchId);
+        setShowManifiestoResults(true);
+        setIsPollingManifiesto(true);
+        
+        setManifiestoSubmissions([]);
+        setManifiestoData([]);
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error de conexión al servidor", variant: "destructive" });
+    }
+    setIsSendingManifiesto(false);
+  };
+
+  const handleCloseManifiestoResults = () => {
+    setShowManifiestoResults(false);
+    setManifiestoCurrentBatchId(null);
+    setManifestoBatchResults([]);
+    setIsPollingManifiesto(false);
+  };
+
+  const handleExportManifiestoResults = () => {
+    if (manifestoBatchResults.length === 0) return;
+    
+    const exportData = manifestoBatchResults.map(sub => ({
+      "Manifiesto": sub.numManifiestoCarga,
+      "NIT Empresa": sub.numNitEmpresa,
+      "Placa": sub.numPlaca,
+      "Origen": sub.origen,
+      "Destino": sub.destino,
+      "Fecha Entrega Docs": sub.fechaEntregaDocumentos,
+      "Estado": sub.status === "success" ? "Exitoso" : sub.status === "error" ? "Error" : sub.status,
+      "Código Respuesta": sub.responseCode || "",
+      "Mensaje Respuesta": sub.responseMessage || "",
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Cumplidos Manifiesto");
+    
+    const now = new Date();
+    const filename = `cumplidos_manifiesto_${now.toISOString().split('T')[0]}_${now.getHours()}${now.getMinutes()}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    
+    toast({
+      title: "Archivo Exportado",
+      description: `Se ha descargado ${filename}`,
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "success":
@@ -680,18 +897,204 @@ export default function Cumplidos() {
           </TabsContent>
 
           <TabsContent value="manifiesto" className="space-y-6">
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
-                <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
-                  <FileCode className="h-8 w-8" />
+            <Card className="border-dashed border-2">
+              <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
+                <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                  <FileSpreadsheet className="h-8 w-8" />
                 </div>
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold text-muted-foreground">Cumplir Manifiesto</h3>
-                  <p className="text-sm text-muted-foreground">Este módulo está en desarrollo</p>
-                  <p className="text-xs text-muted-foreground mt-2">Por favor proporcione los detalles del XML para implementarlo</p>
+                  <h3 className="text-lg font-semibold">Cargar Excel de Manifiestos</h3>
+                  <p className="text-sm text-muted-foreground">Archivo con datos de manifiestos a cumplir</p>
                 </div>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  className="hidden"
+                  ref={manifiestoFileInputRef}
+                  onChange={handleManifiestoFileUpload}
+                  data-testid="input-file-manifiesto"
+                />
+                <Button onClick={() => manifiestoFileInputRef.current?.click()} data-testid="button-select-file-manifiesto">
+                  <Upload className="mr-2 h-4 w-4" /> Seleccionar Archivo
+                </Button>
               </CardContent>
             </Card>
+
+            {manifiestoData.length > 0 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Vista Previa de Datos</CardTitle>
+                      <CardDescription>{manifiestoData.length} manifiestos encontrados</CardDescription>
+                    </div>
+                    <Button 
+                      onClick={handleGenerateManifiestoXmls} 
+                      disabled={manifiestoSubmissions.length > 0} 
+                      data-testid="button-generate-manifiesto-xmls"
+                    >
+                      Generar XMLs <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-[300px] overflow-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Manifiesto</TableHead>
+                            <TableHead>NIT (NUMIDGPS)</TableHead>
+                            <TableHead>Placa</TableHead>
+                            <TableHead>Origen</TableHead>
+                            <TableHead>Destino</TableHead>
+                            <TableHead>Fecha Descargue</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {manifiestoData.slice(0, 10).map((row, i) => (
+                            <TableRow key={i} data-testid={`row-manifiesto-${i}`}>
+                              <TableCell className="font-mono">{row.CONSECUTIVOREMESA}</TableCell>
+                              <TableCell className="font-mono">{row.NUMIDGPS}</TableCell>
+                              <TableCell>{row.NUMPLACA}</TableCell>
+                              <TableCell className="max-w-[150px] truncate">{row.ORIGEN}</TableCell>
+                              <TableCell className="max-w-[150px] truncate">{row.DESTINO}</TableCell>
+                              <TableCell>{formatExcelDateTime(row.FECHALLEGADADESCARGUE, row.HORALLEGADADESCARGUE)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {manifiestoData.length > 10 && (
+                      <p className="text-xs text-muted-foreground mt-2 text-center">Mostrando primeros 10 registros...</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {manifiestoSubmissions.length > 0 && (
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                          <CardTitle>XMLs Generados ({manifiestoSubmissions.length})</CardTitle>
+                          <CardDescription>Cumplidos listos para enviar al RNDC</CardDescription>
+                        </div>
+                        <Button
+                          onClick={handleSendManifiestos}
+                          className="bg-green-600 hover:bg-green-700"
+                          disabled={isSendingManifiesto}
+                          data-testid="button-send-manifiestos"
+                        >
+                          {isSendingManifiesto ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...
+                            </>
+                          ) : (
+                            <>
+                              Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="max-h-[300px] overflow-auto rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Manifiesto</TableHead>
+                                <TableHead>NIT</TableHead>
+                                <TableHead>Placa</TableHead>
+                                <TableHead>Fecha Entrega Docs</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead>XML</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {manifiestoSubmissions.map((sub, i) => (
+                                <TableRow key={i} data-testid={`row-manifiesto-generated-${i}`}>
+                                  <TableCell className="font-mono">{sub.numManifiestoCarga}</TableCell>
+                                  <TableCell className="font-mono">{sub.numNitEmpresa}</TableCell>
+                                  <TableCell>{sub.numPlaca}</TableCell>
+                                  <TableCell>{sub.fechaEntregaDocumentos}</TableCell>
+                                  <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                                  <TableCell>
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button variant="ghost" size="sm" data-testid={`button-view-manifiesto-xml-${i}`}>
+                                          <Eye className="h-4 w-4" />
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-3xl max-h-[80vh]">
+                                        <DialogHeader>
+                                          <DialogTitle>XML Cumplido Manifiesto - {sub.numManifiestoCarga}</DialogTitle>
+                                        </DialogHeader>
+                                        <ScrollArea className="h-[60vh]">
+                                          <XmlViewer xml={sub.xmlCumplidoRequest} title="XML Request" />
+                                        </ScrollArea>
+                                      </DialogContent>
+                                    </Dialog>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="grid gap-4 md:grid-cols-1">
+                      <XmlViewer xml={manifiestoSubmissions[0]?.xmlCumplidoRequest || ""} title="Ejemplo Cumplido Manifiesto" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showManifiestoResults && manifestoBatchResults.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Resultados del Lote</CardTitle>
+                    <CardDescription>
+                      {manifestoBatchResults.filter(r => r.status === "success").length} exitosos, {" "}
+                      {manifestoBatchResults.filter(r => r.status === "error").length} errores
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleExportManifiestoResults} data-testid="button-export-manifiesto-results">
+                      <Download className="h-4 w-4 mr-2" /> Exportar
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleCloseManifiestoResults} data-testid="button-close-manifiesto-results">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-h-[400px] overflow-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Manifiesto</TableHead>
+                          <TableHead>Placa</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Código</TableHead>
+                          <TableHead>Mensaje</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {manifestoBatchResults.map((result, i) => (
+                          <TableRow key={i} data-testid={`row-manifiesto-result-${i}`}>
+                            <TableCell className="font-mono">{result.numManifiestoCarga}</TableCell>
+                            <TableCell>{result.numPlaca}</TableCell>
+                            <TableCell>{getStatusBadge(result.status)}</TableCell>
+                            <TableCell className="font-mono">{result.responseCode || "-"}</TableCell>
+                            <TableCell className="max-w-[300px] truncate">{result.responseMessage || "-"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

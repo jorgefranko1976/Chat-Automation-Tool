@@ -100,3 +100,30 @@ export const insertCumplidoRemesaSubmissionSchema = createInsertSchema(cumplidoR
 
 export type InsertCumplidoRemesaSubmission = z.infer<typeof insertCumplidoRemesaSubmissionSchema>;
 export type CumplidoRemesaSubmission = typeof cumplidoRemesaSubmissions.$inferSelect;
+
+export const cumplidoManifiestoSubmissions = pgTable("cumplido_manifiesto_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchId: varchar("batch_id").notNull(),
+  numManifiestoCarga: varchar("num_manifiesto_carga").notNull(),
+  numNitEmpresa: varchar("num_nit_empresa").notNull(),
+  numPlaca: varchar("num_placa").notNull(),
+  origen: varchar("origen"),
+  destino: varchar("destino"),
+  fechaEntregaDocumentos: varchar("fecha_entrega_documentos").notNull(),
+  xmlCumplidoRequest: text("xml_cumplido_request").notNull(),
+  xmlResponse: text("xml_response"),
+  status: varchar("status").notNull().default("pending"),
+  responseCode: varchar("response_code"),
+  responseMessage: text("response_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertCumplidoManifiestoSubmissionSchema = createInsertSchema(cumplidoManifiestoSubmissions).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+});
+
+export type InsertCumplidoManifiestoSubmission = z.infer<typeof insertCumplidoManifiestoSubmissionSchema>;
+export type CumplidoManifiestoSubmission = typeof cumplidoManifiestoSubmissions.$inferSelect;
