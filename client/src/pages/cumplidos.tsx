@@ -262,15 +262,23 @@ export default function Cumplidos() {
   const parseDateTime = (dStr: any, tStr: any, addMinutes: number = 0): { date: string; time: string } => {
     let d = new Date();
     
+    console.log("[parseDateTime] Input date:", dStr, "type:", typeof dStr);
+    
     if (typeof dStr === 'number') {
       d = excelDateToDate(dStr);
+      console.log("[parseDateTime] Excel date converted:", d);
     } else if (typeof dStr === 'string') {
       const parts = dStr.split(/[-/]/);
+      console.log("[parseDateTime] String parts:", parts);
       if (parts.length === 3) {
         if (parts[2].length === 4) {
+          // Format: DD/MM/YYYY
           d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          console.log("[parseDateTime] Parsed as DD/MM/YYYY:", d);
         } else if (parts[0].length === 4) {
+          // Format: YYYY/MM/DD
           d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          console.log("[parseDateTime] Parsed as YYYY/MM/DD:", d);
         }
       }
     }
