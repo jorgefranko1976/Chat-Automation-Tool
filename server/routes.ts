@@ -261,11 +261,56 @@ export async function registerRoutes(
           responseMessage: response.message,
         });
 
+        let savedCount = 0;
+        for (const m of manifests) {
+          try {
+            const existing = await storage.getRndcManifestByIngresoId(m.ingresoidmanifiesto);
+            if (!existing && m.ingresoidmanifiesto) {
+              const savedManifest = await storage.createRndcManifest({
+                queryId: query.id,
+                ingresoIdManifiesto: m.ingresoidmanifiesto,
+                numNitEmpresaTransporte: m.numnitempresatransporte || "",
+                fechaExpedicionManifiesto: m.fechaexpedicionmanifiesto || null,
+                codigoEmpresa: m.codigoempresa || null,
+                numManifiestoCarga: m.nummanifiestocarga || "",
+                numPlaca: m.numplaca || "",
+              });
+
+              if (m.puntoscontrol) {
+                let puntos = m.puntoscontrol.puntocontrol || m.puntoscontrol;
+                if (!Array.isArray(puntos)) {
+                  puntos = [puntos];
+                }
+                for (const p of puntos) {
+                  if (p && p.codpuntocontrol) {
+                    await storage.createRndcControlPoint({
+                      manifestId: savedManifest.id,
+                      codPuntoControl: String(p.codpuntocontrol || ""),
+                      codMunicipio: p.codmunicipio || null,
+                      direccion: p.direccion || null,
+                      fechaCita: p.fechacita || null,
+                      horaCita: p.horacita || null,
+                      latitud: p.latitud || null,
+                      longitud: p.longitud || null,
+                      tiempoPactado: p.tiempopactado || null,
+                    });
+                  }
+                }
+              }
+              savedCount++;
+            }
+          } catch (saveError) {
+            console.log("[Monitoring] Error saving manifest:", saveError);
+          }
+        }
+        console.log(`[Monitoring] Saved ${savedCount} new manifests to database`);
+
         res.json({
           success: true,
           queryId: query.id,
           manifests,
           manifestsCount,
+          savedCount,
           rawXml: response.rawXml,
         });
       } else {
@@ -308,6 +353,41 @@ export async function registerRoutes(
       res.json({ success: true, query });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener consulta" });
+    }
+  });
+
+  app.get("/api/rndc/manifests", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      
+      const [manifests, total] = await Promise.all([
+        storage.getRndcManifests(limit, offset),
+        storage.getRndcManifestCount(),
+      ]);
+      
+      res.json({
+        success: true,
+        manifests,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener manifiestos" });
+    }
+  });
+
+  app.get("/api/rndc/manifests/:id/control-points", async (req, res) => {
+    try {
+      const controlPoints = await storage.getRndcControlPointsByManifest(req.params.id);
+      res.json({ success: true, controlPoints });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener puntos de control" });
     }
   });
 

@@ -151,3 +151,45 @@ export const insertMonitoringQuerySchema = createInsertSchema(monitoringQueries)
 
 export type InsertMonitoringQuery = z.infer<typeof insertMonitoringQuerySchema>;
 export type MonitoringQuery = typeof monitoringQueries.$inferSelect;
+
+export const rndcManifests = pgTable("rndc_manifests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  queryId: varchar("query_id"),
+  ingresoIdManifiesto: varchar("ingreso_id_manifiesto").notNull(),
+  numNitEmpresaTransporte: varchar("num_nit_empresa_transporte").notNull(),
+  fechaExpedicionManifiesto: varchar("fecha_expedicion_manifiesto"),
+  codigoEmpresa: varchar("codigo_empresa"),
+  numManifiestoCarga: varchar("num_manifiesto_carga").notNull(),
+  numPlaca: varchar("num_placa").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRndcManifestSchema = createInsertSchema(rndcManifests).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRndcManifest = z.infer<typeof insertRndcManifestSchema>;
+export type RndcManifest = typeof rndcManifests.$inferSelect;
+
+export const rndcControlPoints = pgTable("rndc_control_points", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  manifestId: varchar("manifest_id").notNull(),
+  codPuntoControl: varchar("cod_punto_control").notNull(),
+  codMunicipio: varchar("cod_municipio"),
+  direccion: varchar("direccion"),
+  fechaCita: varchar("fecha_cita"),
+  horaCita: varchar("hora_cita"),
+  latitud: varchar("latitud"),
+  longitud: varchar("longitud"),
+  tiempoPactado: varchar("tiempo_pactado"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRndcControlPointSchema = createInsertSchema(rndcControlPoints).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRndcControlPoint = z.infer<typeof insertRndcControlPointSchema>;
+export type RndcControlPoint = typeof rndcControlPoints.$inferSelect;

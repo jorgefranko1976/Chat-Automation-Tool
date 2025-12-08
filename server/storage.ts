@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -7,6 +7,8 @@ import {
   cumplidoRemesaSubmissions,
   cumplidoManifiestoSubmissions,
   monitoringQueries,
+  rndcManifests,
+  rndcControlPoints,
   type User,
   type InsertUser,
   type RndcSubmission,
@@ -19,6 +21,10 @@ import {
   type InsertCumplidoManifiestoSubmission,
   type MonitoringQuery,
   type InsertMonitoringQuery,
+  type RndcManifest,
+  type InsertRndcManifest,
+  type RndcControlPoint,
+  type InsertRndcControlPoint,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -54,6 +60,14 @@ export interface IStorage {
   getMonitoringQuery(id: string): Promise<MonitoringQuery | undefined>;
   updateMonitoringQuery(id: string, updates: Partial<MonitoringQuery>): Promise<MonitoringQuery | undefined>;
   getMonitoringQueries(limit?: number): Promise<MonitoringQuery[]>;
+  
+  createRndcManifest(manifest: InsertRndcManifest): Promise<RndcManifest>;
+  getRndcManifests(limit?: number, offset?: number): Promise<RndcManifest[]>;
+  getRndcManifestCount(): Promise<number>;
+  getRndcManifestByIngresoId(ingresoId: string): Promise<RndcManifest | undefined>;
+  
+  createRndcControlPoint(controlPoint: InsertRndcControlPoint): Promise<RndcControlPoint>;
+  getRndcControlPointsByManifest(manifestId: string): Promise<RndcControlPoint[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -177,6 +191,34 @@ export class DatabaseStorage implements IStorage {
 
   async getMonitoringQueries(limit = 50): Promise<MonitoringQuery[]> {
     return db.select().from(monitoringQueries).orderBy(desc(monitoringQueries.createdAt)).limit(limit);
+  }
+
+  async createRndcManifest(manifest: InsertRndcManifest): Promise<RndcManifest> {
+    const [newManifest] = await db.insert(rndcManifests).values(manifest).returning();
+    return newManifest;
+  }
+
+  async getRndcManifests(limit = 50, offset = 0): Promise<RndcManifest[]> {
+    return db.select().from(rndcManifests).orderBy(desc(rndcManifests.createdAt)).limit(limit).offset(offset);
+  }
+
+  async getRndcManifestCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(rndcManifests);
+    return Number(result[0]?.count || 0);
+  }
+
+  async getRndcManifestByIngresoId(ingresoId: string): Promise<RndcManifest | undefined> {
+    const [manifest] = await db.select().from(rndcManifests).where(eq(rndcManifests.ingresoIdManifiesto, ingresoId));
+    return manifest;
+  }
+
+  async createRndcControlPoint(controlPoint: InsertRndcControlPoint): Promise<RndcControlPoint> {
+    const [newPoint] = await db.insert(rndcControlPoints).values(controlPoint).returning();
+    return newPoint;
+  }
+
+  async getRndcControlPointsByManifest(manifestId: string): Promise<RndcControlPoint[]> {
+    return db.select().from(rndcControlPoints).where(eq(rndcControlPoints.manifestId, manifestId)).orderBy(rndcControlPoints.codPuntoControl);
   }
 }
 
