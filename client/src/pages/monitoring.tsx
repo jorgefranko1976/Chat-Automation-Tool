@@ -341,46 +341,53 @@ export default function Monitoring() {
         return;
       }
 
-      const manifestRows: any[] = [];
-      const controlPointRows: any[] = [];
+      const combinedRows: any[] = [];
 
       data.data.forEach((item: any) => {
         const m = item.manifest;
-        manifestRows.push({
-          "ingresoidmanifiesto": m.ingresoIdManifiesto,
-          "numnitempresatransporte": m.numNitEmpresaTransporte,
-          "nummanifiestocarga": m.numManifiestoCarga,
-          "fechaexpedicionmanifiesto": m.fechaExpedicionManifiesto || "",
-          "codigoempresa": m.codigoEmpresa || "",
-          "numplaca": m.numPlaca,
-          "created_at": m.createdAt,
-        });
-
-        item.controlPoints.forEach((cp: any) => {
-          controlPointRows.push({
+        
+        if (item.controlPoints.length === 0) {
+          combinedRows.push({
             "ingresoidmanifiesto": m.ingresoIdManifiesto,
+            "numnitempresatransporte": m.numNitEmpresaTransporte,
             "nummanifiestocarga": m.numManifiestoCarga,
-            "codpuntocontrol": cp.codPuntoControl,
-            "codmunicipio": cp.codMunicipio || "",
-            "direccion": cp.direccion || "",
-            "fechacita": cp.fechaCita || "",
-            "horacita": cp.horaCita || "",
-            "latitud": cp.latitud || "",
-            "longitud": cp.longitud || "",
-            "tiempopactado": cp.tiempoPactado || "",
+            "fechaexpedicionmanifiesto": m.fechaExpedicionManifiesto || "",
+            "codigoempresa": m.codigoEmpresa || "",
+            "numplaca": m.numPlaca,
+            "codpuntocontrol": "",
+            "codmunicipio": "",
+            "direccion": "",
+            "fechacita": "",
+            "horacita": "",
+            "latitud": "",
+            "longitud": "",
+            "tiempopactado": "",
           });
-        });
+        } else {
+          item.controlPoints.forEach((cp: any) => {
+            combinedRows.push({
+              "ingresoidmanifiesto": m.ingresoIdManifiesto,
+              "numnitempresatransporte": m.numNitEmpresaTransporte,
+              "nummanifiestocarga": m.numManifiestoCarga,
+              "fechaexpedicionmanifiesto": m.fechaExpedicionManifiesto || "",
+              "codigoempresa": m.codigoEmpresa || "",
+              "numplaca": m.numPlaca,
+              "codpuntocontrol": cp.codPuntoControl,
+              "codmunicipio": cp.codMunicipio || "",
+              "direccion": cp.direccion || "",
+              "fechacita": cp.fechaCita || "",
+              "horacita": cp.horaCita || "",
+              "latitud": cp.latitud || "",
+              "longitud": cp.longitud || "",
+              "tiempopactado": cp.tiempoPactado || "",
+            });
+          });
+        }
       });
 
       const wb = XLSX.utils.book_new();
-      
-      const wsManifests = XLSX.utils.json_to_sheet(manifestRows);
-      XLSX.utils.book_append_sheet(wb, wsManifests, "manifiestos");
-      
-      if (controlPointRows.length > 0) {
-        const wsControlPoints = XLSX.utils.json_to_sheet(controlPointRows);
-        XLSX.utils.book_append_sheet(wb, wsControlPoints, "puntoscontrol");
-      }
+      const ws = XLSX.utils.json_to_sheet(combinedRows);
+      XLSX.utils.book_append_sheet(wb, ws, "manifiestos_puntoscontrol");
 
       const date = new Date().toISOString().split('T')[0];
       XLSX.writeFile(wb, `manifiestos_guardados_${date}.xlsx`);
