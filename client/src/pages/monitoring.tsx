@@ -40,7 +40,7 @@ interface MonitoringQuery {
 }
 
 export default function Monitoring() {
-  const { settings } = useSettings();
+  const { settings, getActiveWsUrl } = useSettings();
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(300);
   const [canRequest, setCanRequest] = useState(true);
@@ -150,6 +150,7 @@ export default function Monitoring() {
           numIdGps: settings.companyNit,
           manifestId: type === 'SPECIFIC' ? specificManifestId : undefined,
           xmlRequest: xml,
+          wsUrl: getActiveWsUrl(),
         }),
       });
 
