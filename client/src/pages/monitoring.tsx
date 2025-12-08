@@ -10,9 +10,13 @@ import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Search, Clock, AlertCircle, Download, Eye, FileSpreadsheet, History, Database, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RefreshCw, Search, Clock, AlertCircle, Download, Eye, FileSpreadsheet, History, Database, ChevronLeft, ChevronRight, Filter, X, CalendarIcon } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
+import { format, parse } from "date-fns";
+import { es } from "date-fns/locale";
 import * as XLSX from "xlsx";
 
 interface ManifestData {
@@ -778,23 +782,53 @@ export default function Monitoring() {
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Fecha Desde</Label>
-                          <Input
-                            type="date"
-                            value={searchFilters.dateFrom}
-                            onChange={(e) => setSearchFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                            className="h-8 text-sm"
-                            data-testid="input-date-from"
-                          />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full h-8 text-sm justify-start text-left font-normal"
+                                data-testid="input-date-from"
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {searchFilters.dateFrom 
+                                  ? format(parse(searchFilters.dateFrom, "yyyy-MM-dd", new Date()), "dd/MM/yyyy", { locale: es })
+                                  : "Seleccionar"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={searchFilters.dateFrom ? parse(searchFilters.dateFrom, "yyyy-MM-dd", new Date()) : undefined}
+                                onSelect={(date) => setSearchFilters(prev => ({ ...prev, dateFrom: date ? format(date, "yyyy-MM-dd") : "" }))}
+                                locale={es}
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Fecha Hasta</Label>
-                          <Input
-                            type="date"
-                            value={searchFilters.dateTo}
-                            onChange={(e) => setSearchFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                            className="h-8 text-sm"
-                            data-testid="input-date-to"
-                          />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full h-8 text-sm justify-start text-left font-normal"
+                                data-testid="input-date-to"
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {searchFilters.dateTo 
+                                  ? format(parse(searchFilters.dateTo, "yyyy-MM-dd", new Date()), "dd/MM/yyyy", { locale: es })
+                                  : "Seleccionar"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={searchFilters.dateTo ? parse(searchFilters.dateTo, "yyyy-MM-dd", new Date()) : undefined}
+                                onSelect={(date) => setSearchFilters(prev => ({ ...prev, dateTo: date ? format(date, "yyyy-MM-dd") : "" }))}
+                                locale={es}
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Placa</Label>
