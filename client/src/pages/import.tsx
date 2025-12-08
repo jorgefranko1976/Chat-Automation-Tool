@@ -166,17 +166,42 @@ export default function Import() {
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const jsonData = XLSX.utils.sheet_to_json(ws) as ExcelRow[];
-      setData(jsonData);
-      setGeneratedSubmissions([]);
-      toast({
-        title: "Archivo Procesado",
-        description: `Se han cargado ${jsonData.length} registros exitosamente.`,
-      });
+      try {
+        const bstr = evt.target?.result;
+        if (!bstr) {
+          toast({
+            title: "Error",
+            description: "No se pudo leer el archivo",
+            variant: "destructive",
+          });
+          return;
+        }
+        const wb = XLSX.read(bstr, { type: "binary" });
+        if (!wb || !wb.SheetNames || wb.SheetNames.length === 0) {
+          toast({
+            title: "Error",
+            description: "El archivo no contiene hojas de Excel válidas",
+            variant: "destructive",
+          });
+          return;
+        }
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const jsonData = XLSX.utils.sheet_to_json(ws) as ExcelRow[];
+        setData(jsonData);
+        setGeneratedSubmissions([]);
+        toast({
+          title: "Archivo Procesado",
+          description: `Se han cargado ${jsonData.length} registros exitosamente.`,
+        });
+      } catch (error) {
+        console.error("Error parsing Excel file:", error);
+        toast({
+          title: "Error al leer archivo",
+          description: "El archivo no es un Excel válido o está corrupto",
+          variant: "destructive",
+        });
+      }
     };
     reader.readAsBinaryString(file);
   };
