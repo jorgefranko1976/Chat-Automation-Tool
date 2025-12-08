@@ -10,7 +10,7 @@ import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Search, Clock, AlertCircle, Download, Eye, FileSpreadsheet, History, Database, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCw, Search, Clock, AlertCircle, Download, Eye, FileSpreadsheet, History, Database, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
 import * as XLSX from "xlsx";
@@ -90,6 +90,17 @@ export default function Monitoring() {
   const [loadingControlPoints, setLoadingControlPoints] = useState(false);
   const [controlPointsDialogOpen, setControlPointsDialogOpen] = useState(false);
   const [selectedManifestInfo, setSelectedManifestInfo] = useState<StoredManifest | null>(null);
+  
+  const [searchFilters, setSearchFilters] = useState({
+    dateFrom: "",
+    dateTo: "",
+    numPlaca: "",
+    ingresoIdManifiesto: "",
+    numManifiestoCarga: "",
+    codPuntoControl: "",
+  });
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [loadingExport, setLoadingExport] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -247,10 +258,27 @@ export default function Monitoring() {
     }
   };
 
-  const fetchStoredManifests = async (page: number = 1) => {
+  const fetchStoredManifests = async (page: number = 1, useFilters: boolean = false) => {
     setLoadingStored(true);
     try {
-      const response = await fetch(`/api/rndc/manifests?page=${page}&limit=20`);
+      let url = `/api/rndc/manifests?page=${page}&limit=20`;
+      
+      if (useFilters || isSearchActive) {
+        const params = new URLSearchParams();
+        params.set("page", page.toString());
+        params.set("limit", "20");
+        
+        if (searchFilters.dateFrom) params.set("dateFrom", searchFilters.dateFrom);
+        if (searchFilters.dateTo) params.set("dateTo", searchFilters.dateTo);
+        if (searchFilters.numPlaca) params.set("numPlaca", searchFilters.numPlaca);
+        if (searchFilters.ingresoIdManifiesto) params.set("ingresoIdManifiesto", searchFilters.ingresoIdManifiesto);
+        if (searchFilters.numManifiestoCarga) params.set("numManifiestoCarga", searchFilters.numManifiestoCarga);
+        if (searchFilters.codPuntoControl) params.set("codPuntoControl", searchFilters.codPuntoControl);
+        
+        url = `/api/rndc/manifests/search?${params.toString()}`;
+      }
+      
+      const response = await fetch(url);
       const data = await response.json();
       if (data.success) {
         setStoredManifests(data.manifests);
@@ -264,6 +292,107 @@ export default function Monitoring() {
       });
     } finally {
       setLoadingStored(false);
+    }
+  };
+
+  const handleSearch = () => {
+    const hasFilters = Object.values(searchFilters).some(v => v.trim() !== "");
+    setIsSearchActive(hasFilters);
+    fetchStoredManifests(1, hasFilters);
+  };
+
+  const clearSearch = () => {
+    setSearchFilters({
+      dateFrom: "",
+      dateTo: "",
+      numPlaca: "",
+      ingresoIdManifiesto: "",
+      numManifiestoCarga: "",
+      codPuntoControl: "",
+    });
+    setIsSearchActive(false);
+    fetchStoredManifests(1, false);
+  };
+
+  const exportStoredToExcel = async () => {
+    setLoadingExport(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchFilters.dateFrom) params.set("dateFrom", searchFilters.dateFrom);
+      if (searchFilters.dateTo) params.set("dateTo", searchFilters.dateTo);
+      if (searchFilters.numPlaca) params.set("numPlaca", searchFilters.numPlaca);
+      if (searchFilters.ingresoIdManifiesto) params.set("ingresoIdManifiesto", searchFilters.ingresoIdManifiesto);
+      if (searchFilters.numManifiestoCarga) params.set("numManifiestoCarga", searchFilters.numManifiestoCarga);
+      if (searchFilters.codPuntoControl) params.set("codPuntoControl", searchFilters.codPuntoControl);
+
+      const response = await fetch(`/api/rndc/manifests/export?${params.toString()}`);
+      const data = await response.json();
+
+      if (!data.success || data.count === 0) {
+        toast({
+          title: "Sin datos",
+          description: "No hay manifiestos para exportar",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const manifestRows: any[] = [];
+      const controlPointRows: any[] = [];
+
+      data.data.forEach((item: any) => {
+        const m = item.manifest;
+        manifestRows.push({
+          "ingresoidmanifiesto": m.ingresoIdManifiesto,
+          "numnitempresatransporte": m.numNitEmpresaTransporte,
+          "nummanifiestocarga": m.numManifiestoCarga,
+          "fechaexpedicionmanifiesto": m.fechaExpedicionManifiesto || "",
+          "codigoempresa": m.codigoEmpresa || "",
+          "numplaca": m.numPlaca,
+          "created_at": m.createdAt,
+        });
+
+        item.controlPoints.forEach((cp: any) => {
+          controlPointRows.push({
+            "ingresoidmanifiesto": m.ingresoIdManifiesto,
+            "nummanifiestocarga": m.numManifiestoCarga,
+            "codpuntocontrol": cp.codPuntoControl,
+            "codmunicipio": cp.codMunicipio || "",
+            "direccion": cp.direccion || "",
+            "fechacita": cp.fechaCita || "",
+            "horacita": cp.horaCita || "",
+            "latitud": cp.latitud || "",
+            "longitud": cp.longitud || "",
+            "tiempopactado": cp.tiempoPactado || "",
+          });
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+      
+      const wsManifests = XLSX.utils.json_to_sheet(manifestRows);
+      XLSX.utils.book_append_sheet(wb, wsManifests, "manifiestos");
+      
+      if (controlPointRows.length > 0) {
+        const wsControlPoints = XLSX.utils.json_to_sheet(controlPointRows);
+        XLSX.utils.book_append_sheet(wb, wsControlPoints, "puntoscontrol");
+      }
+
+      const date = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `manifiestos_guardados_${date}.xlsx`);
+
+      toast({
+        title: "Exportación exitosa",
+        description: `Se exportaron ${data.count} manifiestos a Excel`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo exportar los manifiestos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingExport(false);
     }
   };
 
@@ -610,7 +739,7 @@ export default function Monitoring() {
 
               <TabsContent value="stored" className="space-y-4 mt-4">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
                         <Database className="h-5 w-5" />
@@ -618,7 +747,17 @@ export default function Monitoring() {
                       </CardTitle>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">{storedPagination.total} total</Badge>
-                        <Button size="sm" variant="outline" onClick={() => fetchStoredManifests(storedPagination.page)} disabled={loadingStored} data-testid="button-refresh-stored">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={exportStoredToExcel} 
+                          disabled={loadingExport || storedPagination.total === 0}
+                          data-testid="button-export-stored"
+                        >
+                          <Download className={`h-4 w-4 mr-2 ${loadingExport ? "animate-spin" : ""}`} />
+                          Exportar Excel
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => fetchStoredManifests(storedPagination.page, isSearchActive)} disabled={loadingStored} data-testid="button-refresh-stored">
                           <RefreshCw className={`h-4 w-4 mr-2 ${loadingStored ? "animate-spin" : ""}`} />
                           Actualizar
                         </Button>
@@ -626,6 +765,92 @@ export default function Monitoring() {
                     </div>
                     <CardDescription>Manifiestos recuperados del RNDC y almacenados en la base de datos</CardDescription>
                   </CardHeader>
+                  
+                  <CardContent className="pb-3 border-b">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Filter className="h-4 w-4" />
+                        Filtros de búsqueda
+                        {isSearchActive && (
+                          <Badge variant="default" className="ml-2">Filtros activos</Badge>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Fecha Desde</Label>
+                          <Input
+                            type="date"
+                            value={searchFilters.dateFrom}
+                            onChange={(e) => setSearchFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                            className="h-8 text-sm"
+                            data-testid="input-date-from"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Fecha Hasta</Label>
+                          <Input
+                            type="date"
+                            value={searchFilters.dateTo}
+                            onChange={(e) => setSearchFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                            className="h-8 text-sm"
+                            data-testid="input-date-to"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Placa</Label>
+                          <Input
+                            placeholder="Ej: ABC123"
+                            value={searchFilters.numPlaca}
+                            onChange={(e) => setSearchFilters(prev => ({ ...prev, numPlaca: e.target.value }))}
+                            className="h-8 text-sm"
+                            data-testid="input-filter-placa"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">ID Manifiesto</Label>
+                          <Input
+                            placeholder="Ej: 123456"
+                            value={searchFilters.ingresoIdManifiesto}
+                            onChange={(e) => setSearchFilters(prev => ({ ...prev, ingresoIdManifiesto: e.target.value }))}
+                            className="h-8 text-sm"
+                            data-testid="input-filter-id-manifiesto"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Núm. Manifiesto</Label>
+                          <Input
+                            placeholder="Ej: M-001"
+                            value={searchFilters.numManifiestoCarga}
+                            onChange={(e) => setSearchFilters(prev => ({ ...prev, numManifiestoCarga: e.target.value }))}
+                            className="h-8 text-sm"
+                            data-testid="input-filter-num-manifiesto"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Punto Control</Label>
+                          <Input
+                            placeholder="Código"
+                            value={searchFilters.codPuntoControl}
+                            onChange={(e) => setSearchFilters(prev => ({ ...prev, codPuntoControl: e.target.value }))}
+                            className="h-8 text-sm"
+                            data-testid="input-filter-punto-control"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSearch} disabled={loadingStored} data-testid="button-search-stored">
+                          <Search className="h-4 w-4 mr-2" />
+                          Buscar
+                        </Button>
+                        {isSearchActive && (
+                          <Button size="sm" variant="ghost" onClick={clearSearch} disabled={loadingStored} data-testid="button-clear-search">
+                            <X className="h-4 w-4 mr-2" />
+                            Limpiar filtros
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
                   <CardContent>
                     {loadingStored ? (
                       <div className="flex items-center justify-center py-8">
@@ -687,7 +912,7 @@ export default function Monitoring() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => fetchStoredManifests(storedPagination.page - 1)}
+                                onClick={() => fetchStoredManifests(storedPagination.page - 1, isSearchActive)}
                                 disabled={storedPagination.page <= 1 || loadingStored}
                                 data-testid="button-prev-page"
                               >
@@ -697,7 +922,7 @@ export default function Monitoring() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => fetchStoredManifests(storedPagination.page + 1)}
+                                onClick={() => fetchStoredManifests(storedPagination.page + 1, isSearchActive)}
                                 disabled={storedPagination.page >= storedPagination.totalPages || loadingStored}
                                 data-testid="button-next-page"
                               >

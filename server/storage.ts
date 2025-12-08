@@ -1,4 +1,4 @@
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and, like, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -65,9 +65,19 @@ export interface IStorage {
   getRndcManifests(limit?: number, offset?: number): Promise<RndcManifest[]>;
   getRndcManifestCount(): Promise<number>;
   getRndcManifestByIngresoId(ingresoId: string): Promise<RndcManifest | undefined>;
+  searchRndcManifests(filters: ManifestSearchFilters, limit?: number, offset?: number): Promise<{ manifests: RndcManifest[]; total: number }>;
   
   createRndcControlPoint(controlPoint: InsertRndcControlPoint): Promise<RndcControlPoint>;
   getRndcControlPointsByManifest(manifestId: string): Promise<RndcControlPoint[]>;
+}
+
+export interface ManifestSearchFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  numPlaca?: string;
+  ingresoIdManifiesto?: string;
+  numManifiestoCarga?: string;
+  codPuntoControl?: string;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -219,6 +229,58 @@ export class DatabaseStorage implements IStorage {
 
   async getRndcControlPointsByManifest(manifestId: string): Promise<RndcControlPoint[]> {
     return db.select().from(rndcControlPoints).where(eq(rndcControlPoints.manifestId, manifestId)).orderBy(rndcControlPoints.codPuntoControl);
+  }
+
+  async searchRndcManifests(filters: ManifestSearchFilters, limit = 50, offset = 0): Promise<{ manifests: RndcManifest[]; total: number }> {
+    const conditions: any[] = [];
+
+    if (filters.numPlaca) {
+      conditions.push(like(rndcManifests.numPlaca, `%${filters.numPlaca}%`));
+    }
+
+    if (filters.ingresoIdManifiesto) {
+      conditions.push(like(rndcManifests.ingresoIdManifiesto, `%${filters.ingresoIdManifiesto}%`));
+    }
+
+    if (filters.numManifiestoCarga) {
+      conditions.push(like(rndcManifests.numManifiestoCarga, `%${filters.numManifiestoCarga}%`));
+    }
+
+    if (filters.dateFrom) {
+      conditions.push(gte(rndcManifests.createdAt, new Date(filters.dateFrom)));
+    }
+
+    if (filters.dateTo) {
+      const endDate = new Date(filters.dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(rndcManifests.createdAt, endDate));
+    }
+
+    if (filters.codPuntoControl) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${rndcControlPoints} 
+          WHERE ${rndcControlPoints.manifestId} = ${rndcManifests.id}
+          AND ${rndcControlPoints.codPuntoControl} LIKE ${'%' + filters.codPuntoControl + '%'}
+        )`
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [manifests, countResult] = await Promise.all([
+      whereClause 
+        ? db.select().from(rndcManifests).where(whereClause).orderBy(desc(rndcManifests.createdAt)).limit(limit).offset(offset)
+        : db.select().from(rndcManifests).orderBy(desc(rndcManifests.createdAt)).limit(limit).offset(offset),
+      whereClause
+        ? db.select({ count: sql<number>`count(*)` }).from(rndcManifests).where(whereClause)
+        : db.select({ count: sql<number>`count(*)` }).from(rndcManifests),
+    ]);
+
+    return {
+      manifests,
+      total: Number(countResult[0]?.count || 0),
+    };
   }
 }
 

@@ -382,6 +382,68 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/rndc/manifests/search", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      
+      const filters = {
+        dateFrom: req.query.dateFrom as string | undefined,
+        dateTo: req.query.dateTo as string | undefined,
+        numPlaca: req.query.numPlaca as string | undefined,
+        ingresoIdManifiesto: req.query.ingresoIdManifiesto as string | undefined,
+        numManifiestoCarga: req.query.numManifiestoCarga as string | undefined,
+        codPuntoControl: req.query.codPuntoControl as string | undefined,
+      };
+
+      const { manifests, total } = await storage.searchRndcManifests(filters, limit, offset);
+      
+      res.json({
+        success: true,
+        manifests,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar manifiestos" });
+    }
+  });
+
+  app.get("/api/rndc/manifests/export", async (req, res) => {
+    try {
+      const filters = {
+        dateFrom: req.query.dateFrom as string | undefined,
+        dateTo: req.query.dateTo as string | undefined,
+        numPlaca: req.query.numPlaca as string | undefined,
+        ingresoIdManifiesto: req.query.ingresoIdManifiesto as string | undefined,
+        numManifiestoCarga: req.query.numManifiestoCarga as string | undefined,
+        codPuntoControl: req.query.codPuntoControl as string | undefined,
+      };
+
+      const { manifests } = await storage.searchRndcManifests(filters, 10000, 0);
+      
+      const manifestsWithControlPoints = await Promise.all(
+        manifests.map(async (m) => {
+          const controlPoints = await storage.getRndcControlPointsByManifest(m.id);
+          return { manifest: m, controlPoints };
+        })
+      );
+      
+      res.json({
+        success: true,
+        data: manifestsWithControlPoints,
+        count: manifests.length,
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al exportar manifiestos" });
+    }
+  });
+
   app.get("/api/rndc/manifests/:id/control-points", async (req, res) => {
     try {
       const controlPoints = await storage.getRndcControlPointsByManifest(req.params.id);
