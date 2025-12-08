@@ -98,6 +98,22 @@ export default function Monitoring() {
 </root>`;
   };
 
+  const generateSoapEnvelope = (xmlContent: string) => {
+    const cleanedXml = xmlContent.replace(/<\?xml[^?]*\?>\s*/gi, '').trim();
+    return `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" 
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+               xmlns:tns="urn:BPMServicesIntf-IBPMServices">
+  <soap:Body soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <tns:AtenderMensajeRNDC>
+      <Request xsi:type="xsd:string">${cleanedXml}</Request>
+    </tns:AtenderMensajeRNDC>
+  </soap:Body>
+</soap:Envelope>`;
+  };
+
   const handleRequest = async (type: 'NUEVOS' | 'TODOS' | 'SPECIFIC') => {
     if (!canRequest && type !== 'SPECIFIC') {
       toast({
@@ -411,8 +427,19 @@ export default function Monitoring() {
               
               <TabsContent value="xml" className="space-y-4 mt-4">
                 <div className="grid gap-4">
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Badge variant="outline">SOAP Envelope Completo</Badge>
+                        <span className="text-muted-foreground font-normal">- XML real enviado al RNDC</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <XmlViewer xml={requestXml ? generateSoapEnvelope(requestXml) : "Esperando consulta..."} title="SOAP Request" />
+                    </CardContent>
+                  </Card>
                   <div>
-                    <Label className="text-xs mb-2 block">Solicitud Enviada</Label>
+                    <Label className="text-xs mb-2 block">Contenido XML Interno</Label>
                     <XmlViewer xml={requestXml || "Esperando consulta..."} title="Request" />
                   </div>
                   <div>
