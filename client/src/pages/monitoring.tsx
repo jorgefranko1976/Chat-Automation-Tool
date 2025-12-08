@@ -10,7 +10,7 @@ import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Search, Clock, AlertCircle, Download, Eye, FileSpreadsheet, History } from "lucide-react";
+import { RefreshCw, Search, Clock, AlertCircle, Download, Eye, FileSpreadsheet, History, Database, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
 import * as XLSX from "xlsx";
@@ -22,6 +22,37 @@ interface ManifestData {
   fechaexpedicionmanifiesto: string;
   numplaca: string;
   puntoscontrol: any;
+}
+
+interface StoredManifest {
+  id: string;
+  ingresoIdManifiesto: string;
+  numNitEmpresaTransporte: string;
+  fechaExpedicionManifiesto: string | null;
+  codigoEmpresa: string | null;
+  numManifiestoCarga: string;
+  numPlaca: string;
+  createdAt: string;
+}
+
+interface ControlPoint {
+  id: string;
+  manifestId: string;
+  codPuntoControl: string;
+  codMunicipio: string | null;
+  direccion: string | null;
+  fechaCita: string | null;
+  horaCita: string | null;
+  latitud: string | null;
+  longitud: string | null;
+  tiempoPactado: string | null;
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 interface MonitoringQuery {
@@ -51,6 +82,14 @@ export default function Monitoring() {
   const [queryHistory, setQueryHistory] = useState<MonitoringQuery[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState("results");
+  
+  const [storedManifests, setStoredManifests] = useState<StoredManifest[]>([]);
+  const [storedPagination, setStoredPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [loadingStored, setLoadingStored] = useState(false);
+  const [selectedManifestControlPoints, setSelectedManifestControlPoints] = useState<ControlPoint[]>([]);
+  const [loadingControlPoints, setLoadingControlPoints] = useState(false);
+  const [controlPointsDialogOpen, setControlPointsDialogOpen] = useState(false);
+  const [selectedManifestInfo, setSelectedManifestInfo] = useState<StoredManifest | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -64,6 +103,12 @@ export default function Monitoring() {
     }
     return () => clearInterval(interval);
   }, [timer, canRequest]);
+
+  useEffect(() => {
+    if (activeTab === "stored" && storedManifests.length === 0 && !loadingStored) {
+      fetchStoredManifests(1);
+    }
+  }, [activeTab]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -199,6 +244,47 @@ export default function Monitoring() {
       });
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const fetchStoredManifests = async (page: number = 1) => {
+    setLoadingStored(true);
+    try {
+      const response = await fetch(`/api/rndc/manifests?page=${page}&limit=20`);
+      const data = await response.json();
+      if (data.success) {
+        setStoredManifests(data.manifests);
+        setStoredPagination(data.pagination);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar los manifiestos guardados",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingStored(false);
+    }
+  };
+
+  const fetchControlPoints = async (manifest: StoredManifest) => {
+    setSelectedManifestInfo(manifest);
+    setLoadingControlPoints(true);
+    setControlPointsDialogOpen(true);
+    try {
+      const response = await fetch(`/api/rndc/manifests/${manifest.id}/control-points`);
+      const data = await response.json();
+      if (data.success) {
+        setSelectedManifestControlPoints(data.controlPoints);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar los puntos de control",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingControlPoints(false);
     }
   };
 
@@ -346,6 +432,10 @@ export default function Monitoring() {
                   <TabsTrigger value="history" onClick={fetchHistory} data-testid="tab-history">
                     <History className="h-4 w-4 mr-2" />
                     Historial
+                  </TabsTrigger>
+                  <TabsTrigger value="stored" onClick={() => fetchStoredManifests(1)} data-testid="tab-stored">
+                    <Database className="h-4 w-4 mr-2" />
+                    Guardados
                   </TabsTrigger>
                 </TabsList>
                 {manifests.length > 0 && activeTab === "results" && (
@@ -517,9 +607,163 @@ export default function Monitoring() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              <TabsContent value="stored" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Database className="h-5 w-5" />
+                        Manifiestos Guardados
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{storedPagination.total} total</Badge>
+                        <Button size="sm" variant="outline" onClick={() => fetchStoredManifests(storedPagination.page)} disabled={loadingStored} data-testid="button-refresh-stored">
+                          <RefreshCw className={`h-4 w-4 mr-2 ${loadingStored ? "animate-spin" : ""}`} />
+                          Actualizar
+                        </Button>
+                      </div>
+                    </div>
+                    <CardDescription>Manifiestos recuperados del RNDC y almacenados en la base de datos</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingStored ? (
+                      <div className="flex items-center justify-center py-8">
+                        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : storedManifests.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <Database className="h-12 w-12 mb-4 opacity-50" />
+                        <p>No hay manifiestos guardados</p>
+                        <p className="text-sm">Realice una consulta para guardar manifiestos</p>
+                      </div>
+                    ) : (
+                      <>
+                        <ScrollArea className="h-[400px]">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>ID Manifiesto</TableHead>
+                                <TableHead>NIT Empresa</TableHead>
+                                <TableHead>Núm. Manifiesto</TableHead>
+                                <TableHead>Fecha Expedición</TableHead>
+                                <TableHead>Placa</TableHead>
+                                <TableHead>Guardado</TableHead>
+                                <TableHead>Acciones</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {storedManifests.map((manifest, index) => (
+                                <TableRow key={manifest.id} data-testid={`row-stored-${manifest.id}`}>
+                                  <TableCell className="font-mono text-sm">{manifest.ingresoIdManifiesto}</TableCell>
+                                  <TableCell>{manifest.numNitEmpresaTransporte}</TableCell>
+                                  <TableCell>{manifest.numManifiestoCarga}</TableCell>
+                                  <TableCell>{manifest.fechaExpedicionManifiesto || "-"}</TableCell>
+                                  <TableCell className="font-medium">{manifest.numPlaca}</TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">{formatDate(manifest.createdAt)}</TableCell>
+                                  <TableCell>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      onClick={() => fetchControlPoints(manifest)}
+                                      data-testid={`button-view-control-points-${index}`}
+                                    >
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      Puntos
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                        
+                        {storedPagination.totalPages > 1 && (
+                          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                            <div className="text-sm text-muted-foreground">
+                              Página {storedPagination.page} de {storedPagination.totalPages}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => fetchStoredManifests(storedPagination.page - 1)}
+                                disabled={storedPagination.page <= 1 || loadingStored}
+                                data-testid="button-prev-page"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                                Anterior
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => fetchStoredManifests(storedPagination.page + 1)}
+                                disabled={storedPagination.page >= storedPagination.totalPages || loadingStored}
+                                data-testid="button-next-page"
+                              >
+                                Siguiente
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
           </div>
         </div>
+
+        <Dialog open={controlPointsDialogOpen} onOpenChange={setControlPointsDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>
+                Puntos de Control - Manifiesto {selectedManifestInfo?.numManifiestoCarga}
+              </DialogTitle>
+            </DialogHeader>
+            {loadingControlPoints ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedManifestControlPoints.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <AlertCircle className="h-12 w-12 mb-4 opacity-50" />
+                <p>No hay puntos de control registrados</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-[400px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Municipio</TableHead>
+                      <TableHead>Dirección</TableHead>
+                      <TableHead>Fecha Cita</TableHead>
+                      <TableHead>Hora Cita</TableHead>
+                      <TableHead>Coordenadas</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedManifestControlPoints.map((cp) => (
+                      <TableRow key={cp.id} data-testid={`row-control-point-${cp.id}`}>
+                        <TableCell className="font-mono">{cp.codPuntoControl}</TableCell>
+                        <TableCell>{cp.codMunicipio || "-"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{cp.direccion || "-"}</TableCell>
+                        <TableCell>{cp.fechaCita || "-"}</TableCell>
+                        <TableCell>{cp.horaCita || "-"}</TableCell>
+                        <TableCell className="text-sm">
+                          {cp.latitud && cp.longitud ? `${cp.latitud}, ${cp.longitud}` : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
