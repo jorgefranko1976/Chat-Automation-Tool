@@ -114,11 +114,23 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
           success = true;
           code = String(resultParsed.root.ingresoid);
           message = `Registro aceptado. IngresoID: ${code}`;
-        } else if (resultParsed?.root?.documento?.ingresoid) {
-          // Query response with documento wrapper
+        } else if (resultParsed?.root?.documento) {
+          // Query response with documento - can be array (multiple) or object (single)
           success = true;
-          code = String(resultParsed.root.documento.ingresoid);
-          message = `Consulta exitosa. IngresoID: ${code}`;
+          const docs = resultParsed.root.documento;
+          if (Array.isArray(docs)) {
+            code = "MULTIPLE";
+            message = `Consulta exitosa. ${docs.length} manifiestos encontrados.`;
+          } else if (docs.ingresoidmanifiesto) {
+            code = String(docs.ingresoidmanifiesto);
+            message = `Consulta exitosa. Manifiesto: ${code}`;
+          } else if (docs.ingresoid) {
+            code = String(docs.ingresoid);
+            message = `Consulta exitosa. IngresoID: ${code}`;
+          } else {
+            code = "DOCS";
+            message = `Consulta exitosa con documentos.`;
+          }
         } else if (resultParsed?.root?.ErrorMSG || resultParsed?.root?.errormsg) {
           success = false;
           const errorMsg = String(resultParsed.root.ErrorMSG || resultParsed.root.errormsg);
