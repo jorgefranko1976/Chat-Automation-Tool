@@ -128,3 +128,26 @@ export const insertCumplidoManifiestoSubmissionSchema = createInsertSchema(cumpl
 
 export type InsertCumplidoManifiestoSubmission = z.infer<typeof insertCumplidoManifiestoSubmissionSchema>;
 export type CumplidoManifiestoSubmission = typeof cumplidoManifiestoSubmissions.$inferSelect;
+
+export const monitoringQueries = pgTable("monitoring_queries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  queryType: varchar("query_type").notNull(),
+  numIdGps: varchar("num_id_gps"),
+  manifestId: varchar("manifest_id"),
+  xmlRequest: text("xml_request").notNull(),
+  xmlResponse: text("xml_response"),
+  manifestsCount: integer("manifests_count").default(0),
+  manifestsData: text("manifests_data"),
+  status: varchar("status").notNull().default("pending"),
+  responseCode: varchar("response_code"),
+  responseMessage: text("response_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMonitoringQuerySchema = createInsertSchema(monitoringQueries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMonitoringQuery = z.infer<typeof insertMonitoringQuerySchema>;
+export type MonitoringQuery = typeof monitoringQueries.$inferSelect;

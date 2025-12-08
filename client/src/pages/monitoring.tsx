@@ -5,23 +5,53 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { XmlViewer } from "@/components/xml-viewer";
-import { ManifestCard } from "@/components/manifest-card";
-import { MOCK_MANIFESTS } from "@/lib/mock-data";
-import { RefreshCw, Search, Clock, AlertCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, Search, Clock, AlertCircle, Download, Eye, FileSpreadsheet, History } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
+import * as XLSX from "xlsx";
+
+interface ManifestData {
+  ingresoidmanifiesto: string;
+  numnitempresatransporte: string;
+  nummanifiestocarga: string;
+  fechaexpedicionmanifiesto: string;
+  numplaca: string;
+  puntoscontrol: any;
+}
+
+interface MonitoringQuery {
+  id: string;
+  queryType: string;
+  numIdGps: string;
+  manifestId: string | null;
+  xmlRequest: string;
+  xmlResponse: string | null;
+  manifestsCount: number;
+  manifestsData: string | null;
+  status: string;
+  responseCode: string | null;
+  responseMessage: string | null;
+  createdAt: string;
+}
 
 export default function Monitoring() {
   const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
-  const [timer, setTimer] = useState(300); // 5 minutes in seconds
+  const [timer, setTimer] = useState(300);
   const [canRequest, setCanRequest] = useState(true);
   const [requestXml, setRequestXml] = useState("");
   const [responseXml, setResponseXml] = useState("");
-  const [manifests, setManifests] = useState(MOCK_MANIFESTS);
+  const [manifests, setManifests] = useState<ManifestData[]>([]);
+  const [specificManifestId, setSpecificManifestId] = useState("");
+  const [queryHistory, setQueryHistory] = useState<MonitoringQuery[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [activeTab, setActiveTab] = useState("results");
 
-  // Timer logic for 5-minute constraint
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (timer > 0 && !canRequest) {
@@ -68,8 +98,8 @@ export default function Monitoring() {
 </root>`;
   };
 
-  const handleRequest = async (type: 'NUEVOS' | 'TODOS') => {
-    if (!canRequest) {
+  const handleRequest = async (type: 'NUEVOS' | 'TODOS' | 'SPECIFIC') => {
+    if (!canRequest && type !== 'SPECIFIC') {
       toast({
         title: "Espere por favor",
         description: `Debe esperar ${formatTime(timer)} para realizar una nueva consulta masiva.`,
@@ -78,41 +108,139 @@ export default function Monitoring() {
       return;
     }
 
-    const xml = generateRequestXml(type);
+    if (type === 'SPECIFIC' && !specificManifestId.trim()) {
+      toast({
+        title: "ID requerido",
+        description: "Por favor ingrese el ID del manifiesto a consultar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const xml = generateRequestXml(type, type === 'SPECIFIC' ? specificManifestId : undefined);
     setRequestXml(xml);
     setLoading(true);
-    setCanRequest(false);
+    
+    if (type !== 'SPECIFIC') {
+      setCanRequest(false);
+    }
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      setResponseXml(`<?xml version="1.0" encoding="iso-8859-1" ?>
-<root>
-<documento>
-<ingresoidmanifiesto>123456789</ingresoidmanifiesto>
-<numnitempresatransporte>${settings.companyNit}</numnitempresatransporte>
-<nummanifiestocarga>111</nummanifiestocarga>
-<fechaexpedicionmanifiesto>03/09/2014</fechaexpedicionmanifiesto>
-<numplaca>bod874</numplaca>
-<puntoscontrol>
-<puntocontrol>
-<codpuntocontrol>1</codpuntocontrol >
-<codmunicipio>11001000</codmunicipio>
-<direccion>calle 1 3-51 parque industrial xxx</direccion>
-<fechacita>2018/11/05</ fechacita>
-<horacita>16:07</ horacita>
-<latitud>5.417198</ latitud>
-<longitud>-72.290611</ longitud>
-<tiempopactado>65</tiempopactado >
-</puntocontrol>
-</puntoscontrol>
-</documento>
-</root>`);
-      toast({
-        title: "Consulta Exitosa",
-        description: `Se han recuperado ${manifests.length} manifiestos del RNDC.`,
+    try {
+      const response = await fetch("/api/rndc/monitoring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          queryType: type,
+          numIdGps: settings.companyNit,
+          manifestId: type === 'SPECIFIC' ? specificManifestId : undefined,
+          xmlRequest: xml,
+        }),
       });
-    }, 2000);
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResponseXml(data.rawXml || "");
+        setManifests(data.manifests || []);
+        toast({
+          title: "Consulta Exitosa",
+          description: `Se han recuperado ${data.manifestsCount || 0} manifiestos del RNDC.`,
+        });
+      } else {
+        setResponseXml(data.rawXml || data.message || "Error en la consulta");
+        setManifests([]);
+        toast({
+          title: "Error en consulta",
+          description: data.message || "No se pudo obtener respuesta del RNDC",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error de conexión",
+        description: "No se pudo conectar con el servidor",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch("/api/rndc/monitoring/history?limit=20");
+      const data = await response.json();
+      if (data.success) {
+        setQueryHistory(data.queries);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el historial",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const loadHistoryQuery = (query: MonitoringQuery) => {
+    setRequestXml(query.xmlRequest);
+    setResponseXml(query.xmlResponse || "");
+    if (query.manifestsData) {
+      try {
+        setManifests(JSON.parse(query.manifestsData));
+      } catch {
+        setManifests([]);
+      }
+    } else {
+      setManifests([]);
+    }
+    setActiveTab("results");
+  };
+
+  const exportToExcel = () => {
+    if (manifests.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay manifiestos para exportar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const exportData = manifests.map(m => ({
+      "ID Manifiesto": m.ingresoidmanifiesto,
+      "NIT Empresa": m.numnitempresatransporte,
+      "Número Manifiesto": m.nummanifiestocarga,
+      "Fecha Expedición": m.fechaexpedicionmanifiesto,
+      "Placa": m.numplaca,
+      "Puntos Control": m.puntoscontrol ? JSON.stringify(m.puntoscontrol) : "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Manifiestos");
+    
+    const date = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `manifiestos_rndc_${date}.xlsx`);
+
+    toast({
+      title: "Exportación exitosa",
+      description: `Se exportaron ${manifests.length} manifiestos a Excel`,
+    });
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('es-CO', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -143,6 +271,7 @@ export default function Monitoring() {
                 className="w-full justify-between" 
                 onClick={() => handleRequest('NUEVOS')}
                 disabled={loading || !canRequest}
+                data-testid="button-manifiestos-nuevos"
               >
                 Manifiestos Nuevos
                 {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -153,6 +282,7 @@ export default function Monitoring() {
                 className="w-full justify-between"
                 onClick={() => handleRequest('TODOS')}
                 disabled={loading || !canRequest}
+                data-testid="button-manifiestos-todos"
               >
                 Todos (24 horas)
                 <Clock className="h-4 w-4" />
@@ -168,10 +298,21 @@ export default function Monitoring() {
               </div>
 
               <div className="space-y-2">
-                <Label>Buscar por Manifiesto</Label>
+                <Label>Buscar por ID Manifiesto</Label>
                 <div className="flex gap-2">
-                  <Input placeholder="Ej: 123456789" />
-                  <Button size="icon" variant="secondary">
+                  <Input 
+                    placeholder="Ej: 123456789" 
+                    value={specificManifestId}
+                    onChange={(e) => setSpecificManifestId(e.target.value)}
+                    data-testid="input-manifest-id"
+                  />
+                  <Button 
+                    size="icon" 
+                    variant="secondary"
+                    onClick={() => handleRequest('SPECIFIC')}
+                    disabled={loading}
+                    data-testid="button-search-manifest"
+                  >
                     <Search className="h-4 w-4" />
                   </Button>
                 </div>
@@ -180,16 +321,92 @@ export default function Monitoring() {
           </Card>
 
           <div className="lg:col-span-2 space-y-6">
-            <Tabs defaultValue="results">
-              <TabsList>
-                <TabsTrigger value="results">Resultados</TabsTrigger>
-                <TabsTrigger value="xml">XML Intercambio</TabsTrigger>
-              </TabsList>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <div className="flex items-center justify-between">
+                <TabsList>
+                  <TabsTrigger value="results" data-testid="tab-results">Resultados</TabsTrigger>
+                  <TabsTrigger value="xml" data-testid="tab-xml">XML Intercambio</TabsTrigger>
+                  <TabsTrigger value="history" onClick={fetchHistory} data-testid="tab-history">
+                    <History className="h-4 w-4 mr-2" />
+                    Historial
+                  </TabsTrigger>
+                </TabsList>
+                {manifests.length > 0 && activeTab === "results" && (
+                  <Button onClick={exportToExcel} variant="outline" size="sm" data-testid="button-export-excel">
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar Excel
+                  </Button>
+                )}
+              </div>
               
               <TabsContent value="results" className="space-y-4 mt-4">
-                {manifests.map((m) => (
-                  <ManifestCard key={m.id} manifest={m} />
-                ))}
+                {manifests.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                      <FileSpreadsheet className="h-12 w-12 mb-4 opacity-50" />
+                      <p>No hay manifiestos para mostrar</p>
+                      <p className="text-sm">Realice una consulta para ver los resultados</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span>Manifiestos Encontrados</span>
+                        <Badge variant="secondary">{manifests.length} registros</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[500px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID Manifiesto</TableHead>
+                              <TableHead>NIT Empresa</TableHead>
+                              <TableHead>Núm. Manifiesto</TableHead>
+                              <TableHead>Fecha Expedición</TableHead>
+                              <TableHead>Placa</TableHead>
+                              <TableHead>Acciones</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {manifests.map((manifest, index) => (
+                              <TableRow key={manifest.ingresoidmanifiesto || index} data-testid={`row-manifest-${index}`}>
+                                <TableCell className="font-mono text-sm">{manifest.ingresoidmanifiesto}</TableCell>
+                                <TableCell>{manifest.numnitempresatransporte}</TableCell>
+                                <TableCell>{manifest.nummanifiestocarga}</TableCell>
+                                <TableCell>{manifest.fechaexpedicionmanifiesto}</TableCell>
+                                <TableCell className="font-medium">{manifest.numplaca}</TableCell>
+                                <TableCell>
+                                  {manifest.puntoscontrol && (
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button size="sm" variant="ghost" data-testid={`button-view-puntos-${index}`}>
+                                          <Eye className="h-4 w-4 mr-1" />
+                                          Ver Puntos
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-2xl max-h-[80vh]">
+                                        <DialogHeader>
+                                          <DialogTitle>Puntos de Control - Manifiesto {manifest.nummanifiestocarga}</DialogTitle>
+                                        </DialogHeader>
+                                        <ScrollArea className="h-[400px]">
+                                          <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto">
+                                            {JSON.stringify(manifest.puntoscontrol, null, 2)}
+                                          </pre>
+                                        </ScrollArea>
+                                      </DialogContent>
+                                    </Dialog>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
               
               <TabsContent value="xml" className="space-y-4 mt-4">
@@ -203,6 +420,74 @@ export default function Monitoring() {
                     <XmlViewer xml={responseXml || "Esperando respuesta..."} title="Response" />
                   </div>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="history" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Historial de Consultas</CardTitle>
+                      <Button size="sm" variant="outline" onClick={fetchHistory} disabled={loadingHistory}>
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loadingHistory ? "animate-spin" : ""}`} />
+                        Actualizar
+                      </Button>
+                    </div>
+                    <CardDescription>Consultas anteriores realizadas al RNDC</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingHistory ? (
+                      <div className="flex items-center justify-center py-8">
+                        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : queryHistory.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <History className="h-12 w-12 mb-4 opacity-50" />
+                        <p>No hay consultas anteriores</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[400px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Fecha</TableHead>
+                              <TableHead>Tipo</TableHead>
+                              <TableHead>Estado</TableHead>
+                              <TableHead>Manifiestos</TableHead>
+                              <TableHead>Acciones</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {queryHistory.map((query) => (
+                              <TableRow key={query.id} data-testid={`row-history-${query.id}`}>
+                                <TableCell className="text-sm">{formatDate(query.createdAt)}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{query.queryType}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={query.status === "success" ? "default" : "destructive"}>
+                                    {query.status === "success" ? "Exitoso" : "Error"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{query.manifestsCount || 0}</TableCell>
+                                <TableCell>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => loadHistoryQuery(query)}
+                                    data-testid={`button-load-history-${query.id}`}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Ver
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>

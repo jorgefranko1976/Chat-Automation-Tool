@@ -200,6 +200,117 @@ export async function registerRoutes(
     }
   });
 
+  const monitoringQuerySchema = z.object({
+    queryType: z.enum(["NUEVOS", "TODOS", "SPECIFIC"]),
+    numIdGps: z.string(),
+    manifestId: z.string().optional(),
+    xmlRequest: z.string(),
+    wsUrl: z.string().url().optional(),
+  });
+
+  app.post("/api/rndc/monitoring", async (req, res) => {
+    try {
+      const parsed = monitoringQuerySchema.parse(req.body);
+      const { queryType, numIdGps, manifestId, xmlRequest, wsUrl } = parsed;
+
+      const query = await storage.createMonitoringQuery({
+        queryType,
+        numIdGps,
+        manifestId: manifestId || null,
+        xmlRequest,
+        status: "processing",
+      });
+
+      const response = await sendXmlToRndc(xmlRequest, wsUrl);
+
+      let manifests: any[] = [];
+      let manifestsCount = 0;
+
+      if (response.success) {
+        const { XMLParser } = await import("fast-xml-parser");
+        const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+        
+        try {
+          const parsedXml = parser.parse(response.rawXml);
+          
+          let docs = parsedXml?.root?.documento;
+          if (docs) {
+            if (!Array.isArray(docs)) {
+              docs = [docs];
+            }
+            manifests = docs.map((doc: any) => ({
+              ingresoidmanifiesto: doc.ingresoidmanifiesto || doc.INGRESOIDMANIFIESTO || "",
+              numnitempresatransporte: doc.numnitempresatransporte || doc.NUMNITEMPRESATRANSPORTE || "",
+              nummanifiestocarga: doc.nummanifiestocarga || doc.NUMMANIFIESTOCARGA || "",
+              fechaexpedicionmanifiesto: doc.fechaexpedicionmanifiesto || doc.FECHAEXPEDICIONMANIFIESTO || "",
+              numplaca: doc.numplaca || doc.NUMPLACA || "",
+              puntoscontrol: doc.puntoscontrol || doc.PUNTOSCONTROL || null,
+            }));
+            manifestsCount = manifests.length;
+          }
+        } catch (parseError) {
+          console.log("[Monitoring] XML parse error:", parseError);
+        }
+
+        await storage.updateMonitoringQuery(query.id, {
+          xmlResponse: response.rawXml,
+          manifestsCount,
+          manifestsData: JSON.stringify(manifests),
+          status: "success",
+          responseCode: response.code,
+          responseMessage: response.message,
+        });
+
+        res.json({
+          success: true,
+          queryId: query.id,
+          manifests,
+          manifestsCount,
+          rawXml: response.rawXml,
+        });
+      } else {
+        await storage.updateMonitoringQuery(query.id, {
+          xmlResponse: response.rawXml,
+          status: "error",
+          responseCode: response.code,
+          responseMessage: response.message,
+        });
+
+        res.json({
+          success: false,
+          queryId: query.id,
+          message: response.message,
+          rawXml: response.rawXml,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en consulta de monitoreo";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.get("/api/rndc/monitoring/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const queries = await storage.getMonitoringQueries(limit);
+      res.json({ success: true, queries });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener historial de monitoreo" });
+    }
+  });
+
+  app.get("/api/rndc/monitoring/:id", async (req, res) => {
+    try {
+      const query = await storage.getMonitoringQuery(req.params.id);
+      if (!query) {
+        return res.status(404).json({ success: false, message: "Consulta no encontrada" });
+      }
+      res.json({ success: true, query });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener consulta" });
+    }
+  });
+
   app.post("/api/rndc/cumplido-remesa-batch", async (req, res) => {
     try {
       const parsed = cumplidoRemesaBatchSchema.parse(req.body);

@@ -6,6 +6,7 @@ import {
   rndcBatches,
   cumplidoRemesaSubmissions,
   cumplidoManifiestoSubmissions,
+  monitoringQueries,
   type User,
   type InsertUser,
   type RndcSubmission,
@@ -16,6 +17,8 @@ import {
   type InsertCumplidoRemesaSubmission,
   type CumplidoManifiestoSubmission,
   type InsertCumplidoManifiestoSubmission,
+  type MonitoringQuery,
+  type InsertMonitoringQuery,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -46,6 +49,11 @@ export interface IStorage {
   getCumplidoManifiestoSubmissionsByBatch(batchId: string): Promise<CumplidoManifiestoSubmission[]>;
   
   getRndcBatchesByType(type: string, limit?: number): Promise<RndcBatch[]>;
+  
+  createMonitoringQuery(query: InsertMonitoringQuery): Promise<MonitoringQuery>;
+  getMonitoringQuery(id: string): Promise<MonitoringQuery | undefined>;
+  updateMonitoringQuery(id: string, updates: Partial<MonitoringQuery>): Promise<MonitoringQuery | undefined>;
+  getMonitoringQueries(limit?: number): Promise<MonitoringQuery[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -150,6 +158,25 @@ export class DatabaseStorage implements IStorage {
 
   async getRndcBatchesByType(type: string, limit = 50): Promise<RndcBatch[]> {
     return db.select().from(rndcBatches).where(eq(rndcBatches.type, type)).orderBy(desc(rndcBatches.createdAt)).limit(limit);
+  }
+
+  async createMonitoringQuery(query: InsertMonitoringQuery): Promise<MonitoringQuery> {
+    const [newQuery] = await db.insert(monitoringQueries).values(query).returning();
+    return newQuery;
+  }
+
+  async getMonitoringQuery(id: string): Promise<MonitoringQuery | undefined> {
+    const [query] = await db.select().from(monitoringQueries).where(eq(monitoringQueries.id, id));
+    return query;
+  }
+
+  async updateMonitoringQuery(id: string, updates: Partial<MonitoringQuery>): Promise<MonitoringQuery | undefined> {
+    const [query] = await db.update(monitoringQueries).set(updates).where(eq(monitoringQueries.id, id)).returning();
+    return query;
+  }
+
+  async getMonitoringQueries(limit = 50): Promise<MonitoringQuery[]> {
+    return db.select().from(monitoringQueries).orderBy(desc(monitoringQueries.createdAt)).limit(limit);
   }
 }
 
