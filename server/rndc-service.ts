@@ -2,6 +2,18 @@ import { XMLParser } from "fast-xml-parser";
 
 const DEFAULT_RNDC_URL = "http://plc.mintransporte.gov.co:8080/soap/IBPMServices";
 
+function unescapeHtmlEntities(str: string): string {
+  if (!str) return str;
+  return str
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 interface RndcResponse {
   success: boolean;
   code: string;
@@ -82,9 +94,9 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
     let resultXml = "";
     if (resultRaw) {
       if (typeof resultRaw === "string") {
-        resultXml = resultRaw;
+        resultXml = unescapeHtmlEntities(resultRaw);
       } else if (typeof resultRaw === "object" && resultRaw["#text"]) {
-        resultXml = resultRaw["#text"];
+        resultXml = unescapeHtmlEntities(resultRaw["#text"]);
       } else if (typeof resultRaw === "object") {
         resultXml = JSON.stringify(resultRaw);
       }
