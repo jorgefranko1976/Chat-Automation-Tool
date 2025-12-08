@@ -793,7 +793,7 @@ export default function Monitoring() {
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
-                                className="w-full h-8 text-sm justify-start text-left font-normal"
+                                className="w-full h-8 text-[12px] justify-start text-left font-normal"
                                 data-testid="input-date-from"
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -818,7 +818,7 @@ export default function Monitoring() {
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
-                                className="w-full h-8 text-sm justify-start text-left font-normal"
+                                className="w-full h-8 text-[12px] justify-start text-left font-normal"
                                 data-testid="input-date-to"
                               >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
