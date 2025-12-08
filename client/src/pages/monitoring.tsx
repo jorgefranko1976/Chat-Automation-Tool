@@ -787,19 +787,21 @@ export default function Monitoring() {
                         )}
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-[130px]">
                           <Label className="text-xs">Fecha Desde</Label>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
-                                className="w-full h-8 text-[12px] justify-start text-left font-normal"
+                                className="w-full h-8 text-[12px] justify-start text-left font-normal px-2"
                                 data-testid="input-date-from"
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {searchFilters.dateFrom 
-                                  ? format(parse(searchFilters.dateFrom, "yyyy-MM-dd", new Date()), "dd/MM/yyyy", { locale: es })
-                                  : "Seleccionar"}
+                                <CalendarIcon className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate">
+                                  {searchFilters.dateFrom 
+                                    ? format(parse(searchFilters.dateFrom, "yyyy-MM-dd", new Date()), "dd/MM/yyyy", { locale: es })
+                                    : "Seleccionar"}
+                                </span>
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
@@ -812,19 +814,21 @@ export default function Monitoring() {
                             </PopoverContent>
                           </Popover>
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-[130px]">
                           <Label className="text-xs">Fecha Hasta</Label>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
-                                className="w-full h-8 text-[12px] justify-start text-left font-normal"
+                                className="w-full h-8 text-[12px] justify-start text-left font-normal px-2"
                                 data-testid="input-date-to"
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {searchFilters.dateTo 
-                                  ? format(parse(searchFilters.dateTo, "yyyy-MM-dd", new Date()), "dd/MM/yyyy", { locale: es })
-                                  : "Seleccionar"}
+                                <CalendarIcon className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                                <span className="truncate">
+                                  {searchFilters.dateTo 
+                                    ? format(parse(searchFilters.dateTo, "yyyy-MM-dd", new Date()), "dd/MM/yyyy", { locale: es })
+                                    : "Seleccionar"}
+                                </span>
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
