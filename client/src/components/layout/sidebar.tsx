@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Radio, Truck, Upload, Settings, ShieldCheck, FileCheck } from "lucide-react";
+import { LayoutDashboard, Radio, Truck, Upload, Settings, ShieldCheck, FileCheck, Search } from "lucide-react";
 import generatedImage from '@assets/generated_images/logistics_dashboard_logo.png';
 
 export function Sidebar() {
@@ -12,6 +12,7 @@ export function Sidebar() {
     { href: "/tracking", label: "Reporte Tiempos", icon: Truck },
     { href: "/import", label: "Importar Excel", icon: Upload },
     { href: "/cumplidos", label: "Cumplidos", icon: FileCheck },
+    { href: "/queries", label: "Consultas RNDC", icon: Search },
     { href: "/settings", label: "Configuración", icon: Settings },
   ];
 

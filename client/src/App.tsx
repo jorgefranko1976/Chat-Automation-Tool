@@ -10,6 +10,7 @@ import Tracking from "@/pages/tracking";
 import Import from "@/pages/import";
 import Settings from "@/pages/settings";
 import Cumplidos from "@/pages/cumplidos";
+import Queries from "@/pages/queries";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/tracking" component={Tracking} />
       <Route path="/import" component={Import} />
       <Route path="/cumplidos" component={Cumplidos} />
+      <Route path="/queries" component={Queries} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
