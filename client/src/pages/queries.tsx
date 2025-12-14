@@ -111,6 +111,11 @@ export default function Queries() {
   const [parsedDocuments, setParsedDocuments] = useState<TerceroDocument[]>([]);
   const [selectedQuery, setSelectedQuery] = useState<RndcQuery | null>(null);
   const [showXmlResponse, setShowXmlResponse] = useState(false);
+  const [filterWithCoords, setFilterWithCoords] = useState(false);
+
+  const filteredDocuments = filterWithCoords 
+    ? parsedDocuments.filter(doc => doc.latitud && doc.longitud && doc.latitud.trim() !== '' && doc.longitud.trim() !== '')
+    : parsedDocuments;
 
   const { data: queriesData, refetch: refetchQueries } = useQuery({
     queryKey: ["/api/rndc/queries"],
@@ -344,7 +349,7 @@ ${TERCEROS_VARIABLES}
                       Respuesta del RNDC
                       {parsedDocuments.length > 0 && (
                         <span className="text-sm font-normal text-muted-foreground">
-                          ({parsedDocuments.length} registros)
+                          ({filterWithCoords ? `${filteredDocuments.length} de ${parsedDocuments.length}` : parsedDocuments.length} registros)
                         </span>
                       )}
                     </div>
@@ -374,10 +379,21 @@ ${TERCEROS_VARIABLES}
                     </div>
                   ) : parsedDocuments.length > 0 ? (
                     <div>
-                      <Label className="text-muted-foreground mb-2 block flex items-center gap-2">
-                        <TableIcon className="h-4 w-4" />
-                        Documentos Encontrados
-                      </Label>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-muted-foreground flex items-center gap-2">
+                          <TableIcon className="h-4 w-4" />
+                          Documentos Encontrados
+                        </Label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filterWithCoords}
+                            onChange={(e) => setFilterWithCoords(e.target.checked)}
+                            className="rounded border-gray-300"
+                          />
+                          Solo con coordenadas
+                        </label>
+                      </div>
                       <ScrollArea className="h-[400px] rounded border">
                         <Table>
                           <TableHeader>
@@ -390,7 +406,7 @@ ${TERCEROS_VARIABLES}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {parsedDocuments.map((doc, idx) => (
+                            {filteredDocuments.map((doc, idx) => (
                               <TableRow key={idx}>
                                 {TERCEROS_COLUMNS.map((col) => (
                                   <TableCell key={col.key} className="text-xs whitespace-nowrap">
