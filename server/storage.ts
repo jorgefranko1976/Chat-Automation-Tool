@@ -9,6 +9,7 @@ import {
   monitoringQueries,
   rndcManifests,
   rndcControlPoints,
+  rndcQueries,
   type User,
   type InsertUser,
   type RndcSubmission,
@@ -25,6 +26,8 @@ import {
   type InsertRndcManifest,
   type RndcControlPoint,
   type InsertRndcControlPoint,
+  type RndcQuery,
+  type InsertRndcQuery,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -69,6 +72,12 @@ export interface IStorage {
   
   createRndcControlPoint(controlPoint: InsertRndcControlPoint): Promise<RndcControlPoint>;
   getRndcControlPointsByManifest(manifestId: string): Promise<RndcControlPoint[]>;
+  
+  createRndcQuery(query: InsertRndcQuery): Promise<RndcQuery>;
+  getRndcQuery(id: string): Promise<RndcQuery | undefined>;
+  updateRndcQuery(id: string, updates: Partial<RndcQuery>): Promise<RndcQuery | undefined>;
+  getRndcQueries(limit?: number): Promise<RndcQuery[]>;
+  getRndcQueriesByType(queryType: string, limit?: number): Promise<RndcQuery[]>;
 }
 
 export interface ManifestSearchFilters {
@@ -281,6 +290,29 @@ export class DatabaseStorage implements IStorage {
       manifests,
       total: Number(countResult[0]?.count || 0),
     };
+  }
+
+  async createRndcQuery(query: InsertRndcQuery): Promise<RndcQuery> {
+    const [newQuery] = await db.insert(rndcQueries).values(query).returning();
+    return newQuery;
+  }
+
+  async getRndcQuery(id: string): Promise<RndcQuery | undefined> {
+    const [query] = await db.select().from(rndcQueries).where(eq(rndcQueries.id, id));
+    return query;
+  }
+
+  async updateRndcQuery(id: string, updates: Partial<RndcQuery>): Promise<RndcQuery | undefined> {
+    const [query] = await db.update(rndcQueries).set(updates).where(eq(rndcQueries.id, id)).returning();
+    return query;
+  }
+
+  async getRndcQueries(limit = 50): Promise<RndcQuery[]> {
+    return db.select().from(rndcQueries).orderBy(desc(rndcQueries.createdAt)).limit(limit);
+  }
+
+  async getRndcQueriesByType(queryType: string, limit = 50): Promise<RndcQuery[]> {
+    return db.select().from(rndcQueries).where(eq(rndcQueries.queryType, queryType)).orderBy(desc(rndcQueries.createdAt)).limit(limit);
   }
 }
 

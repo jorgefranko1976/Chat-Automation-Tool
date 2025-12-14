@@ -193,3 +193,26 @@ export const insertRndcControlPointSchema = createInsertSchema(rndcControlPoints
 
 export type InsertRndcControlPoint = z.infer<typeof insertRndcControlPointSchema>;
 export type RndcControlPoint = typeof rndcControlPoints.$inferSelect;
+
+export const rndcQueries = pgTable("rndc_queries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  queryType: varchar("query_type").notNull(),
+  queryName: varchar("query_name").notNull(),
+  numNitEmpresa: varchar("num_nit_empresa"),
+  numIdTercero: varchar("num_id_tercero"),
+  xmlRequest: text("xml_request").notNull(),
+  xmlResponse: text("xml_response"),
+  responseData: text("response_data"),
+  status: varchar("status").notNull().default("pending"),
+  responseCode: varchar("response_code"),
+  responseMessage: text("response_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRndcQuerySchema = createInsertSchema(rndcQueries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRndcQuery = z.infer<typeof insertRndcQuerySchema>;
+export type RndcQuery = typeof rndcQueries.$inferSelect;
