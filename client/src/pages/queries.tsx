@@ -11,8 +11,8 @@ import { useSettings } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon
- } from "lucide-react";
+import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -116,6 +116,38 @@ export default function Queries() {
   const filteredDocuments = filterWithCoords 
     ? parsedDocuments.filter(doc => doc.latitud && doc.longitud && doc.latitud.trim() !== '' && doc.longitud.trim() !== '')
     : parsedDocuments;
+
+  const exportToExcel = () => {
+    const dataToExport = filteredDocuments.map(doc => ({
+      'ID Ingreso': doc.ingresoid,
+      'Fecha Ingreso': doc.fechaing,
+      'Tipo ID': doc.codtipoidtercero,
+      'Nombre': doc.nomidtercero,
+      'Primer Apellido': doc.primerapellidoidtercero,
+      'Segundo Apellido': doc.segundoapellidoidtercero,
+      'Teléfono': doc.numtelefonocontacto,
+      'Dirección': doc.nomenclaturadireccion,
+      'Cod Municipio': doc.codmunicipiorndc,
+      'Cod Sede': doc.codsedetercero,
+      'Nombre Sede': doc.nomsedetercero,
+      'Licencia': doc.numlicenciaconduccion,
+      'Categoría Licencia': doc.codcategorialicenciaconduccion,
+      'Vencimiento Licencia': doc.fechavencimientolicencia,
+      'Latitud': doc.latitud,
+      'Longitud': doc.longitud,
+      'Régimen Simple': doc.regimensimple,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Terceros");
+    XLSX.writeFile(wb, `terceros_${numIdTercero}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    toast({
+      title: "Exportado",
+      description: `Se exportaron ${filteredDocuments.length} registros a Excel`,
+    });
+  };
 
   const { data: queriesData, refetch: refetchQueries } = useQuery({
     queryKey: ["/api/rndc/queries"],
@@ -384,15 +416,20 @@ ${TERCEROS_VARIABLES}
                           <TableIcon className="h-4 w-4" />
                           Documentos Encontrados
                         </Label>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={filterWithCoords}
-                            onChange={(e) => setFilterWithCoords(e.target.checked)}
-                            className="rounded border-gray-300"
-                          />
-                          Solo con coordenadas
-                        </label>
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={filterWithCoords}
+                              onChange={(e) => setFilterWithCoords(e.target.checked)}
+                              className="rounded border-gray-300"
+                            />
+                            Solo con coordenadas
+                          </label>
+                          <Button variant="outline" size="sm" onClick={exportToExcel} data-testid="button-export-excel">
+                            <Download className="mr-2 h-4 w-4" /> Exportar Excel
+                          </Button>
+                        </div>
                       </div>
                       <ScrollArea className="h-[400px] rounded border">
                         <Table>
