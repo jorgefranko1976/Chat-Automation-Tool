@@ -7,11 +7,35 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSettings, RndcSettings, WsEnvironment } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
-import { Save, KeyRound, Building2, Globe, CheckCircle2 } from "lucide-react";
+import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Settings() {
   const { settings, saveSettings } = useSettings();
   const [formData, setFormData] = useState<RndcSettings>(settings);
+  const [isRestarting, setIsRestarting] = useState(false);
+
+  const handleRestart = async () => {
+    if (!confirm("¿Está seguro que desea reiniciar el servidor? La aplicación estará temporalmente no disponible.")) {
+      return;
+    }
+    
+    setIsRestarting(true);
+    try {
+      await apiRequest("POST", "/api/system/restart");
+      toast({
+        title: "Reiniciando Servidor",
+        description: "El servidor se reiniciará en unos segundos. Recargue la página después de un momento.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo reiniciar el servidor.",
+        variant: "destructive",
+      });
+      setIsRestarting(false);
+    }
+  };
 
   useEffect(() => {
     setFormData(settings);
@@ -42,15 +66,18 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="credentials" className="w-full max-w-3xl">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="credentials" data-testid="tab-credentials">
-              <KeyRound className="mr-2 h-4 w-4" /> Credenciales RNDC
+              <KeyRound className="mr-2 h-4 w-4" /> Credenciales
             </TabsTrigger>
             <TabsTrigger value="company" data-testid="tab-company">
-              <Building2 className="mr-2 h-4 w-4" /> Datos Empresa
+              <Building2 className="mr-2 h-4 w-4" /> Empresa
             </TabsTrigger>
             <TabsTrigger value="webservice" data-testid="tab-webservice">
               <Globe className="mr-2 h-4 w-4" /> Web Service
+            </TabsTrigger>
+            <TabsTrigger value="system" data-testid="tab-system">
+              <Server className="mr-2 h-4 w-4" /> Sistema
             </TabsTrigger>
           </TabsList>
 
@@ -236,6 +263,40 @@ export default function Settings() {
                 <Button onClick={handleSave} className="w-full sm:w-auto" data-testid="button-save-webservice">
                   <Save className="mr-2 h-4 w-4" /> Guardar Configuración
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="system">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuración del Sistema</CardTitle>
+                <CardDescription>Opciones de mantenimiento del servidor</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  <Label>Reiniciar Servidor</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Reinicie el servidor si experimenta problemas o después de cambios de configuración importantes.
+                  </p>
+                  <Button 
+                    onClick={handleRestart} 
+                    variant="destructive"
+                    disabled={isRestarting}
+                    className="w-full sm:w-auto"
+                    data-testid="button-restart-server"
+                  >
+                    <RotateCcw className={`mr-2 h-4 w-4 ${isRestarting ? 'animate-spin' : ''}`} />
+                    {isRestarting ? 'Reiniciando...' : 'Reiniciar Servidor'}
+                  </Button>
+                </div>
+
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
+                  <p className="text-amber-800">
+                    <strong>Nota:</strong> Al reiniciar el servidor, la aplicación estará temporalmente no disponible. 
+                    El servidor se reiniciará automáticamente si está configurado con PM2.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

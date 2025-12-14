@@ -64,6 +64,14 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.post("/api/system/restart", async (req, res) => {
+    res.json({ success: true, message: "El servidor se reiniciará en 2 segundos..." });
+    setTimeout(() => {
+      console.log("Reiniciando servidor por solicitud del usuario...");
+      process.exit(0);
+    }, 2000);
+  });
+
   app.post("/api/rndc/submit-batch", async (req, res) => {
     try {
       const parsed = submitBatchSchema.parse(req.body);
