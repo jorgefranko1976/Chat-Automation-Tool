@@ -59,6 +59,15 @@ const cumplidoManifiestoBatchSchema = z.object({
   wsUrl: z.string().url().optional(),
 });
 
+const rndcQuerySchema = z.object({
+  queryType: z.string(),
+  queryName: z.string(),
+  numNitEmpresa: z.string().optional(),
+  numIdTercero: z.string().optional(),
+  xmlRequest: z.string(),
+  wsUrl: z.string().url().optional(),
+});
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -70,6 +79,73 @@ export async function registerRoutes(
       console.log("Reiniciando servidor por solicitud del usuario...");
       process.exit(0);
     }, 2000);
+  });
+
+  app.post("/api/rndc/queries/execute", async (req, res) => {
+    try {
+      const parsed = rndcQuerySchema.parse(req.body);
+      const { queryType, queryName, numNitEmpresa, numIdTercero, xmlRequest, wsUrl } = parsed;
+
+      const query = await storage.createRndcQuery({
+        queryType,
+        queryName,
+        numNitEmpresa,
+        numIdTercero,
+        xmlRequest,
+        status: "processing",
+      });
+
+      const response = await sendXmlToRndc(xmlRequest, wsUrl);
+
+      const updatedQuery = await storage.updateRndcQuery(query.id, {
+        xmlResponse: response.rawXml,
+        responseCode: response.code,
+        responseMessage: response.message,
+        responseData: response.success ? JSON.stringify(response.data) : null,
+        status: response.success ? "success" : "error",
+      });
+
+      res.json({
+        success: true,
+        query: updatedQuery,
+        response: {
+          success: response.success,
+          code: response.code,
+          message: response.message,
+          data: response.data,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al ejecutar consulta";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.get("/api/rndc/queries", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const queryType = req.query.queryType as string | undefined;
+
+      const queries = queryType 
+        ? await storage.getRndcQueriesByType(queryType, limit)
+        : await storage.getRndcQueries(limit);
+      
+      res.json({ success: true, queries });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener consultas" });
+    }
+  });
+
+  app.get("/api/rndc/queries/:id", async (req, res) => {
+    try {
+      const query = await storage.getRndcQuery(req.params.id);
+      if (!query) {
+        return res.status(404).json({ success: false, message: "Consulta no encontrada" });
+      }
+      res.json({ success: true, query });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener consulta" });
+    }
   });
 
   app.post("/api/rndc/submit-batch", async (req, res) => {
