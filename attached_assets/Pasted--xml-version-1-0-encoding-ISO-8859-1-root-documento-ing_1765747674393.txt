@@ -1,0 +1,1580 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<root>
+<documento>
+<ingresoid>164669635</ingresoid>
+<fechaing>25/02/2021 12:08:52 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>CALLE 10 A 68 B 26</nomenclaturadireccion>
+<codmunicipiorndc>11001000</codmunicipiorndc>
+<codsedetercero>001</codsedetercero>
+<nomsedetercero>ZONA INDUSTRIAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>165216573</ingresoid>
+<fechaing>08/03/2021 8:42:47 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>CALLE 10 A 68 B 26</nomenclaturadireccion>
+<codmunicipiorndc>11001000</codmunicipiorndc>
+<codsedetercero>001</codsedetercero>
+<nomsedetercero>ZONA INDUSTRIAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>434750676</ingresoid>
+<fechaing>20/07/2025 12:43:34 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>DG. 48 SUR #61-67</nomenclaturadireccion>
+<codmunicipiorndc>11001000</codmunicipiorndc>
+<codsedetercero>085</codsedetercero>
+<nomsedetercero>CONTEGRAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>165216527</ingresoid>
+<fechaing>08/03/2021 8:41:40 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>CALLE 10 A 68 B 26</nomenclaturadireccion>
+<codmunicipiorndc>25290000</codmunicipiorndc>
+<codsedetercero>001</codsedetercero>
+<nomsedetercero>FUSAGASUGA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>165216476</ingresoid>
+<fechaing>08/03/2021 8:40:43 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>CALLE 10 A 68 B 26</nomenclaturadireccion>
+<codmunicipiorndc>11001000</codmunicipiorndc>
+<codsedetercero>001</codsedetercero>
+<nomsedetercero>ZONA INDUSTRIAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>452814453</ingresoid>
+<fechaing>30/11/2025 10:44:45 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>CALLE 10 A 68 B 26</nomenclaturadireccion>
+<codmunicipiorndc>11001000</codmunicipiorndc>
+<codsedetercero>001</codsedetercero>
+<nomsedetercero>ZONA INDUSTRIAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.63431</latitud>
+<longitud>-74.12308</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175880075</ingresoid>
+<fechaing>22/09/2021 2:19:37 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>KM2 VIA FUNZA SIBERIA</nomenclaturadireccion>
+<codmunicipiorndc>25286000</codmunicipiorndc>
+<codsedetercero>002</codsedetercero>
+<nomsedetercero>FUNZA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451821606</ingresoid>
+<fechaing>25/11/2025 1:19:53 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>KM2 VIA FUNZA SIBERIA</nomenclaturadireccion>
+<codmunicipiorndc>25286000</codmunicipiorndc>
+<codsedetercero>002</codsedetercero>
+<nomsedetercero>FUNZA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.72987</latitud>
+<longitud>-74.19123</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175882526</ingresoid>
+<fechaing>22/09/2021 2:42:19 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>VIA TENZA BOYACA</nomenclaturadireccion>
+<codmunicipiorndc>15798000</codmunicipiorndc>
+<codsedetercero>003</codsedetercero>
+<nomsedetercero>TENZA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>176161754</ingresoid>
+<fechaing>26/09/2021 10:51:51 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN CACHIPAY</nomenclaturadireccion>
+<codmunicipiorndc>25123000</codmunicipiorndc>
+<codsedetercero>004</codsedetercero>
+<nomsedetercero>CACHIPAY</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451922407</ingresoid>
+<fechaing>25/11/2025 6:06:19 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN CACHIPAY</nomenclaturadireccion>
+<codmunicipiorndc>25123000</codmunicipiorndc>
+<codsedetercero>004</codsedetercero>
+<nomsedetercero>CACHIPAY</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.73166</latitud>
+<longitud>-74.43755</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451922535</ingresoid>
+<fechaing>25/11/2025 6:06:58 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA GARAGOA</nomenclaturadireccion>
+<codmunicipiorndc>15299000</codmunicipiorndc>
+<codsedetercero>029</codsedetercero>
+<nomsedetercero>GARAGOA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>5.08364</latitud>
+<longitud>-73.37227</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451923227</ingresoid>
+<fechaing>25/11/2025 6:10:17 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA SOMONDOCO</nomenclaturadireccion>
+<codmunicipiorndc>15761000</codmunicipiorndc>
+<codsedetercero>040</codsedetercero>
+<nomsedetercero>SOMONDOCO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.98573</latitud>
+<longitud>-73.43334</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>165216830</ingresoid>
+<fechaing>08/03/2021 8:47:15 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>VILLETA CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25875000</codmunicipiorndc>
+<codsedetercero>005</codsedetercero>
+<nomsedetercero>VILLETA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>426625731</ingresoid>
+<fechaing>06/05/2025 12:29:27 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>CALLE 10 A 68 B 26</nomenclaturadireccion>
+<codmunicipiorndc>11001000</codmunicipiorndc>
+<codsedetercero>005</codsedetercero>
+<nomsedetercero>ZONA INDUSTRIAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>426625875</ingresoid>
+<fechaing>06/05/2025 12:30:42 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS ZONA VILLETA</nomenclaturadireccion>
+<codmunicipiorndc>25875000</codmunicipiorndc>
+<codsedetercero>005</codsedetercero>
+<nomsedetercero>VILLETA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>165216890</ingresoid>
+<fechaing>08/03/2021 8:48:35 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>ARBELAEZ CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25053000</codmunicipiorndc>
+<codsedetercero>006</codsedetercero>
+<nomsedetercero>ARBELAEZ</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>451917992</ingresoid>
+<fechaing>25/11/2025 5:47:02 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>ARBELAEZ CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25053000</codmunicipiorndc>
+<codsedetercero>006</codsedetercero>
+<nomsedetercero>ARBELAEZ</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.27344</latitud>
+<longitud>-74.41674</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>176551039</ingresoid>
+<fechaing>02/10/2021 12:14:57 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN BOYACA</nomenclaturadireccion>
+<codmunicipiorndc>15104000</codmunicipiorndc>
+<codsedetercero>007</codsedetercero>
+<nomsedetercero>BOYACA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>165216974</ingresoid>
+<fechaing>08/03/2021 8:50:42 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>FUSAGASAGA - CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25290000</codmunicipiorndc>
+<codsedetercero>008</codsedetercero>
+<nomsedetercero>FUSAGASUGA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>451921892</ingresoid>
+<fechaing>25/11/2025 6:03:56 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>FUSAGASAGA - CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25290000</codmunicipiorndc>
+<codsedetercero>008</codsedetercero>
+<nomsedetercero>FUSAGASUGA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.3446</latitud>
+<longitud>-74.37417</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>165217034</ingresoid>
+<fechaing>08/03/2021 8:51:22 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GUADUAS CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25320000</codmunicipiorndc>
+<codsedetercero>009</codsedetercero>
+<nomsedetercero>GUADUAS</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>451922621</ingresoid>
+<fechaing>25/11/2025 6:07:18 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GUADUAS CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25320000</codmunicipiorndc>
+<codsedetercero>009</codsedetercero>
+<nomsedetercero>GUADUAS</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>5.06996</latitud>
+<longitud>-74.60274</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451922237</ingresoid>
+<fechaing>25/11/2025 6:05:30 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN SILVANIA</nomenclaturadireccion>
+<codmunicipiorndc>25743000</codmunicipiorndc>
+<codsedetercero>036</codsedetercero>
+<nomsedetercero>SILVANIA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.40347</latitud>
+<longitud>-74.38823</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>165217097</ingresoid>
+<fechaing>08/03/2021 8:52:19 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GUATEQUE - BOYACA</nomenclaturadireccion>
+<codmunicipiorndc>15322000</codmunicipiorndc>
+<codsedetercero>010</codsedetercero>
+<nomsedetercero>GUATEQUE</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>175882844</ingresoid>
+<fechaing>22/09/2021 2:45:05 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GUATEQUE - BOYACA</nomenclaturadireccion>
+<codmunicipiorndc>15322000</codmunicipiorndc>
+<codsedetercero>010</codsedetercero>
+<nomsedetercero>GUATEQUE</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451922760</ingresoid>
+<fechaing>25/11/2025 6:08:01 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GUATEQUE - BOYACA</nomenclaturadireccion>
+<codmunicipiorndc>15322000</codmunicipiorndc>
+<codsedetercero>010</codsedetercero>
+<nomsedetercero>GUATEQUE</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>5.00603</latitud>
+<longitud>-73.4718</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>165217123</ingresoid>
+<fechaing>08/03/2021 8:52:59 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>LA VEGA - CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25402000</codmunicipiorndc>
+<codsedetercero>011</codsedetercero>
+<nomsedetercero>LA VEGA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple></regimensimple>
+</documento>
+<documento>
+<ingresoid>451922883</ingresoid>
+<fechaing>25/11/2025 6:08:38 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>LA VEGA - CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25402000</codmunicipiorndc>
+<codsedetercero>011</codsedetercero>
+<nomsedetercero>LA VEGA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>5.00047</latitud>
+<longitud>-74.33957</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451921988</ingresoid>
+<fechaing>25/11/2025 6:04:28 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA LA MESA</nomenclaturadireccion>
+<codmunicipiorndc>25386000</codmunicipiorndc>
+<codsedetercero>035</codsedetercero>
+<nomsedetercero>LA MESA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.6313</latitud>
+<longitud>-74.46306</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451923756</ingresoid>
+<fechaing>25/11/2025 6:12:34 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>KM 13 VíA OCC MOSQUERA - FUNZA</nomenclaturadireccion>
+<codmunicipiorndc>25473000</codmunicipiorndc>
+<codsedetercero>070</codsedetercero>
+<nomsedetercero>ITALCOL-FUNZA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.69874</latitud>
+<longitud>-74.19367</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>176655247</ingresoid>
+<fechaing>04/10/2021 10:19:22 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>VILLAVICENCIO META</nomenclaturadireccion>
+<codmunicipiorndc>50001000</codmunicipiorndc>
+<codsedetercero>012</codsedetercero>
+<nomsedetercero>VILLAVICENCIO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451924205</ingresoid>
+<fechaing>25/11/2025 6:14:24 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>VILLAVICENCIO META</nomenclaturadireccion>
+<codmunicipiorndc>50001000</codmunicipiorndc>
+<codsedetercero>012</codsedetercero>
+<nomsedetercero>VILLAVICENCIO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.14669</latitud>
+<longitud>-73.63305</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>177608425</ingresoid>
+<fechaing>19/10/2021 11:16:53 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>FACATATIVA CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25269000</codmunicipiorndc>
+<codsedetercero>013</codsedetercero>
+<nomsedetercero>FACATATIVA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>179303239</ingresoid>
+<fechaing>11/11/2021 5:43:43 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>NILO CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25488000</codmunicipiorndc>
+<codsedetercero>014</codsedetercero>
+<nomsedetercero>NILO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>184380639</ingresoid>
+<fechaing>02/02/2022 8:49:17 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN CUNDAY</nomenclaturadireccion>
+<codmunicipiorndc>73226000</codmunicipiorndc>
+<codsedetercero>015</codsedetercero>
+<nomsedetercero>CUNDAY</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451821888</ingresoid>
+<fechaing>25/11/2025 1:21:11 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6015301001</numtelefonocontacto>
+<nomenclaturadireccion>IBAGUE TOLIMA</nomenclaturadireccion>
+<codmunicipiorndc>73001000</codmunicipiorndc>
+<codsedetercero>016</codsedetercero>
+<nomsedetercero>IBAGUE</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.44498</latitud>
+<longitud>-75.23948</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>193225000</ingresoid>
+<fechaing>06/06/2022 5:38:10 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>IBAGUE TOLIMA</nomenclaturadireccion>
+<codmunicipiorndc>73001000</codmunicipiorndc>
+<codsedetercero>016</codsedetercero>
+<nomsedetercero>IBAGUE</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>194761093</ingresoid>
+<fechaing>27/06/2022 10:11:24 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>SOPO CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25758000</codmunicipiorndc>
+<codsedetercero>017</codsedetercero>
+<nomsedetercero>SOPO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>196583371</ingresoid>
+<fechaing>19/07/2022 11:42:38 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>CALI VALLE DEL CAUCA</nomenclaturadireccion>
+<codmunicipiorndc>76001000</codmunicipiorndc>
+<codsedetercero>018</codsedetercero>
+<nomsedetercero>CALI</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>197964709</ingresoid>
+<fechaing>05/08/2022 10:38:39 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>BUGALAGRANDE VALLE DEL CAUCA</nomenclaturadireccion>
+<codmunicipiorndc>76113000</codmunicipiorndc>
+<codsedetercero>019</codsedetercero>
+<nomsedetercero>BUGA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175883000</ingresoid>
+<fechaing>22/09/2021 2:46:33 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN MACHETA BOYACA</nomenclaturadireccion>
+<codmunicipiorndc>25426000</codmunicipiorndc>
+<codsedetercero>025</codsedetercero>
+<nomsedetercero>MACHETA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175990580</ingresoid>
+<fechaing>23/09/2021 8:53:23 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>1740401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA ALBAN</nomenclaturadireccion>
+<codmunicipiorndc>25019000</codmunicipiorndc>
+<codsedetercero>026</codsedetercero>
+<nomsedetercero>ALBAN</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175991182</ingresoid>
+<fechaing>23/09/2021 9:07:56 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA GARAGOA</nomenclaturadireccion>
+<codmunicipiorndc>15299000</codmunicipiorndc>
+<codsedetercero>029</codsedetercero>
+<nomsedetercero>GARAGOA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>319903025</ingresoid>
+<fechaing>30/10/2023 10:04:06 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA PUERTO LOPEZ</nomenclaturadireccion>
+<codmunicipiorndc>50573000</codmunicipiorndc>
+<codsedetercero>030</codsedetercero>
+<nomsedetercero>PUERTO LOPEZ</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>319904292</ingresoid>
+<fechaing>30/10/2023 10:08:04 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA CUMARAL - RESTREPO</nomenclaturadireccion>
+<codmunicipiorndc>50226000</codmunicipiorndc>
+<codsedetercero>031</codsedetercero>
+<nomsedetercero>CUMARAL - RESTREPO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>349998354</ingresoid>
+<fechaing>02/01/2024 9:44:03 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA CUMARAL</nomenclaturadireccion>
+<codmunicipiorndc>50226000</codmunicipiorndc>
+<codsedetercero>031</codsedetercero>
+<nomsedetercero>CUMARAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>319904520</ingresoid>
+<fechaing>30/10/2023 10:08:46 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA ACACIAS</nomenclaturadireccion>
+<codmunicipiorndc>50006000</codmunicipiorndc>
+<codsedetercero>032</codsedetercero>
+<nomsedetercero>ACACIAS</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>454138815</ingresoid>
+<fechaing>07/12/2025 12:32:01 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA ACACIAS</nomenclaturadireccion>
+<codmunicipiorndc>50006000</codmunicipiorndc>
+<codsedetercero>032</codsedetercero>
+<nomsedetercero>ACACIAS</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>3.99209</latitud>
+<longitud>-73.76715</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175883143</ingresoid>
+<fechaing>22/09/2021 2:47:54 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN SAN ANTONIO</nomenclaturadireccion>
+<codmunicipiorndc>25645000</codmunicipiorndc>
+<codsedetercero>033</codsedetercero>
+<nomsedetercero>SAN ANTONIO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>452814563</ingresoid>
+<fechaing>30/11/2025 10:49:43 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN SAN ANTONIO</nomenclaturadireccion>
+<codmunicipiorndc>25645000</codmunicipiorndc>
+<codsedetercero>033</codsedetercero>
+<nomsedetercero>SAN ANTONIO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.61617</latitud>
+<longitud>-74.35216</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451923684</ingresoid>
+<fechaing>25/11/2025 6:12:08 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA GRANADA</nomenclaturadireccion>
+<codmunicipiorndc>50313000</codmunicipiorndc>
+<codsedetercero>034</codsedetercero>
+<nomsedetercero>GRANADA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>3.53637</latitud>
+<longitud>-73.71162</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451923044</ingresoid>
+<fechaing>25/11/2025 6:09:24 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA SAN FRANCISCO</nomenclaturadireccion>
+<codmunicipiorndc>25658000</codmunicipiorndc>
+<codsedetercero>048</codsedetercero>
+<nomsedetercero>SAN FRANCISCO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.97467</latitud>
+<longitud>-74.28944</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>323286681</ingresoid>
+<fechaing>07/11/2023 11:41:38 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA GRANADA</nomenclaturadireccion>
+<codmunicipiorndc>50313000</codmunicipiorndc>
+<codsedetercero>034</codsedetercero>
+<nomsedetercero>GRANADA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175916079</ingresoid>
+<fechaing>22/09/2021 11:07:55 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA LA MESA</nomenclaturadireccion>
+<codmunicipiorndc>25386000</codmunicipiorndc>
+<codsedetercero>035</codsedetercero>
+<nomsedetercero>LA MESA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175883239</ingresoid>
+<fechaing>22/09/2021 2:49:12 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN SILVANIA</nomenclaturadireccion>
+<codmunicipiorndc>25743000</codmunicipiorndc>
+<codsedetercero>036</codsedetercero>
+<nomsedetercero>SILVANIA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175883600</ingresoid>
+<fechaing>22/09/2021 2:52:39 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN PASCA CUND</nomenclaturadireccion>
+<codmunicipiorndc>25535000</codmunicipiorndc>
+<codsedetercero>037</codsedetercero>
+<nomsedetercero>PASCA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175883334</ingresoid>
+<fechaing>22/09/2021 2:50:21 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN SASAIMA CUND</nomenclaturadireccion>
+<codmunicipiorndc>25718000</codmunicipiorndc>
+<codsedetercero>038</codsedetercero>
+<nomsedetercero>SASAIMA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>452814645</ingresoid>
+<fechaing>30/11/2025 10:54:28 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>6017470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN SASAIMA CUND</nomenclaturadireccion>
+<codmunicipiorndc>25718000</codmunicipiorndc>
+<codsedetercero>038</codsedetercero>
+<nomsedetercero>SASAIMA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.9645</latitud>
+<longitud>-74.4351</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>452814677</ingresoid>
+<fechaing>30/11/2025 10:56:20 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA SAN MARTIN</nomenclaturadireccion>
+<codmunicipiorndc>50689000</codmunicipiorndc>
+<codsedetercero>049</codsedetercero>
+<nomsedetercero>SAN MARTIN</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>3.69491</latitud>
+<longitud>-73.70023</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175883424</ingresoid>
+<fechaing>22/09/2021 2:51:11 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN TENA CUND</nomenclaturadireccion>
+<codmunicipiorndc>25797000</codmunicipiorndc>
+<codsedetercero>039</codsedetercero>
+<nomsedetercero>TENA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>175916644</ingresoid>
+<fechaing>22/09/2021 11:21:02 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>7470401</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA SOMONDOCO</nomenclaturadireccion>
+<codmunicipiorndc>15761000</codmunicipiorndc>
+<codsedetercero>040</codsedetercero>
+<nomsedetercero>SOMONDOCO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451923499</ingresoid>
+<fechaing>25/11/2025 6:11:11 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA GUAMAL</nomenclaturadireccion>
+<codmunicipiorndc>50318000</codmunicipiorndc>
+<codsedetercero>041</codsedetercero>
+<nomsedetercero>GUAMAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>3.87987</latitud>
+<longitud>-73.77371</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>326952142</ingresoid>
+<fechaing>15/11/2023 11:14:37 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA GUAMAL - CASTILLA LA NUEVA</nomenclaturadireccion>
+<codmunicipiorndc>50318000</codmunicipiorndc>
+<codsedetercero>041</codsedetercero>
+<nomsedetercero>GUAMAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>427640264</ingresoid>
+<fechaing>14/05/2025 6:30:14 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA GUAMAL</nomenclaturadireccion>
+<codmunicipiorndc>50318000</codmunicipiorndc>
+<codsedetercero>041</codsedetercero>
+<nomsedetercero>GUAMAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>349998050</ingresoid>
+<fechaing>02/01/2024 9:43:17 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA NARIÑO</nomenclaturadireccion>
+<codmunicipiorndc>25483000</codmunicipiorndc>
+<codsedetercero>042</codsedetercero>
+<nomsedetercero>NARIÑO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>396809293</ingresoid>
+<fechaing>05/08/2024 10:17:02 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA TIBANA</nomenclaturadireccion>
+<codmunicipiorndc>15804000</codmunicipiorndc>
+<codsedetercero>043</codsedetercero>
+<nomsedetercero>TIBANA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>407788866</ingresoid>
+<fechaing>19/11/2024 9:45:09 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA TAUSA</nomenclaturadireccion>
+<codmunicipiorndc>25793000</codmunicipiorndc>
+<codsedetercero>044</codsedetercero>
+<nomsedetercero>TAUSA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>408252908</ingresoid>
+<fechaing>22/11/2024 1:54:20 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA ZIPAQUIRA</nomenclaturadireccion>
+<codmunicipiorndc>25899000</codmunicipiorndc>
+<codsedetercero>045</codsedetercero>
+<nomsedetercero>ZIPAQUIRA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424789634</ingresoid>
+<fechaing>20/04/2025 8:30:11 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA ANOLAIMA</nomenclaturadireccion>
+<codmunicipiorndc>25040000</codmunicipiorndc>
+<codsedetercero>046</codsedetercero>
+<nomsedetercero>ANOLAIMA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>451917418</ingresoid>
+<fechaing>25/11/2025 5:45:45 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA ANOLAIMA</nomenclaturadireccion>
+<codmunicipiorndc>25040000</codmunicipiorndc>
+<codsedetercero>046</codsedetercero>
+<nomsedetercero>ANOLAIMA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>4.76006</latitud>
+<longitud>-74.46366</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424789643</ingresoid>
+<fechaing>20/04/2025 8:30:50 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA NOCAIMA</nomenclaturadireccion>
+<codmunicipiorndc>25491000</codmunicipiorndc>
+<codsedetercero>047</codsedetercero>
+<nomsedetercero>NOCAIMA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424789676</ingresoid>
+<fechaing>20/04/2025 8:32:10 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA SAN FRANCISCO</nomenclaturadireccion>
+<codmunicipiorndc>25658000</codmunicipiorndc>
+<codsedetercero>048</codsedetercero>
+<nomsedetercero>SAN FRANCISCO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>427640243</ingresoid>
+<fechaing>14/05/2025 6:29:57 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA SAN MARTIN</nomenclaturadireccion>
+<codmunicipiorndc>50689000</codmunicipiorndc>
+<codsedetercero>049</codsedetercero>
+<nomsedetercero>SAN MARTIN</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>427640339</ingresoid>
+<fechaing>14/05/2025 6:31:07 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA CASTILLA LA NUEVA</nomenclaturadireccion>
+<codmunicipiorndc>50150000</codmunicipiorndc>
+<codsedetercero>050</codsedetercero>
+<nomsedetercero>CASTILLA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>452528066</ingresoid>
+<fechaing>28/11/2025 7:36:57 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA LEJANIAS</nomenclaturadireccion>
+<codmunicipiorndc>50400000</codmunicipiorndc>
+<codsedetercero>055</codsedetercero>
+<nomsedetercero>LEJANIAS</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud>3.52624</latitud>
+<longitud>-74.02147</longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>446715632</ingresoid>
+<fechaing>22/10/2025 8:34:35 a. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS VIA RESTREPO</nomenclaturadireccion>
+<codmunicipiorndc>50606000</codmunicipiorndc>
+<codsedetercero>056</codsedetercero>
+<nomsedetercero>RESTREPO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424769404</ingresoid>
+<fechaing>20/04/2025 12:55:28 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>KM 13 VíA OCC MOSQUERA - FUNZA</nomenclaturadireccion>
+<codmunicipiorndc>25473000</codmunicipiorndc>
+<codsedetercero>070</codsedetercero>
+<nomsedetercero>ITALCOL-FUNZA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424769500</ingresoid>
+<fechaing>20/04/2025 1:00:44 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>PLANATA DE ALIMENTO CONCETRADO EN VILLAVICENCIO</nomenclaturadireccion>
+<codmunicipiorndc>50001000</codmunicipiorndc>
+<codsedetercero>071</codsedetercero>
+<nomsedetercero>CEDI-VILLAO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424777655</ingresoid>
+<fechaing>20/04/2025 4:13:23 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>ZONA SAN FRANCISCO CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25658000</codmunicipiorndc>
+<codsedetercero>072</codsedetercero>
+<nomsedetercero>SAN FRANCISCO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424779150</ingresoid>
+<fechaing>20/04/2025 4:36:46 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>MESITAS DEL COLEGIO - CUNDINAMARCA</nomenclaturadireccion>
+<codmunicipiorndc>25245000</codmunicipiorndc>
+<codsedetercero>073</codsedetercero>
+<nomsedetercero>MESITAS DEL COLEGIO</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424780048</ingresoid>
+<fechaing>20/04/2025 4:50:08 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GUAYABAL</nomenclaturadireccion>
+<codmunicipiorndc>25328000</codmunicipiorndc>
+<codsedetercero>074</codsedetercero>
+<nomsedetercero>GUAYABAL</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+<documento>
+<ingresoid>424780581</ingresoid>
+<fechaing>20/04/2025 4:58:18 p. m.</fechaing>
+<codtipoidtercero>N</codtipoidtercero>
+<nomidtercero>AVICOLA LOS CAMBULOS S.A</nomidtercero>
+<primerapellidoidtercero></primerapellidoidtercero>
+<segundoapellidoidtercero></segundoapellidoidtercero>
+<numtelefonocontacto>0</numtelefonocontacto>
+<nomenclaturadireccion>GRANJAS EN ANAPOIMA</nomenclaturadireccion>
+<codmunicipiorndc>25035000</codmunicipiorndc>
+<codsedetercero>075</codsedetercero>
+<nomsedetercero>ANAPOIMA</nomsedetercero>
+<numlicenciaconduccion>0</numlicenciaconduccion>
+<codcategorialicenciaconduccion></codcategorialicenciaconduccion>
+<fechavencimientolicencia></fechavencimientolicencia>
+<latitud></latitud>
+<longitud></longitud>
+<regimensimple>N</regimensimple>
+</documento>
+</root>

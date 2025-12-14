@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSettings } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon
+ } from "lucide-react";
 import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,11 +34,72 @@ interface RndcQuery {
   createdAt: string;
 }
 
+interface TerceroDocument {
+  ingresoid: string;
+  fechaing: string;
+  codtipoidtercero: string;
+  nomidtercero: string;
+  primerapellidoidtercero: string;
+  segundoapellidoidtercero: string;
+  numtelefonocontacto: string;
+  nomenclaturadireccion: string;
+  codmunicipiorndc: string;
+  codsedetercero: string;
+  nomsedetercero: string;
+  numlicenciaconduccion: string;
+  codcategorialicenciaconduccion: string;
+  fechavencimientolicencia: string;
+  latitud: string;
+  longitud: string;
+  regimensimple: string;
+}
+
 const QUERY_TYPES = [
   { value: "terceros", label: "Terceros", tipo: "3", procesoid: "11" },
 ];
 
 const TERCEROS_VARIABLES = "INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODMUNICIPIORNDC,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD,REGIMENSIMPLE";
+
+const TERCEROS_COLUMNS = [
+  { key: "ingresoid", label: "ID Ingreso" },
+  { key: "fechaing", label: "Fecha Ingreso" },
+  { key: "codsedetercero", label: "Cod Sede" },
+  { key: "nomsedetercero", label: "Nombre Sede" },
+  { key: "nomenclaturadireccion", label: "Dirección" },
+  { key: "codmunicipiorndc", label: "Cod Municipio" },
+  { key: "numtelefonocontacto", label: "Teléfono" },
+  { key: "latitud", label: "Latitud" },
+  { key: "longitud", label: "Longitud" },
+];
+
+function parseDocumentsFromXml(xmlString: string): TerceroDocument[] {
+  const documents: TerceroDocument[] = [];
+  const docRegex = /<documento>([\s\S]*?)<\/documento>/g;
+  let match;
+
+  while ((match = docRegex.exec(xmlString)) !== null) {
+    const docContent = match[1];
+    const doc: any = {};
+    
+    const fields = [
+      'ingresoid', 'fechaing', 'codtipoidtercero', 'nomidtercero',
+      'primerapellidoidtercero', 'segundoapellidoidtercero', 'numtelefonocontacto',
+      'nomenclaturadireccion', 'codmunicipiorndc', 'codsedetercero', 'nomsedetercero',
+      'numlicenciaconduccion', 'codcategorialicenciaconduccion', 'fechavencimientolicencia',
+      'latitud', 'longitud', 'regimensimple'
+    ];
+
+    fields.forEach(field => {
+      const fieldRegex = new RegExp(`<${field}>([^<]*)</${field}>`);
+      const fieldMatch = docContent.match(fieldRegex);
+      doc[field] = fieldMatch ? fieldMatch[1].trim() : '';
+    });
+
+    documents.push(doc as TerceroDocument);
+  }
+
+  return documents;
+}
 
 export default function Queries() {
   const { settings } = useSettings();
@@ -45,7 +108,9 @@ export default function Queries() {
   const [generatedXml, setGeneratedXml] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastResponse, setLastResponse] = useState<any>(null);
+  const [parsedDocuments, setParsedDocuments] = useState<TerceroDocument[]>([]);
   const [selectedQuery, setSelectedQuery] = useState<RndcQuery | null>(null);
+  const [showXmlResponse, setShowXmlResponse] = useState(false);
 
   const { data: queriesData, refetch: refetchQueries } = useQuery({
     queryKey: ["/api/rndc/queries"],
@@ -91,6 +156,7 @@ ${TERCEROS_VARIABLES}
 
     setGeneratedXml(xml);
     setLastResponse(null);
+    setParsedDocuments([]);
   };
 
   const handleSubmit = async () => {
@@ -104,6 +170,7 @@ ${TERCEROS_VARIABLES}
     }
 
     setIsSubmitting(true);
+    setParsedDocuments([]);
     try {
       const wsUrl = settings.wsEnvironment === "production" 
         ? settings.wsUrlProd 
@@ -124,12 +191,26 @@ ${TERCEROS_VARIABLES}
       setLastResponse(result);
       refetchQueries();
 
+      if (result.success && result.query?.xmlResponse) {
+        const docs = parseDocumentsFromXml(result.query.xmlResponse);
+        setParsedDocuments(docs);
+        
+        if (docs.length > 0) {
+          toast({
+            title: "Consulta exitosa",
+            description: `Se encontraron ${docs.length} registros`,
+          });
+        }
+      }
+
       if (result.success && result.response?.success) {
-        toast({
-          title: "Consulta exitosa",
-          description: `Código: ${result.response.code}`,
-        });
-      } else {
+        if (parsedDocuments.length === 0) {
+          toast({
+            title: "Consulta exitosa",
+            description: `Código: ${result.response.code}`,
+          });
+        }
+      } else if (!result.success || !result.response?.success) {
         toast({
           title: "Error en consulta",
           description: result.response?.message || result.message || "Error desconocido",
@@ -145,6 +226,13 @@ ${TERCEROS_VARIABLES}
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getDocumentsFromQuery = (query: RndcQuery): TerceroDocument[] => {
+    if (query.xmlResponse) {
+      return parseDocumentsFromXml(query.xmlResponse);
+    }
+    return [];
   };
 
   return (
@@ -246,13 +334,25 @@ ${TERCEROS_VARIABLES}
             {lastResponse && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {lastResponse.response?.success ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500" />
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {lastResponse.response?.success ? (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      )}
+                      Respuesta del RNDC
+                      {parsedDocuments.length > 0 && (
+                        <span className="text-sm font-normal text-muted-foreground">
+                          ({parsedDocuments.length} registros)
+                        </span>
+                      )}
+                    </div>
+                    {lastResponse.query?.xmlResponse && (
+                      <Button variant="outline" size="sm" onClick={() => setShowXmlResponse(!showXmlResponse)}>
+                        {showXmlResponse ? "Ver Tabla" : "Ver XML"}
+                      </Button>
                     )}
-                    Respuesta del RNDC
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -267,23 +367,43 @@ ${TERCEROS_VARIABLES}
                     </div>
                   </div>
 
-                  {lastResponse.response?.data && (
-                    <div>
-                      <Label className="text-muted-foreground mb-2 block">Datos de Respuesta</Label>
-                      <ScrollArea className="h-64 rounded border p-4">
-                        <pre className="text-sm font-mono whitespace-pre-wrap">
-                          {JSON.stringify(lastResponse.response.data, null, 2)}
-                        </pre>
-                      </ScrollArea>
-                    </div>
-                  )}
-
-                  {lastResponse.query?.xmlResponse && (
+                  {showXmlResponse && lastResponse.query?.xmlResponse ? (
                     <div>
                       <Label className="text-muted-foreground mb-2 block">XML Respuesta</Label>
                       <XmlViewer xml={lastResponse.query.xmlResponse} />
                     </div>
-                  )}
+                  ) : parsedDocuments.length > 0 ? (
+                    <div>
+                      <Label className="text-muted-foreground mb-2 block flex items-center gap-2">
+                        <TableIcon className="h-4 w-4" />
+                        Documentos Encontrados
+                      </Label>
+                      <ScrollArea className="h-[400px] rounded border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {TERCEROS_COLUMNS.map((col) => (
+                                <TableHead key={col.key} className="whitespace-nowrap text-xs">
+                                  {col.label}
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {parsedDocuments.map((doc, idx) => (
+                              <TableRow key={idx}>
+                                {TERCEROS_COLUMNS.map((col) => (
+                                  <TableCell key={col.key} className="text-xs whitespace-nowrap">
+                                    {(doc as any)[col.key] || "-"}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             )}
@@ -336,20 +456,16 @@ ${TERCEROS_VARIABLES}
       </div>
 
       <Dialog open={!!selectedQuery} onOpenChange={() => setSelectedQuery(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalles de Consulta</DialogTitle>
+            <DialogTitle>Detalles de Consulta - {selectedQuery?.queryName}</DialogTitle>
           </DialogHeader>
           {selectedQuery && (
             <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <Label className="text-muted-foreground">Tipo</Label>
-                  <p>{selectedQuery.queryName}</p>
-                </div>
+              <div className="grid gap-4 md:grid-cols-3">
                 <div>
                   <Label className="text-muted-foreground">Estado</Label>
-                  <p className={selectedQuery.status === "success" ? "text-green-600" : "text-red-600"}>
+                  <p className={selectedQuery.status === "success" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                     {selectedQuery.status === "success" ? "Exitoso" : "Error"}
                   </p>
                 </div>
@@ -361,37 +477,59 @@ ${TERCEROS_VARIABLES}
                   <Label className="text-muted-foreground">Fecha</Label>
                   <p>{format(new Date(selectedQuery.createdAt), "dd/MM/yyyy HH:mm:ss", { locale: es })}</p>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground">Código Respuesta</Label>
-                  <p className="font-mono">{selectedQuery.responseCode || "N/A"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Mensaje</Label>
-                  <p>{selectedQuery.responseMessage || "N/A"}</p>
-                </div>
-              </div>
-
-              {selectedQuery.responseData && (
-                <div>
-                  <Label className="text-muted-foreground mb-2 block">Datos de Respuesta</Label>
-                  <ScrollArea className="h-48 rounded border p-4">
-                    <pre className="text-sm font-mono whitespace-pre-wrap">
-                      {JSON.stringify(JSON.parse(selectedQuery.responseData), null, 2)}
-                    </pre>
-                  </ScrollArea>
-                </div>
-              )}
-
-              <div>
-                <Label className="text-muted-foreground mb-2 block">XML Solicitud</Label>
-                <XmlViewer xml={selectedQuery.xmlRequest} />
               </div>
 
               {selectedQuery.xmlResponse && (
                 <div>
-                  <Label className="text-muted-foreground mb-2 block">XML Respuesta</Label>
-                  <XmlViewer xml={selectedQuery.xmlResponse} />
+                  <Label className="text-muted-foreground mb-2 block flex items-center gap-2">
+                    <TableIcon className="h-4 w-4" />
+                    Documentos ({getDocumentsFromQuery(selectedQuery).length} registros)
+                  </Label>
+                  <ScrollArea className="h-[300px] rounded border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {TERCEROS_COLUMNS.map((col) => (
+                            <TableHead key={col.key} className="whitespace-nowrap text-xs">
+                              {col.label}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getDocumentsFromQuery(selectedQuery).map((doc, idx) => (
+                          <TableRow key={idx}>
+                            {TERCEROS_COLUMNS.map((col) => (
+                              <TableCell key={col.key} className="text-xs whitespace-nowrap">
+                                {(doc as any)[col.key] || "-"}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
                 </div>
+              )}
+
+              <details className="group">
+                <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                  Ver XML Solicitud
+                </summary>
+                <div className="mt-2">
+                  <XmlViewer xml={selectedQuery.xmlRequest} />
+                </div>
+              </details>
+
+              {selectedQuery.xmlResponse && (
+                <details className="group">
+                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                    Ver XML Respuesta
+                  </summary>
+                  <div className="mt-2">
+                    <XmlViewer xml={selectedQuery.xmlResponse} />
+                  </div>
+                </details>
               )}
             </div>
           )}
