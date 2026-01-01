@@ -1,10 +1,17 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Radio, Truck, Upload, Settings, ShieldCheck, FileCheck, Search } from "lucide-react";
+import { LayoutDashboard, Radio, Truck, Upload, Settings, FileCheck, Search, LogOut, User } from "lucide-react";
 import generatedImage from '@assets/generated_images/logistics_dashboard_logo.png';
+import { useAuth } from "@/hooks/use-auth";
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
 
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -43,16 +50,28 @@ export function Sidebar() {
           })}
         </nav>
       </div>
-      <div className="border-t border-sidebar-border p-4">
+      <div className="border-t border-sidebar-border p-4 space-y-2">
         <div className="flex items-center gap-3 rounded-md bg-sidebar-accent/50 p-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
-            <ShieldCheck className="h-4 w-4" />
+            <User className="h-4 w-4" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-sidebar-foreground">RNDC Conectado</span>
-            <span className="text-[10px] text-muted-foreground">Último sync: hace 2m</span>
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="text-xs font-medium text-sidebar-foreground truncate">
+              {user?.name || user?.username || "Usuario"}
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              {user?.email || user?.username}
+            </span>
           </div>
         </div>
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+          data-testid="button-sidebar-logout"
+        >
+          <LogOut className="h-4 w-4" />
+          Cerrar Sesión
+        </button>
       </div>
     </div>
   );
