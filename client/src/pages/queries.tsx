@@ -11,7 +11,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon, Download, Upload, FileSpreadsheet, Clock } from "lucide-react";
+import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon, Download, Upload, FileSpreadsheet, Clock, FileCode } from "lucide-react";
 import * as XLSX from "xlsx";
 import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -92,6 +92,20 @@ interface LogisticsResult {
   errorMessage?: string;
 }
 
+interface GeneratedSubmission {
+  ingresoidmanifiesto: string;
+  numidgps: string;
+  numplaca: string;
+  codpuntocontrol: string;
+  latitud: string;
+  longitud: string;
+  fechallegada: string;
+  horallegada: string;
+  fechasalida: string;
+  horasalida: string;
+  xmlRequest: string;
+}
+
 const TERCEROS_VARIABLES = "INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODMUNICIPIORNDC,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD,REGIMENSIMPLE";
 
 const TERCEROS_COLUMNS = [
@@ -159,6 +173,10 @@ export default function Queries() {
   const [isQueryingLogistics, setIsQueryingLogistics] = useState(false);
   const [logisticsProgress, setLogisticsProgress] = useState({ current: 0, total: 0 });
   const [showLogisticsResults, setShowLogisticsResults] = useState(false);
+
+  // Generated XMLs states
+  const [generatedSubmissions, setGeneratedSubmissions] = useState<GeneratedSubmission[]>([]);
+  const [isSendingBatch, setIsSendingBatch] = useState(false);
 
   const filteredDocuments = filterWithCoords 
     ? parsedDocuments.filter(doc => doc.latitud && doc.longitud && doc.latitud.trim() !== '' && doc.longitud.trim() !== '')
@@ -598,6 +616,166 @@ INGRESOID,FECHAING
     toast({
       title: "Exportado",
       description: `Se exportaron ${dataToExport.length} registros`,
+    });
+  };
+
+  const getShiftedTime = (dateStr: string, timeStr: string, minAdd: number) => {
+    let d = new Date();
+    
+    // Handle different date formats: DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length === 3) {
+      if (parts[2].length === 4) {
+        // DD/MM/YYYY or DD-MM-YYYY
+        d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      } else if (parts[0].length === 4) {
+        // YYYY-MM-DD or YYYY/MM/DD
+        d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      }
+    }
+
+    // Handle time string HH:MM or HH:MM:SS
+    const timeParts = timeStr.split(':');
+    if (timeParts.length >= 2) {
+      d.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+    }
+
+    d.setMinutes(d.getMinutes() + minAdd);
+
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+
+    return { d: `${dd}/${mm}/${yyyy}`, t: `${hh}:${min}` };
+  };
+
+  const handleGenerateXmlsFromLogistics = () => {
+    const successResults = logisticsResults.filter(r => r.status === "success" && r.controlPoints.length > 0);
+    
+    if (successResults.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay tiempos logísticos con puntos de control para generar XMLs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const submissions: GeneratedSubmission[] = [];
+
+    successResults.forEach(result => {
+      result.controlPoints.forEach(cp => {
+        const arrOffset = Math.floor(Math.random() * (90 - 60 + 1)) + 60;
+        const stayDuration = Math.floor(Math.random() * (140 - 90 + 1)) + 90;
+        const totalDepOffset = arrOffset + stayDuration;
+
+        const arrivalTime = getShiftedTime(cp.fechacita, cp.horacita, arrOffset);
+        const departureTime = getShiftedTime(cp.fechacita, cp.horacita, totalDepOffset);
+
+        const xmlRequest = `<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>${settings.usernameGps}</username>
+<password>${settings.passwordGps}</password>
+</acceso>
+<solicitud>
+<tipo>1</tipo>
+<procesoid>60</procesoid>
+</solicitud>
+<variables>
+<numidgps>${settings.companyNit}</numidgps>
+<ingresoidmanifiesto>${result.ingresoidManifiesto}</ingresoidmanifiesto>
+<numplaca>${result.numPlaca}</numplaca>
+<codpuntocontrol>${cp.codpuntocontrol}</codpuntocontrol>
+<latitud>${cp.latitud}</latitud>
+<longitud>${cp.longitud}</longitud>
+<fechallegada>${arrivalTime.d}</fechallegada>
+<horallegada>${arrivalTime.t}</horallegada>
+<fechasalida>${departureTime.d}</fechasalida>
+<horasalida>${departureTime.t}</horasalida>
+</variables>
+</root>`;
+
+        submissions.push({
+          ingresoidmanifiesto: result.ingresoidManifiesto,
+          numidgps: settings.companyNit,
+          numplaca: result.numPlaca,
+          codpuntocontrol: cp.codpuntocontrol,
+          latitud: cp.latitud,
+          longitud: cp.longitud,
+          fechallegada: arrivalTime.d,
+          horallegada: arrivalTime.t,
+          fechasalida: departureTime.d,
+          horasalida: departureTime.t,
+          xmlRequest,
+        });
+      });
+    });
+
+    setGeneratedSubmissions(submissions);
+    toast({
+      title: "XMLs Generados",
+      description: `${submissions.length} XMLs listos para enviar al RNDC`,
+    });
+  };
+
+  const handleSendGeneratedBatch = async () => {
+    if (generatedSubmissions.length === 0) return;
+
+    const wsUrl = getActiveWsUrl();
+
+    setIsSendingBatch(true);
+    try {
+      const response = await fetch("/api/rndc/submit-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissions: generatedSubmissions, wsUrl }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Lote Enviado",
+          description: result.message,
+          className: "bg-green-50 border-green-200",
+        });
+        setGeneratedSubmissions([]);
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error de conexión al servidor", variant: "destructive" });
+    }
+    setIsSendingBatch(false);
+  };
+
+  const exportGeneratedSubmissions = () => {
+    if (generatedSubmissions.length === 0) return;
+
+    const dataToExport = generatedSubmissions.map(sub => ({
+      'INGRESOIDMANIFIESTO': sub.ingresoidmanifiesto,
+      'NUMIDGPS': sub.numidgps,
+      'PLACA': sub.numplaca,
+      'PUNTO CONTROL': sub.codpuntocontrol,
+      'LATITUD': sub.latitud,
+      'LONGITUD': sub.longitud,
+      'FECHA LLEGADA': sub.fechallegada,
+      'HORA LLEGADA': sub.horallegada,
+      'FECHA SALIDA': sub.fechasalida,
+      'HORA SALIDA': sub.horasalida,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "XMLs Generados");
+    XLSX.writeFile(wb, `xmls_generados_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    toast({
+      title: "Exportado",
+      description: `Se exportaron ${generatedSubmissions.length} registros`,
     });
   };
 
@@ -1080,9 +1258,14 @@ ${TERCEROS_VARIABLES}
                       {logisticsResults.filter(r => r.status === "error").length} sin datos
                     </CardDescription>
                   </div>
-                  <Button variant="outline" onClick={exportLogisticsResults} data-testid="button-export-logistics">
-                    <Download className="mr-2 h-4 w-4" /> Exportar Excel
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={handleGenerateXmlsFromLogistics} data-testid="button-generate-xmls">
+                      <FileCode className="mr-2 h-4 w-4" /> Generar XMLs
+                    </Button>
+                    <Button variant="outline" onClick={exportLogisticsResults} data-testid="button-export-logistics">
+                      <Download className="mr-2 h-4 w-4" /> Exportar Excel
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[500px] rounded border">
@@ -1131,6 +1314,77 @@ ${TERCEROS_VARIABLES}
                               </TableCell>
                             </TableRow>
                           )
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            )}
+
+            {generatedSubmissions.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileCode className="h-5 w-5 text-purple-500" />
+                      XMLs Generados
+                    </CardTitle>
+                    <CardDescription>
+                      {generatedSubmissions.length} XMLs listos para enviar al RNDC
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleSendGeneratedBatch} 
+                      disabled={isSendingBatch}
+                      data-testid="button-send-batch"
+                    >
+                      {isSendingBatch ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" /> Enviar al RNDC
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="outline" onClick={exportGeneratedSubmissions} data-testid="button-export-generated">
+                      <Download className="mr-2 h-4 w-4" /> Exportar Excel
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[400px] rounded border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>INGRESOID</TableHead>
+                          <TableHead>PLACA</TableHead>
+                          <TableHead>PUNTO</TableHead>
+                          <TableHead>LATITUD</TableHead>
+                          <TableHead>LONGITUD</TableHead>
+                          <TableHead>FECHA LLEGADA</TableHead>
+                          <TableHead>HORA LLEGADA</TableHead>
+                          <TableHead>FECHA SALIDA</TableHead>
+                          <TableHead>HORA SALIDA</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {generatedSubmissions.map((sub, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-mono text-primary">{sub.ingresoidmanifiesto}</TableCell>
+                            <TableCell>{sub.numplaca}</TableCell>
+                            <TableCell className="font-medium">{sub.codpuntocontrol}</TableCell>
+                            <TableCell className="font-mono text-xs">{sub.latitud}</TableCell>
+                            <TableCell className="font-mono text-xs">{sub.longitud}</TableCell>
+                            <TableCell>{sub.fechallegada}</TableCell>
+                            <TableCell>{sub.horallegada}</TableCell>
+                            <TableCell>{sub.fechasalida}</TableCell>
+                            <TableCell>{sub.horasalida}</TableCell>
+                          </TableRow>
                         ))}
                       </TableBody>
                     </Table>
