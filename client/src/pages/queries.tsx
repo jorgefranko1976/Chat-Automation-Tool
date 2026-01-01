@@ -722,9 +722,21 @@ INGRESOID,FECHAING
   };
 
   const handleSendGeneratedBatch = async () => {
-    if (generatedSubmissions.length === 0) return;
+    if (generatedSubmissions.length === 0) {
+      toast({ title: "Error", description: "No hay XMLs generados para enviar", variant: "destructive" });
+      return;
+    }
 
-    const wsUrl = getActiveWsUrl();
+    const wsUrl = settings.wsEnvironment === "production" 
+      ? settings.wsUrlProd 
+      : settings.wsUrlTest;
+
+    if (!wsUrl) {
+      toast({ title: "Error", description: "Configure la URL del servicio web en Configuración", variant: "destructive" });
+      return;
+    }
+
+    console.log("[Queries] Sending batch:", { count: generatedSubmissions.length, wsUrl });
 
     setIsSendingBatch(true);
     try {
@@ -735,6 +747,7 @@ INGRESOID,FECHAING
       });
 
       const result = await response.json();
+      console.log("[Queries] Batch response:", result);
 
       if (result.success) {
         toast({
@@ -744,9 +757,10 @@ INGRESOID,FECHAING
         });
         setGeneratedSubmissions([]);
       } else {
-        toast({ title: "Error", description: result.message, variant: "destructive" });
+        toast({ title: "Error", description: result.message || "Error al enviar lote", variant: "destructive" });
       }
     } catch (error) {
+      console.error("[Queries] Batch error:", error);
       toast({ title: "Error", description: "Error de conexión al servidor", variant: "destructive" });
     }
     setIsSendingBatch(false);
