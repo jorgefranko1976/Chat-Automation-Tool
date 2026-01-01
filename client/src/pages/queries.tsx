@@ -415,7 +415,7 @@ INGRESOID,FECHAING
     
     if (puntosMatch) {
       const puntosContent = puntosMatch[1];
-      const puntoRegex = /<punto>([\s\S]*?)<\/punto>/gi;
+      const puntoRegex = /<puntocontrol>([\s\S]*?)<\/puntocontrol>/gi;
       let puntoMatch;
       
       while ((puntoMatch = puntoRegex.exec(puntosContent)) !== null) {
