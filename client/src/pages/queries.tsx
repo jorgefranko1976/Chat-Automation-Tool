@@ -850,6 +850,7 @@ INGRESOID,FECHAING
           className: "bg-blue-50 border-blue-200",
         });
         setGeneratedSubmissions([]);
+        refetchBatches();
       } else {
         toast({ title: "Error", description: result.message || "Error al enviar lote", variant: "destructive" });
       }
@@ -896,6 +897,23 @@ INGRESOID,FECHAING
   });
 
   const queries: RndcQuery[] = queriesData?.queries || [];
+
+  // Batch history query
+  const { data: batchesData, refetch: refetchBatches } = useQuery({
+    queryKey: ["/api/rndc/batches"],
+    queryFn: async () => {
+      const res = await fetch("/api/rndc/batches?limit=20");
+      return res.json();
+    },
+  });
+
+  const batches: RndcBatch[] = batchesData?.batches || [];
+
+  const viewBatchDetails = async (batchId: string) => {
+    setCurrentBatchId(batchId);
+    setShowBatchResults(true);
+    await fetchBatchResults(batchId);
+  };
 
   const generateXml = () => {
     if (!numIdTercero.trim()) {
@@ -1514,47 +1532,117 @@ ${TERCEROS_VARIABLES}
           </TabsContent>
 
           <TabsContent value="historial">
-            <Card>
-              <CardHeader>
-                <CardTitle>Historial de Consultas</CardTitle>
-                <CardDescription>Últimas consultas realizadas al RNDC</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {queries.length === 0 ? (
-                  <div className="flex items-center justify-center h-48 text-muted-foreground">
-                    No hay consultas registradas
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {queries.map((query) => (
-                      <div
-                        key={query.id}
-                        className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 cursor-pointer"
-                        onClick={() => setSelectedQuery(query)}
-                        data-testid={`query-row-${query.id}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          {query.status === "success" ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <XCircle className="h-5 w-5 text-red-500" />
-                          )}
-                          <div>
-                            <p className="font-medium">{query.queryName}</p>
-                            <p className="text-sm text-muted-foreground">
-                              ID: {query.numIdTercero || "N/A"} | {format(new Date(query.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
-                            </p>
+            <div className="space-y-6">
+              {/* Batch History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Send className="h-5 w-5 text-purple-500" />
+                    Historial de Lotes Enviados
+                  </CardTitle>
+                  <CardDescription>Lotes de tiempos logísticos enviados al RNDC</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {batches.length === 0 ? (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground">
+                      No hay lotes enviados
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[300px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>FECHA</TableHead>
+                            <TableHead>TOTAL</TableHead>
+                            <TableHead>EXITOSOS</TableHead>
+                            <TableHead>ERRORES</TableHead>
+                            <TableHead>PENDIENTES</TableHead>
+                            <TableHead>ESTADO</TableHead>
+                            <TableHead>VER</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {batches.map((batch) => (
+                            <TableRow key={batch.id} data-testid={`batch-row-${batch.id}`}>
+                              <TableCell>
+                                {format(new Date(batch.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
+                              </TableCell>
+                              <TableCell className="font-medium">{batch.totalRecords}</TableCell>
+                              <TableCell className="text-green-600">{batch.successCount}</TableCell>
+                              <TableCell className="text-red-600">{batch.errorCount}</TableCell>
+                              <TableCell className="text-yellow-600">{batch.pendingCount}</TableCell>
+                              <TableCell>
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  batch.status === "completed" ? "bg-green-100 text-green-700" :
+                                  batch.status === "processing" ? "bg-yellow-100 text-yellow-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }`}>
+                                  {batch.status === "completed" ? "Completado" : 
+                                   batch.status === "processing" ? "Procesando" : batch.status}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => viewBatchDetails(batch.id)}
+                                  data-testid={`button-view-batch-${batch.id}`}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Query History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Historial de Consultas</CardTitle>
+                  <CardDescription>Últimas consultas realizadas al RNDC</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {queries.length === 0 ? (
+                    <div className="flex items-center justify-center h-48 text-muted-foreground">
+                      No hay consultas registradas
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {queries.map((query) => (
+                        <div
+                          key={query.id}
+                          className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                          onClick={() => setSelectedQuery(query)}
+                          data-testid={`query-row-${query.id}`}
+                        >
+                          <div className="flex items-center gap-4">
+                            {query.status === "success" ? (
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-500" />
+                            )}
+                            <div>
+                              <p className="font-medium">{query.queryName}</p>
+                              <p className="text-sm text-muted-foreground">
+                                ID: {query.numIdTercero || "N/A"} | {format(new Date(query.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
+                              </p>
+                            </div>
                           </div>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
