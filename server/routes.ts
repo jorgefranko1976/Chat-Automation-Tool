@@ -1,9 +1,19 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { sendXmlToRndc } from "./rndc-service";
-import { insertRndcSubmissionSchema } from "@shared/schema";
+import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "pg";
+
+declare module "express-session" {
+  interface SessionData {
+    userId?: string;
+  }
+}
 
 const submitBatchSchema = z.object({
   submissions: z.array(z.object({
@@ -68,10 +78,186 @@ const rndcQuerySchema = z.object({
   wsUrl: z.string().url().optional(),
 });
 
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ success: false, message: "No autenticado" });
+  }
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  const PgSession = connectPgSimple(session);
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+
+  app.use(
+    session({
+      store: new PgSession({
+        pool,
+        tableName: "user_sessions",
+        createTableIfMissing: true,
+      }),
+      secret: process.env.SESSION_SECRET || "rndc-connect-secret-key-change-in-production",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000,
+      },
+    })
+  );
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, message: "Datos inválidos" });
+      }
+
+      const { username, password } = parsed.data;
+      const user = await storage.getUserByUsername(username);
+
+      if (!user) {
+        return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
+      }
+
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
+      }
+
+      req.session.userId = user.id;
+      await storage.updateUserLastLogin(user.id);
+
+      res.json({
+        success: true,
+        user: { id: user.id, username: user.username, name: user.name, email: user.email },
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ success: false, message: "Error del servidor" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: "Error al cerrar sesión" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.json({ authenticated: false });
+    }
+
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.json({ authenticated: false });
+    }
+
+    res.json({
+      authenticated: true,
+      user: { id: user.id, username: user.username, name: user.name, email: user.email },
+    });
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password, name, email } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ success: false, message: "Usuario y contraseña requeridos" });
+      }
+
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ success: false, message: "El usuario ya existe" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        name: name || null,
+        email: email || null,
+      });
+
+      req.session.userId = user.id;
+
+      res.json({
+        success: true,
+        user: { id: user.id, username: user.username, name: user.name, email: user.email },
+      });
+    } catch (error) {
+      console.error("Register error:", error);
+      res.status(500).json({ success: false, message: "Error del servidor" });
+    }
+  });
+
+  app.put("/api/auth/profile", requireAuth, async (req, res) => {
+    try {
+      const parsed = updateUserProfileSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, message: "Datos inválidos" });
+      }
+
+      if (parsed.data.username) {
+        const existing = await storage.getUserByUsername(parsed.data.username);
+        if (existing && existing.id !== req.session.userId) {
+          return res.status(400).json({ success: false, message: "El usuario ya está en uso" });
+        }
+      }
+
+      const user = await storage.updateUserProfile(req.session.userId!, parsed.data);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Usuario no encontrado" });
+      }
+
+      res.json({
+        success: true,
+        user: { id: user.id, username: user.username, name: user.name, email: user.email },
+      });
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ success: false, message: "Error del servidor" });
+    }
+  });
+
+  app.put("/api/auth/password", requireAuth, async (req, res) => {
+    try {
+      const parsed = changePasswordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, message: "Datos inválidos" });
+      }
+
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Usuario no encontrado" });
+      }
+
+      const isValid = await bcrypt.compare(parsed.data.currentPassword, user.password);
+      if (!isValid) {
+        return res.status(400).json({ success: false, message: "Contraseña actual incorrecta" });
+      }
+
+      const hashedPassword = await bcrypt.hash(parsed.data.newPassword, 10);
+      await storage.updateUserPassword(req.session.userId!, hashedPassword);
+
+      res.json({ success: true, message: "Contraseña actualizada" });
+    } catch (error) {
+      console.error("Password change error:", error);
+      res.status(500).json({ success: false, message: "Error del servidor" });
+    }
+  });
 
   app.post("/api/system/restart", async (req, res) => {
     res.json({ success: true, message: "El servidor se reiniciará en 2 segundos..." });
