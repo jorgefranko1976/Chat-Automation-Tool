@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon, Download } from "lucide-react";
+import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon, Download, Upload, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -57,6 +57,18 @@ interface TerceroDocument {
 const QUERY_TYPES = [
   { value: "terceros", label: "Terceros", tipo: "3", procesoid: "11" },
 ];
+
+interface ManifiestoExcelRow {
+  CONSECUTIVOREMESA: string | number;
+}
+
+interface ManifiestoResult {
+  consecutivoRemesa: string;
+  ingresoidManifiesto: string;
+  fechaIngreso: string;
+  status: "success" | "error" | "pending";
+  errorMessage?: string;
+}
 
 const TERCEROS_VARIABLES = "INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODMUNICIPIORNDC,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD,REGIMENSIMPLE";
 
@@ -113,6 +125,13 @@ export default function Queries() {
   const [showXmlResponse, setShowXmlResponse] = useState(false);
   const [filterWithCoords, setFilterWithCoords] = useState(false);
 
+  // Bulk manifest query states
+  const [manifiestoExcelData, setManifiestoExcelData] = useState<ManifiestoExcelRow[]>([]);
+  const [manifiestoResults, setManifiestoResults] = useState<ManifiestoResult[]>([]);
+  const [isQueryingManifiestos, setIsQueryingManifiestos] = useState(false);
+  const [manifiestoProgress, setManifiestoProgress] = useState({ current: 0, total: 0 });
+  const manifiestoFileInputRef = useRef<HTMLInputElement>(null);
+
   const filteredDocuments = filterWithCoords 
     ? parsedDocuments.filter(doc => doc.latitud && doc.longitud && doc.latitud.trim() !== '' && doc.longitud.trim() !== '')
     : parsedDocuments;
@@ -146,6 +165,192 @@ export default function Queries() {
     toast({
       title: "Exportado",
       description: `Se exportaron ${filteredDocuments.length} registros a Excel`,
+    });
+  };
+
+  const handleManifiestoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        if (!bstr) return;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const jsonData = XLSX.utils.sheet_to_json(ws) as ManifiestoExcelRow[];
+        
+        setManifiestoExcelData(jsonData);
+        setManifiestoResults([]);
+        toast({
+          title: "Archivo Cargado",
+          description: `Se encontraron ${jsonData.length} registros con CONSECUTIVOREMESA`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo leer el archivo Excel",
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const generateManifiestoXml = (consecutivoRemesa: string): string => {
+    return `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+<acceso>
+<username>${settings.usernameRndc}</username>
+<password>${settings.passwordRndc}</password>
+</acceso>
+<solicitud>
+<tipo>3</tipo>
+<procesoid>4</procesoid>
+</solicitud>
+<variables>
+INGRESOID,FECHAING
+</variables>
+<documento>
+<NUMNITEMPRESATRANSPORTE>${settings.companyNit}</NUMNITEMPRESATRANSPORTE>
+<NUMMANIFIESTOCARGA>${consecutivoRemesa}</NUMMANIFIESTOCARGA>
+</documento>
+</root>`;
+  };
+
+  const parseManifiestoResponse = (xmlResponse: string): { ingresoid: string; fechaing: string } | null => {
+    const ingresoidMatch = xmlResponse.match(/<ingresoid>([^<]*)<\/ingresoid>/);
+    const fechaingMatch = xmlResponse.match(/<fechaing>([^<]*)<\/fechaing>/);
+    
+    if (ingresoidMatch) {
+      return {
+        ingresoid: ingresoidMatch[1].trim(),
+        fechaing: fechaingMatch ? fechaingMatch[1].trim() : '',
+      };
+    }
+    return null;
+  };
+
+  const handleQueryManifiestos = async () => {
+    if (manifiestoExcelData.length === 0) return;
+
+    // Validate data first
+    const validData = manifiestoExcelData.filter(row => {
+      const val = row.CONSECUTIVOREMESA;
+      return val !== undefined && val !== null && String(val).trim() !== '';
+    });
+
+    if (validData.length === 0) {
+      toast({
+        title: "Error",
+        description: "No se encontraron registros válidos con CONSECUTIVOREMESA",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsQueryingManifiestos(true);
+    setManifiestoProgress({ current: 0, total: validData.length });
+    const results: ManifiestoResult[] = [];
+
+    const wsUrl = settings.wsEnvironment === "production" 
+      ? settings.wsUrlProd 
+      : settings.wsUrlTest;
+
+    for (let i = 0; i < validData.length; i++) {
+      const row = validData[i];
+      const consecutivo = String(row.CONSECUTIVOREMESA).trim();
+      const xmlRequest = generateManifiestoXml(consecutivo);
+
+      try {
+        const response = await fetch("/api/rndc/queries/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            queryType: "manifiesto_lookup",
+            queryName: "Búsqueda Manifiesto",
+            numNitEmpresa: settings.companyNit,
+            numIdTercero: consecutivo,
+            xmlRequest,
+            wsUrl,
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success && result.query?.xmlResponse) {
+          const parsed = parseManifiestoResponse(result.query.xmlResponse);
+          if (parsed) {
+            results.push({
+              consecutivoRemesa: consecutivo,
+              ingresoidManifiesto: parsed.ingresoid,
+              fechaIngreso: parsed.fechaing,
+              status: "success",
+            });
+          } else {
+            results.push({
+              consecutivoRemesa: consecutivo,
+              ingresoidManifiesto: "",
+              fechaIngreso: "",
+              status: "error",
+              errorMessage: "No se encontró el manifiesto",
+            });
+          }
+        } else {
+          results.push({
+            consecutivoRemesa: consecutivo,
+            ingresoidManifiesto: "",
+            fechaIngreso: "",
+            status: "error",
+            errorMessage: result.response?.message || result.message || "Error en consulta",
+          });
+        }
+      } catch (error) {
+        results.push({
+          consecutivoRemesa: consecutivo,
+          ingresoidManifiesto: "",
+          fechaIngreso: "",
+          status: "error",
+          errorMessage: error instanceof Error ? error.message : "Error de conexión",
+        });
+      }
+
+      setManifiestoProgress({ current: i + 1, total: validData.length });
+      setManifiestoResults([...results]);
+    }
+
+    setIsQueryingManifiestos(false);
+    refetchQueries();
+    
+    const successCount = results.filter(r => r.status === "success").length;
+    toast({
+      title: "Consulta Completada",
+      description: `${successCount} de ${results.length} manifiestos encontrados`,
+      className: successCount === results.length ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200",
+    });
+  };
+
+  const exportManifiestoResults = () => {
+    if (manifiestoResults.length === 0) return;
+
+    const dataToExport = manifiestoResults.map(r => ({
+      'CONSECUTIVOREMESA': r.consecutivoRemesa,
+      'INGRESOIDMANIFIESTO': r.ingresoidManifiesto,
+      'FECHA INGRESO': r.fechaIngreso,
+      'ESTADO': r.status === "success" ? "Encontrado" : "Error",
+      'MENSAJE': r.errorMessage || "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Manifiestos");
+    XLSX.writeFile(wb, `manifiestos_lookup_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    toast({
+      title: "Exportado",
+      description: `Se exportaron ${manifiestoResults.length} registros`,
     });
   };
 
@@ -284,6 +489,9 @@ ${TERCEROS_VARIABLES}
           <TabsList>
             <TabsTrigger value="consultar" data-testid="tab-consultar">
               <Search className="mr-2 h-4 w-4" /> Consultar
+            </TabsTrigger>
+            <TabsTrigger value="masiva" data-testid="tab-masiva">
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> Consulta Masiva
             </TabsTrigger>
             <TabsTrigger value="historial" data-testid="tab-historial">
               <History className="mr-2 h-4 w-4" /> Historial
@@ -457,6 +665,139 @@ ${TERCEROS_VARIABLES}
                       </ScrollArea>
                     </div>
                   ) : null}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="masiva" className="space-y-6">
+            <Card className="border-dashed border-2">
+              <CardContent className="flex flex-col items-center justify-center py-10 gap-4">
+                <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                  <FileSpreadsheet className="h-8 w-8" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold">Consulta Masiva de Manifiestos</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Suba un Excel con la columna CONSECUTIVOREMESA para obtener los INGRESOIDMANIFIESTO
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  className="hidden"
+                  ref={manifiestoFileInputRef}
+                  onChange={handleManifiestoFileUpload}
+                  data-testid="input-manifiesto-file"
+                />
+                <Button onClick={() => manifiestoFileInputRef.current?.click()} data-testid="button-select-manifiesto-file">
+                  <Upload className="mr-2 h-4 w-4" /> Seleccionar Archivo Excel
+                </Button>
+              </CardContent>
+            </Card>
+
+            {manifiestoExcelData.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Datos Cargados</CardTitle>
+                    <CardDescription>{manifiestoExcelData.length} registros con CONSECUTIVOREMESA</CardDescription>
+                  </div>
+                  <Button 
+                    onClick={handleQueryManifiestos} 
+                    disabled={isQueryingManifiestos}
+                    data-testid="button-query-manifiestos"
+                  >
+                    {isQueryingManifiestos ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {manifiestoProgress.current}/{manifiestoProgress.total}
+                      </>
+                    ) : (
+                      <>
+                        <Search className="mr-2 h-4 w-4" /> Consultar al RNDC
+                      </>
+                    )}
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[200px] rounded border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>CONSECUTIVOREMESA</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {manifiestoExcelData.slice(0, 20).map((row, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-mono">{String(row.CONSECUTIVOREMESA)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                  {manifiestoExcelData.length > 20 && (
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      Mostrando primeros 20 de {manifiestoExcelData.length} registros...
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {manifiestoResults.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      Resultados
+                    </CardTitle>
+                    <CardDescription>
+                      {manifiestoResults.filter(r => r.status === "success").length} encontrados, {" "}
+                      {manifiestoResults.filter(r => r.status === "error").length} errores
+                    </CardDescription>
+                  </div>
+                  <Button variant="outline" onClick={exportManifiestoResults} data-testid="button-export-manifiestos">
+                    <Download className="mr-2 h-4 w-4" /> Exportar Excel
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[400px] rounded border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>CONSECUTIVOREMESA</TableHead>
+                          <TableHead>INGRESOIDMANIFIESTO</TableHead>
+                          <TableHead>Fecha Ingreso</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Mensaje</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {manifiestoResults.map((result, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-mono">{result.consecutivoRemesa}</TableCell>
+                            <TableCell className="font-mono font-bold text-primary">
+                              {result.ingresoidManifiesto || "-"}
+                            </TableCell>
+                            <TableCell>{result.fechaIngreso || "-"}</TableCell>
+                            <TableCell>
+                              {result.status === "success" ? (
+                                <span className="text-green-600 font-medium">Encontrado</span>
+                              ) : (
+                                <span className="text-red-600 font-medium">Error</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {result.errorMessage || ""}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             )}
