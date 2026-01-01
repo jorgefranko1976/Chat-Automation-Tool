@@ -5,10 +5,11 @@
 RNDC Connect is a logistics platform designed for Colombian road transport companies to interact with the RNDC (Registro Nacional de Despacho de Carga) system maintained by the Ministry of Transport. The application enables fleet monitoring companies and transport operators to submit control point reports, retrieve manifests, and manage transportation compliance requirements.
 
 The system handles:
+- **User Authentication**: Login/registration system with session management
 - **Monitoring Module**: Retrieves authorized cargo manifests from RNDC via SOAP web services
 - **Tracking Module**: Reports arrival/departure times at control points
 - **Bulk Import**: Processes Excel files for batch submission of control point data
-- **Settings Management**: Stores RNDC credentials and company information
+- **Settings Management**: User profile, RNDC credentials and company information
 
 ## User Preferences
 
@@ -27,8 +28,8 @@ Preferred communication style: Simple, everyday language.
 
 **Design Patterns:**
 - Component-based architecture with reusable UI components
-- Custom hooks for state management (`useSettings`, `useToast`, `useMobile`)
-- Mock data layer (`MOCK_MANIFESTS`) for development/testing
+- Custom hooks for state management (`useSettings`, `useToast`, `useMobile`, `useAuth`)
+- AuthProvider context for session management with protected routes
 - Route-based code splitting with dedicated page components
 
 **Key Features:**
@@ -47,6 +48,8 @@ Preferred communication style: Simple, everyday language.
 
 **API Design:**
 - RESTful endpoints under `/api` namespace
+- Authentication endpoints: `/api/auth/login`, `/api/auth/logout`, `/api/auth/register`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/password`
+- Session-based authentication with bcrypt password hashing
 - SOAP client for RNDC web service integration
 - Batch processing system for bulk submissions
 - XML parsing using fast-xml-parser
