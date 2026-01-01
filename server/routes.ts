@@ -81,6 +81,56 @@ export async function registerRoutes(
     }, 2000);
   });
 
+  app.get("/api/dashboard/stats", async (req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json({ success: true, stats });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al obtener estadísticas";
+      res.status(500).json({ success: false, message });
+    }
+  });
+
+  app.post("/api/rndc/ping", async (req, res) => {
+    try {
+      const { wsUrl } = req.body;
+      const targetUrl = wsUrl || "https://rndc.mintransporte.gov.co/MenuPrincipal/tablogin/loginWebService.asmx";
+      
+      const startTime = Date.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      try {
+        const response = await fetch(targetUrl, { 
+          method: "GET",
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        const latency = Date.now() - startTime;
+        const isOnline = response.ok || response.status === 405;
+        
+        res.json({
+          success: true,
+          status: isOnline ? "online" : "offline",
+          latency,
+          statusCode: response.status,
+        });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        const latency = Date.now() - startTime;
+        
+        if (fetchError instanceof Error && fetchError.name === "AbortError") {
+          res.json({ success: true, status: "timeout", latency, statusCode: 0 });
+        } else {
+          res.json({ success: true, status: "offline", latency, statusCode: 0 });
+        }
+      }
+    } catch (error) {
+      res.status(500).json({ success: false, status: "error", message: "Error al verificar RNDC" });
+    }
+  });
+
   app.post("/api/rndc/queries/execute", async (req, res) => {
     try {
       const parsed = rndcQuerySchema.parse(req.body);
@@ -101,7 +151,7 @@ export async function registerRoutes(
         xmlResponse: response.rawXml,
         responseCode: response.code,
         responseMessage: response.message,
-        responseData: response.success ? JSON.stringify(response.data) : null,
+        responseData: null,
         status: response.success ? "success" : "error",
       });
 
@@ -112,7 +162,7 @@ export async function registerRoutes(
           success: response.success,
           code: response.code,
           message: response.message,
-          data: response.data,
+          rawXml: response.rawXml,
         },
       });
     } catch (error) {

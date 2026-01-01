@@ -30,10 +30,22 @@ import {
   type InsertRndcQuery,
 } from "@shared/schema";
 
+export interface DashboardStats {
+  queriesToday: number;
+  batchesToday: number;
+  submissionsToday: number;
+  submissionsSuccessToday: number;
+  submissionsErrorToday: number;
+  totalBatches: number;
+  totalSuccessRate: number;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  
+  getDashboardStats(): Promise<DashboardStats>;
   
   createRndcBatch(batch: InsertRndcBatch): Promise<RndcBatch>;
   getRndcBatch(id: string): Promise<RndcBatch | undefined>;
@@ -103,6 +115,42 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async getDashboardStats(): Promise<DashboardStats> {
+    const [
+      queriesTodayResult,
+      batchesTodayResult,
+      submissionsTodayResult,
+      submissionsSuccessTodayResult,
+      submissionsErrorTodayResult,
+      totalBatchesResult,
+      totalSuccessResult,
+      totalSubmissionsResult,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(rndcQueries).where(sql`DATE(${rndcQueries.createdAt}) = CURRENT_DATE`),
+      db.select({ count: sql<number>`count(*)` }).from(rndcBatches).where(sql`DATE(${rndcBatches.createdAt}) = CURRENT_DATE`),
+      db.select({ count: sql<number>`count(*)` }).from(rndcSubmissions).where(sql`DATE(${rndcSubmissions.createdAt}) = CURRENT_DATE`),
+      db.select({ count: sql<number>`count(*)` }).from(rndcSubmissions).where(sql`DATE(${rndcSubmissions.createdAt}) = CURRENT_DATE AND ${rndcSubmissions.status} = 'success'`),
+      db.select({ count: sql<number>`count(*)` }).from(rndcSubmissions).where(sql`DATE(${rndcSubmissions.createdAt}) = CURRENT_DATE AND ${rndcSubmissions.status} = 'error'`),
+      db.select({ count: sql<number>`count(*)` }).from(rndcBatches),
+      db.select({ count: sql<number>`count(*)` }).from(rndcSubmissions).where(eq(rndcSubmissions.status, "success")),
+      db.select({ count: sql<number>`count(*)` }).from(rndcSubmissions),
+    ]);
+
+    const totalSuccess = Number(totalSuccessResult[0]?.count || 0);
+    const totalSubmissions = Number(totalSubmissionsResult[0]?.count || 0);
+    const totalSuccessRate = totalSubmissions > 0 ? Math.round((totalSuccess / totalSubmissions) * 100) : 0;
+
+    return {
+      queriesToday: Number(queriesTodayResult[0]?.count || 0),
+      batchesToday: Number(batchesTodayResult[0]?.count || 0),
+      submissionsToday: Number(submissionsTodayResult[0]?.count || 0),
+      submissionsSuccessToday: Number(submissionsSuccessTodayResult[0]?.count || 0),
+      submissionsErrorToday: Number(submissionsErrorTodayResult[0]?.count || 0),
+      totalBatches: Number(totalBatchesResult[0]?.count || 0),
+      totalSuccessRate,
+    };
   }
 
   async createRndcBatch(batch: InsertRndcBatch): Promise<RndcBatch> {
