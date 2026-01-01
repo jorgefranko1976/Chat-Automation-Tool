@@ -6,14 +6,112 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSettings, RndcSettings, WsEnvironment } from "@/hooks/use-settings";
+import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
-import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server } from "lucide-react";
+import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server, User, Lock, Loader2, LogOut } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 export default function Settings() {
   const { settings, saveSettings } = useSettings();
+  const { user, updateProfile, changePassword, logout } = useAuth();
+  const [, setLocation] = useLocation();
   const [formData, setFormData] = useState<RndcSettings>(settings);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  const [profileData, setProfileData] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    username: user?.username || "",
+  });
+  
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name || "",
+        email: user.email || "",
+        username: user.username || "",
+      });
+    }
+  }, [user]);
+
+  const handleProfileChange = (field: string, value: string) => {
+    setProfileData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePasswordChange = (field: string, value: string) => {
+    setPasswordData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    const result = await updateProfile(profileData);
+    setIsSavingProfile(false);
+
+    if (result.success) {
+      toast({
+        title: "Perfil Actualizado",
+        description: "Sus datos han sido guardados correctamente.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: result.message || "No se pudo actualizar el perfil.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Las contraseñas no coinciden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "La nueva contraseña debe tener al menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    const result = await changePassword(passwordData.currentPassword, passwordData.newPassword);
+    setIsChangingPassword(false);
+
+    if (result.success) {
+      toast({
+        title: "Contraseña Actualizada",
+        description: "Su contraseña ha sido cambiada correctamente.",
+      });
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } else {
+      toast({
+        title: "Error",
+        description: result.message || "No se pudo cambiar la contraseña.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
 
   const handleRestart = async () => {
     if (!confirm("¿Está seguro que desea reiniciar el servidor? La aplicación estará temporalmente no disponible.")) {
@@ -65,8 +163,11 @@ export default function Settings() {
           <p className="text-muted-foreground">Configure los parámetros del sistema</p>
         </div>
 
-        <Tabs defaultValue="credentials" className="w-full max-w-3xl">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="user" className="w-full max-w-3xl">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="user" data-testid="tab-user">
+              <User className="mr-2 h-4 w-4" /> Usuario
+            </TabsTrigger>
             <TabsTrigger value="credentials" data-testid="tab-credentials">
               <KeyRound className="mr-2 h-4 w-4" /> Credenciales
             </TabsTrigger>
@@ -80,6 +181,129 @@ export default function Settings() {
               <Server className="mr-2 h-4 w-4" /> Sistema
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="user">
+            <Card>
+              <CardHeader>
+                <CardTitle>Perfil de Usuario</CardTitle>
+                <CardDescription>Actualice su información personal y gestione su cuenta</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <User className="h-4 w-4" /> Información Personal
+                  </h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="profile-name">Nombre</Label>
+                      <Input 
+                        id="profile-name"
+                        value={profileData.name} 
+                        onChange={(e) => handleProfileChange("name", e.target.value)}
+                        placeholder="Su nombre completo"
+                        data-testid="input-profile-name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="profile-email">Correo Electrónico</Label>
+                      <Input 
+                        id="profile-email"
+                        type="email"
+                        value={profileData.email}
+                        onChange={(e) => handleProfileChange("email", e.target.value)}
+                        placeholder="correo@ejemplo.com"
+                        data-testid="input-profile-email"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-username">Nombre de Usuario</Label>
+                    <Input 
+                      id="profile-username"
+                      value={profileData.username}
+                      onChange={(e) => handleProfileChange("username", e.target.value)}
+                      placeholder="Usuario para iniciar sesión"
+                      data-testid="input-profile-username"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleSaveProfile} 
+                    className="w-full sm:w-auto" 
+                    disabled={isSavingProfile}
+                    data-testid="button-save-profile"
+                  >
+                    {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Guardar Perfil
+                  </Button>
+                </div>
+
+                <div className="border-t pt-6 space-y-4">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Lock className="h-4 w-4" /> Cambiar Contraseña
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="current-password">Contraseña Actual</Label>
+                      <Input 
+                        id="current-password"
+                        type="password"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => handlePasswordChange("currentPassword", e.target.value)}
+                        placeholder="Ingrese su contraseña actual"
+                        data-testid="input-current-password"
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password">Nueva Contraseña</Label>
+                        <Input 
+                          id="new-password"
+                          type="password"
+                          value={passwordData.newPassword}
+                          onChange={(e) => handlePasswordChange("newPassword", e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          data-testid="input-new-password"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirmar Contraseña</Label>
+                        <Input 
+                          id="confirm-password"
+                          type="password"
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => handlePasswordChange("confirmPassword", e.target.value)}
+                          placeholder="Repita la nueva contraseña"
+                          data-testid="input-confirm-password"
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleChangePassword} 
+                      variant="secondary"
+                      className="w-full sm:w-auto" 
+                      disabled={isChangingPassword || !passwordData.currentPassword || !passwordData.newPassword}
+                      data-testid="button-change-password"
+                    >
+                      {isChangingPassword ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
+                      Cambiar Contraseña
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Sesión</h4>
+                  <Button 
+                    onClick={handleLogout} 
+                    variant="destructive"
+                    className="w-full sm:w-auto"
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="credentials">
             <Card>
