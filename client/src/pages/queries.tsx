@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -106,6 +106,38 @@ interface GeneratedSubmission {
   xmlRequest: string;
 }
 
+interface RndcBatch {
+  id: string;
+  totalRecords: number;
+  successCount: number;
+  errorCount: number;
+  pendingCount: number;
+  status: string;
+  createdAt: string;
+}
+
+interface RndcSubmission {
+  id: string;
+  batchId: string;
+  ingresoidmanifiesto: string;
+  numidgps: string;
+  numplaca: string;
+  codpuntocontrol: string;
+  latitud: string;
+  longitud: string;
+  fechallegada: string;
+  horallegada: string;
+  fechasalida: string;
+  horasalida: string;
+  status: string;
+  responseCode: string | null;
+  responseMessage: string | null;
+  xmlRequest: string;
+  xmlResponse: string | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+
 const TERCEROS_VARIABLES = "INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODMUNICIPIORNDC,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD,REGIMENSIMPLE";
 
 const TERCEROS_COLUMNS = [
@@ -177,10 +209,65 @@ export default function Queries() {
   // Generated XMLs states
   const [generatedSubmissions, setGeneratedSubmissions] = useState<GeneratedSubmission[]>([]);
   const [isSendingBatch, setIsSendingBatch] = useState(false);
+  const [selectedXmlPreview, setSelectedXmlPreview] = useState<GeneratedSubmission | null>(null);
+
+  // Batch results tracking
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  const [currentBatch, setCurrentBatch] = useState<RndcBatch | null>(null);
+  const [currentBatchResults, setCurrentBatchResults] = useState<RndcSubmission[]>([]);
+  const [showBatchResults, setShowBatchResults] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<RndcSubmission | null>(null);
 
   const filteredDocuments = filterWithCoords 
     ? parsedDocuments.filter(doc => doc.latitud && doc.longitud && doc.latitud.trim() !== '' && doc.longitud.trim() !== '')
     : parsedDocuments;
+
+  // Fetch batch results function
+  const fetchBatchResults = useCallback(async (batchId: string) => {
+    try {
+      const [batchRes, submissionsRes] = await Promise.all([
+        fetch(`/api/rndc/batches/${batchId}`),
+        fetch(`/api/rndc/submissions?batchId=${batchId}`)
+      ]);
+
+      if (batchRes.ok) {
+        const batchData = await batchRes.json();
+        if (batchData.success && batchData.batch) {
+          setCurrentBatch(batchData.batch);
+        }
+      }
+
+      if (submissionsRes.ok) {
+        const submissionsData = await submissionsRes.json();
+        if (submissionsData.success && submissionsData.submissions) {
+          setCurrentBatchResults(submissionsData.submissions);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching batch results:", error);
+    }
+  }, []);
+
+  // Polling effect for batch results
+  useEffect(() => {
+    if (!currentBatchId || !isPolling) return;
+
+    const intervalId = setInterval(async () => {
+      await fetchBatchResults(currentBatchId);
+
+      // Check if batch is complete
+      if (currentBatch && currentBatch.pendingCount === 0) {
+        setIsPolling(false);
+        toast({
+          title: "Lote Completado",
+          description: `Exitosos: ${currentBatch.successCount}, Errores: ${currentBatch.errorCount}`,
+        });
+      }
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [currentBatchId, isPolling, currentBatch, fetchBatchResults]);
 
   const exportToExcel = () => {
     const dataToExport = filteredDocuments.map(doc => ({
@@ -749,11 +836,18 @@ INGRESOID,FECHAING
       const result = await response.json();
       console.log("[Queries] Batch response:", result);
 
-      if (result.success) {
+      if (result.success && result.batchId) {
+        // Clear previous batch state before starting new one
+        setCurrentBatch(null);
+        setCurrentBatchResults([]);
+        setCurrentBatchId(result.batchId);
+        setShowBatchResults(true);
+        setIsPolling(true);
+        await fetchBatchResults(result.batchId);
         toast({
-          title: "Lote Enviado",
-          description: result.message,
-          className: "bg-green-50 border-green-200",
+          title: "Lote Creado",
+          description: `Procesando ${generatedSubmissions.length} registros...`,
+          className: "bg-blue-50 border-blue-200",
         });
         setGeneratedSubmissions([]);
       } else {
@@ -1384,6 +1478,7 @@ ${TERCEROS_VARIABLES}
                           <TableHead>HORA LLEGADA</TableHead>
                           <TableHead>FECHA SALIDA</TableHead>
                           <TableHead>HORA SALIDA</TableHead>
+                          <TableHead>XML</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1398,6 +1493,16 @@ ${TERCEROS_VARIABLES}
                             <TableCell>{sub.horallegada}</TableCell>
                             <TableCell>{sub.fechasalida}</TableCell>
                             <TableCell>{sub.horasalida}</TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setSelectedXmlPreview(sub)}
+                                data-testid={`button-preview-xml-${idx}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1527,6 +1632,205 @@ ${TERCEROS_VARIABLES}
                   </summary>
                   <div className="mt-2">
                     <XmlViewer xml={selectedQuery.xmlResponse} />
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* XML Preview Dialog */}
+      <Dialog open={!!selectedXmlPreview} onOpenChange={() => setSelectedXmlPreview(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Vista Previa XML</DialogTitle>
+          </DialogHeader>
+          {selectedXmlPreview && (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <Label className="text-muted-foreground">Manifiesto</Label>
+                  <p className="font-mono text-primary">{selectedXmlPreview.ingresoidmanifiesto}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Placa</Label>
+                  <p className="font-medium">{selectedXmlPreview.numplaca}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Punto Control</Label>
+                  <p className="font-medium">{selectedXmlPreview.codpuntocontrol}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Ubicación</Label>
+                  <p className="font-mono text-xs">{selectedXmlPreview.latitud}, {selectedXmlPreview.longitud}</p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label className="text-muted-foreground">Llegada</Label>
+                  <p>{selectedXmlPreview.fechallegada} {selectedXmlPreview.horallegada}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Salida</Label>
+                  <p>{selectedXmlPreview.fechasalida} {selectedXmlPreview.horasalida}</p>
+                </div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground mb-2 block">XML a Enviar</Label>
+                <XmlViewer xml={selectedXmlPreview.xmlRequest} />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Results Dialog */}
+      <Dialog open={showBatchResults} onOpenChange={setShowBatchResults}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Resultados del Lote
+              {isPolling && <Loader2 className="h-4 w-4 animate-spin" />}
+            </DialogTitle>
+          </DialogHeader>
+          {currentBatch && (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-5">
+                <div className="p-3 bg-muted rounded-lg text-center">
+                  <p className="text-2xl font-bold">{currentBatch.totalRecords}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-green-600">{currentBatch.successCount}</p>
+                  <p className="text-xs text-green-600">Exitosos</p>
+                </div>
+                <div className="p-3 bg-red-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-red-600">{currentBatch.errorCount}</p>
+                  <p className="text-xs text-red-600">Errores</p>
+                </div>
+                <div className="p-3 bg-yellow-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-yellow-600">{currentBatch.pendingCount}</p>
+                  <p className="text-xs text-yellow-600">Pendientes</p>
+                </div>
+                <div className="p-3 bg-muted rounded-lg text-center">
+                  <p className="text-sm font-medium capitalize">{currentBatch.status}</p>
+                  <p className="text-xs text-muted-foreground">Estado</p>
+                </div>
+              </div>
+
+              <ScrollArea className="h-[400px] rounded border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ESTADO</TableHead>
+                      <TableHead>INGRESOID</TableHead>
+                      <TableHead>PLACA</TableHead>
+                      <TableHead>PUNTO</TableHead>
+                      <TableHead>LLEGADA</TableHead>
+                      <TableHead>SALIDA</TableHead>
+                      <TableHead>CÓDIGO</TableHead>
+                      <TableHead>MENSAJE</TableHead>
+                      <TableHead>VER</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentBatchResults.map((sub, idx) => (
+                      <TableRow key={idx} className={sub.status === "error" ? "bg-red-50" : sub.status === "success" ? "bg-green-50" : ""}>
+                        <TableCell>
+                          {sub.status === "success" ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : sub.status === "error" ? (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-primary">{sub.ingresoidmanifiesto}</TableCell>
+                        <TableCell>{sub.numplaca}</TableCell>
+                        <TableCell className="font-medium">{sub.codpuntocontrol}</TableCell>
+                        <TableCell>{sub.fechallegada} {sub.horallegada}</TableCell>
+                        <TableCell>{sub.fechasalida} {sub.horasalida}</TableCell>
+                        <TableCell className="font-mono">{sub.responseCode || "-"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate" title={sub.responseMessage || ""}>
+                          {sub.responseMessage || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setSelectedSubmission(sub)}
+                            data-testid={`button-view-submission-${idx}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Submission Details Dialog */}
+      <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalles del Envío</DialogTitle>
+          </DialogHeader>
+          {selectedSubmission && (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <Label className="text-muted-foreground">Estado</Label>
+                  <p className={selectedSubmission.status === "success" ? "text-green-600 font-medium" : selectedSubmission.status === "error" ? "text-red-600 font-medium" : "text-yellow-600 font-medium"}>
+                    {selectedSubmission.status === "success" ? "Exitoso" : selectedSubmission.status === "error" ? "Error" : "Pendiente"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Manifiesto</Label>
+                  <p className="font-mono text-primary">{selectedSubmission.ingresoidmanifiesto}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Placa</Label>
+                  <p className="font-medium">{selectedSubmission.numplaca}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Punto Control</Label>
+                  <p className="font-medium">{selectedSubmission.codpuntocontrol}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label className="text-muted-foreground">Código Respuesta</Label>
+                  <p className="font-mono">{selectedSubmission.responseCode || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Mensaje Respuesta</Label>
+                  <p className={selectedSubmission.status === "error" ? "text-red-600" : ""}>{selectedSubmission.responseMessage || "N/A"}</p>
+                </div>
+              </div>
+
+              <details className="group" open>
+                <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground font-medium">
+                  Ver XML Solicitud
+                </summary>
+                <div className="mt-2">
+                  <XmlViewer xml={selectedSubmission.xmlRequest} />
+                </div>
+              </details>
+
+              {selectedSubmission.xmlResponse && (
+                <details className="group">
+                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground font-medium">
+                    Ver XML Respuesta
+                  </summary>
+                  <div className="mt-2">
+                    <XmlViewer xml={selectedSubmission.xmlResponse} />
                   </div>
                 </details>
               )}
