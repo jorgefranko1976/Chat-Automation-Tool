@@ -1,7 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, Radio, Truck, Upload, Settings, FileCheck, Search, LogOut, User } from "lucide-react";
-import generatedImage from '@assets/generated_images/logistics_dashboard_logo.png';
 import { useAuth } from "@/hooks/use-auth";
 
 export function Sidebar() {
@@ -26,7 +25,9 @@ export function Sidebar() {
   return (
     <div className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
-        <img src={generatedImage} alt="Logo" className="h-8 w-8 mr-3" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 mr-3">
+          <Truck className="h-5 w-5 text-primary" />
+        </div>
         <span className="font-display text-xl font-bold tracking-tight">RNDC Connect</span>
       </div>
       <div className="flex-1 overflow-y-auto py-4">
