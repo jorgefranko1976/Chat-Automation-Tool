@@ -12,6 +12,7 @@ import {
   rndcQueries,
   type User,
   type InsertUser,
+  type UpdateUserProfile,
   type RndcSubmission,
   type InsertRndcSubmission,
   type RndcBatch,
@@ -44,6 +45,9 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserProfile(id: string, updates: UpdateUserProfile): Promise<User | undefined>;
+  updateUserPassword(id: string, hashedPassword: string): Promise<User | undefined>;
+  updateUserLastLogin(id: string): Promise<void>;
   
   getDashboardStats(): Promise<DashboardStats>;
   
@@ -116,6 +120,20 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async updateUserProfile(id: string, updates: UpdateUserProfile): Promise<User | undefined> {
+    const [user] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async updateUserPassword(id: string, hashedPassword: string): Promise<User | undefined> {
+    const [user] = await db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)).returning();
+    return user;
+  }
+
+  async updateUserLastLogin(id: string): Promise<void> {
+    await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, id));
   }
 
   async getDashboardStats(): Promise<DashboardStats> {

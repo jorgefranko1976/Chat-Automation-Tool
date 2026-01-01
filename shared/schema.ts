@@ -7,15 +7,39 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  name: text("name"),
+  email: text("email"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastLoginAt: timestamp("last_login_at"),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  lastLoginAt: true,
+});
+
+export const updateUserProfileSchema = z.object({
+  name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  username: z.string().min(3).optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6),
+});
+
+export const loginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
+export type ChangePassword = z.infer<typeof changePasswordSchema>;
+export type LoginCredentials = z.infer<typeof loginSchema>;
 
 export const rndcSubmissions = pgTable("rndc_submissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
