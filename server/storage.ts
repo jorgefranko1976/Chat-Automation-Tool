@@ -80,6 +80,7 @@ export interface IStorage {
   getRndcManifests(limit?: number, offset?: number): Promise<RndcManifest[]>;
   getRndcManifestCount(): Promise<number>;
   getRndcManifestByIngresoId(ingresoId: string): Promise<RndcManifest | undefined>;
+  searchRndcManifestByQuery(query: string): Promise<RndcManifest | undefined>;
   searchRndcManifests(filters: ManifestSearchFilters, limit?: number, offset?: number): Promise<{ manifests: RndcManifest[]; total: number }>;
   
   createRndcControlPoint(controlPoint: InsertRndcControlPoint): Promise<RndcControlPoint>;
@@ -276,6 +277,16 @@ export class DatabaseStorage implements IStorage {
 
   async getRndcManifestByIngresoId(ingresoId: string): Promise<RndcManifest | undefined> {
     const [manifest] = await db.select().from(rndcManifests).where(eq(rndcManifests.ingresoIdManifiesto, ingresoId));
+    return manifest;
+  }
+
+  async searchRndcManifestByQuery(query: string): Promise<RndcManifest | undefined> {
+    const [manifest] = await db.select().from(rndcManifests)
+      .where(
+        sql`${rndcManifests.ingresoIdManifiesto} = ${query} OR ${rndcManifests.numManifiestoCarga} = ${query}`
+      )
+      .orderBy(desc(rndcManifests.createdAt))
+      .limit(1);
     return manifest;
   }
 

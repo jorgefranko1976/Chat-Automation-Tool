@@ -285,6 +285,92 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/rndc/manifests/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ success: false, message: "Parámetro de búsqueda requerido" });
+      }
+
+      const manifest = await storage.searchRndcManifestByQuery(query.trim());
+      if (!manifest) {
+        return res.json({ success: false, message: "No se encontró el manifiesto" });
+      }
+
+      const controlPoints = await storage.getRndcControlPointsByManifest(manifest.id);
+      res.json({ success: true, manifest, controlPoints });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar manifiesto" });
+    }
+  });
+
+  app.post("/api/rndc/submit-single", async (req, res) => {
+    try {
+      const { xmlRequest, wsUrl, metadata } = req.body;
+
+      if (!xmlRequest) {
+        return res.status(400).json({ success: false, message: "XML requerido" });
+      }
+
+      const batch = await storage.createRndcBatch({
+        type: "control_points",
+        totalRecords: 1,
+        successCount: 0,
+        errorCount: 0,
+        pendingCount: 1,
+        status: "processing",
+      });
+
+      const submission = await storage.createRndcSubmission({
+        batchId: batch.id,
+        ingresoidmanifiesto: metadata?.ingresoidmanifiesto || "",
+        numidgps: metadata?.numidgps || "",
+        numplaca: metadata?.numplaca || "",
+        codpuntocontrol: metadata?.codpuntocontrol || "",
+        latitud: metadata?.latitud || "",
+        longitud: metadata?.longitud || "",
+        fechallegada: metadata?.fechallegada || "",
+        horallegada: metadata?.horallegada || "",
+        fechasalida: metadata?.fechasalida || "",
+        horasalida: metadata?.horasalida || "",
+        xmlRequest,
+        status: "pending",
+      });
+
+      const response = await sendXmlToRndc(xmlRequest, wsUrl);
+
+      await storage.updateRndcSubmission(submission.id, {
+        status: response.success ? "success" : "error",
+        xmlResponse: response.rawXml,
+        responseCode: response.code,
+        responseMessage: response.message,
+        processedAt: new Date(),
+      });
+
+      await storage.updateRndcBatch(batch.id, {
+        status: "completed",
+        completedAt: new Date(),
+        successCount: response.success ? 1 : 0,
+        errorCount: response.success ? 0 : 1,
+        pendingCount: 0,
+      });
+
+      res.json({
+        success: true,
+        submissionId: submission.id,
+        batchId: batch.id,
+        response: {
+          success: response.success,
+          code: response.code,
+          message: response.message,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al enviar reporte";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
   app.post("/api/rndc/query", async (req, res) => {
     try {
       const parsed = queryRndcSchema.parse(req.body);

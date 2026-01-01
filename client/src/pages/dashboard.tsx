@@ -38,7 +38,7 @@ interface RecentQuery {
 
 interface RecentBatch {
   id: string;
-  batchType: string;
+  type: string;
   totalRecords: number;
   successCount: number;
   errorCount: number;
@@ -310,7 +310,7 @@ export default function Dashboard() {
                             <Clock className="h-4 w-4 text-gray-500" />
                           )}
                           <div>
-                            <p className="text-sm font-medium">{getBatchTypeName(batch.batchType)}</p>
+                            <p className="text-sm font-medium">{getBatchTypeName(batch.type)}</p>
                             <p className="text-xs text-muted-foreground">
                               {batch.totalRecords} registros | 
                               <span className="text-green-600"> {batch.successCount} OK</span> | 
