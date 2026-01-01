@@ -11,7 +11,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Search, Send, History, User, Loader2, CheckCircle, XCircle, Eye, TableIcon, Download, Upload, FileSpreadsheet, Clock } from "lucide-react";
 import * as XLSX from "xlsx";
 import { XmlViewer } from "@/components/xml-viewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -70,6 +70,28 @@ interface ManifiestoResult {
   errorMessage?: string;
 }
 
+interface ControlPointData {
+  codpuntocontrol: string;
+  codmunicipio: string;
+  direccion: string;
+  fechacita: string;
+  horacita: string;
+  latitud: string;
+  longitud: string;
+  tiempopactado: string;
+}
+
+interface LogisticsResult {
+  consecutivoRemesa: string;
+  ingresoidManifiesto: string;
+  numManifiestoCarga: string;
+  numPlaca: string;
+  fechaExpedicion: string;
+  controlPoints: ControlPointData[];
+  status: "success" | "error" | "pending";
+  errorMessage?: string;
+}
+
 const TERCEROS_VARIABLES = "INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODMUNICIPIORNDC,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD,REGIMENSIMPLE";
 
 const TERCEROS_COLUMNS = [
@@ -114,7 +136,7 @@ function parseDocumentsFromXml(xmlString: string): TerceroDocument[] {
 }
 
 export default function Queries() {
-  const { settings } = useSettings();
+  const { settings, getActiveWsUrl } = useSettings();
   const [queryType, setQueryType] = useState("terceros");
   const [numIdTercero, setNumIdTercero] = useState("");
   const [generatedXml, setGeneratedXml] = useState("");
@@ -131,6 +153,12 @@ export default function Queries() {
   const [isQueryingManifiestos, setIsQueryingManifiestos] = useState(false);
   const [manifiestoProgress, setManifiestoProgress] = useState({ current: 0, total: 0 });
   const manifiestoFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Logistics times query states
+  const [logisticsResults, setLogisticsResults] = useState<LogisticsResult[]>([]);
+  const [isQueryingLogistics, setIsQueryingLogistics] = useState(false);
+  const [logisticsProgress, setLogisticsProgress] = useState({ current: 0, total: 0 });
+  const [showLogisticsResults, setShowLogisticsResults] = useState(false);
 
   const filteredDocuments = filterWithCoords 
     ? parsedDocuments.filter(doc => doc.latitud && doc.longitud && doc.latitud.trim() !== '' && doc.longitud.trim() !== '')
@@ -351,6 +379,225 @@ INGRESOID,FECHAING
     toast({
       title: "Exportado",
       description: `Se exportaron ${manifiestoResults.length} registros`,
+    });
+  };
+
+  const generateLogisticsXml = (ingresoidManifiesto: string): string => {
+    return `<?xml version='1.0' encoding='iso-8859-1' ?>
+<root>
+<acceso>
+<username>${settings.usernameGps}</username>
+<password>${settings.passwordGps}</password>
+</acceso>
+<solicitud>
+<tipo>9</tipo>
+<procesoid>4</procesoid>
+</solicitud>
+<documento>
+<numidgps>${settings.companyNit}</numidgps>
+<ingresoidmanifiesto>${ingresoidManifiesto}</ingresoidmanifiesto>
+</documento>
+</root>`;
+  };
+
+  const parseLogisticsResponse = (xmlResponse: string): { 
+    numManifiestoCarga: string; 
+    numPlaca: string; 
+    fechaExpedicion: string;
+    controlPoints: ControlPointData[] 
+  } | null => {
+    const numManifiestoMatch = xmlResponse.match(/<nummanifiestocarga>([^<]*)<\/nummanifiestocarga>/i);
+    const numPlacaMatch = xmlResponse.match(/<numplaca>([^<]*)<\/numplaca>/i);
+    const fechaExpedicionMatch = xmlResponse.match(/<fechaexpedicionmanifiesto>([^<]*)<\/fechaexpedicionmanifiesto>/i);
+    
+    const controlPoints: ControlPointData[] = [];
+    const puntosMatch = xmlResponse.match(/<puntoscontrol>([\s\S]*?)<\/puntoscontrol>/i);
+    
+    if (puntosMatch) {
+      const puntosContent = puntosMatch[1];
+      const puntoRegex = /<punto>([\s\S]*?)<\/punto>/gi;
+      let puntoMatch;
+      
+      while ((puntoMatch = puntoRegex.exec(puntosContent)) !== null) {
+        const puntoContent = puntoMatch[1];
+        const punto: ControlPointData = {
+          codpuntocontrol: (puntoContent.match(/<codpuntocontrol>([^<]*)<\/codpuntocontrol>/i) || [])[1]?.trim() || '',
+          codmunicipio: (puntoContent.match(/<codmunicipio>([^<]*)<\/codmunicipio>/i) || [])[1]?.trim() || '',
+          direccion: (puntoContent.match(/<direccion>([^<]*)<\/direccion>/i) || [])[1]?.trim() || '',
+          fechacita: (puntoContent.match(/<fechacita>([^<]*)<\/fechacita>/i) || [])[1]?.trim() || '',
+          horacita: (puntoContent.match(/<horacita>([^<]*)<\/horacita>/i) || [])[1]?.trim() || '',
+          latitud: (puntoContent.match(/<latitud>([^<]*)<\/latitud>/i) || [])[1]?.trim() || '',
+          longitud: (puntoContent.match(/<longitud>([^<]*)<\/longitud>/i) || [])[1]?.trim() || '',
+          tiempopactado: (puntoContent.match(/<tiempopactado>([^<]*)<\/tiempopactado>/i) || [])[1]?.trim() || '',
+        };
+        controlPoints.push(punto);
+      }
+    }
+    
+    if (numManifiestoMatch || controlPoints.length > 0) {
+      return {
+        numManifiestoCarga: numManifiestoMatch?.[1]?.trim() || '',
+        numPlaca: numPlacaMatch?.[1]?.trim() || '',
+        fechaExpedicion: fechaExpedicionMatch?.[1]?.trim() || '',
+        controlPoints,
+      };
+    }
+    return null;
+  };
+
+  const handleQueryLogistics = async () => {
+    const successResults = manifiestoResults.filter(r => r.status === "success" && r.ingresoidManifiesto);
+    if (successResults.length === 0) {
+      toast({
+        title: "Sin manifiestos",
+        description: "Primero consulte los INGRESOIDMANIFIESTO",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsQueryingLogistics(true);
+    setLogisticsProgress({ current: 0, total: successResults.length });
+    const results: LogisticsResult[] = [];
+
+    const wsUrl = getActiveWsUrl();
+
+    for (let i = 0; i < successResults.length; i++) {
+      const manifest = successResults[i];
+      const xmlRequest = generateLogisticsXml(manifest.ingresoidManifiesto);
+
+      try {
+        const response = await fetch("/api/rndc/monitoring", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            queryType: "SPECIFIC",
+            numIdGps: settings.companyNit,
+            manifestId: manifest.ingresoidManifiesto,
+            xmlRequest,
+            wsUrl,
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success && result.rawXml) {
+          const parsed = parseLogisticsResponse(result.rawXml);
+          if (parsed) {
+            results.push({
+              consecutivoRemesa: manifest.consecutivoRemesa,
+              ingresoidManifiesto: manifest.ingresoidManifiesto,
+              numManifiestoCarga: parsed.numManifiestoCarga,
+              numPlaca: parsed.numPlaca,
+              fechaExpedicion: parsed.fechaExpedicion,
+              controlPoints: parsed.controlPoints,
+              status: "success",
+            });
+          } else {
+            results.push({
+              consecutivoRemesa: manifest.consecutivoRemesa,
+              ingresoidManifiesto: manifest.ingresoidManifiesto,
+              numManifiestoCarga: "",
+              numPlaca: "",
+              fechaExpedicion: "",
+              controlPoints: [],
+              status: "error",
+              errorMessage: "Sin puntos de control",
+            });
+          }
+        } else {
+          results.push({
+            consecutivoRemesa: manifest.consecutivoRemesa,
+            ingresoidManifiesto: manifest.ingresoidManifiesto,
+            numManifiestoCarga: "",
+            numPlaca: "",
+            fechaExpedicion: "",
+            controlPoints: [],
+            status: "error",
+            errorMessage: result.message || "Error en consulta",
+          });
+        }
+      } catch (error) {
+        results.push({
+          consecutivoRemesa: manifest.consecutivoRemesa,
+          ingresoidManifiesto: manifest.ingresoidManifiesto,
+          numManifiestoCarga: "",
+          numPlaca: "",
+          fechaExpedicion: "",
+          controlPoints: [],
+          status: "error",
+          errorMessage: error instanceof Error ? error.message : "Error de conexión",
+        });
+      }
+
+      setLogisticsProgress({ current: i + 1, total: successResults.length });
+      setLogisticsResults([...results]);
+    }
+
+    setIsQueryingLogistics(false);
+    setShowLogisticsResults(true);
+    
+    const successCount = results.filter(r => r.status === "success").length;
+    toast({
+      title: "Consulta Completada",
+      description: `${successCount} de ${results.length} tiempos logísticos encontrados`,
+      className: successCount === results.length ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200",
+    });
+  };
+
+  const exportLogisticsResults = () => {
+    if (logisticsResults.length === 0) return;
+
+    const dataToExport: any[] = [];
+    
+    logisticsResults.forEach(r => {
+      if (r.controlPoints.length > 0) {
+        r.controlPoints.forEach((cp, idx) => {
+          dataToExport.push({
+            'CONSECUTIVOREMESA': r.consecutivoRemesa,
+            'INGRESOIDMANIFIESTO': r.ingresoidManifiesto,
+            'NUM MANIFIESTO': r.numManifiestoCarga,
+            'PLACA': r.numPlaca,
+            'FECHA EXPEDICION': r.fechaExpedicion,
+            'PUNTO CONTROL': cp.codpuntocontrol,
+            'COD MUNICIPIO': cp.codmunicipio,
+            'DIRECCION': cp.direccion,
+            'FECHA CITA': cp.fechacita,
+            'HORA CITA': cp.horacita,
+            'LATITUD': cp.latitud,
+            'LONGITUD': cp.longitud,
+            'TIEMPO PACTADO': cp.tiempopactado,
+            'ESTADO': 'Encontrado',
+          });
+        });
+      } else {
+        dataToExport.push({
+          'CONSECUTIVOREMESA': r.consecutivoRemesa,
+          'INGRESOIDMANIFIESTO': r.ingresoidManifiesto,
+          'NUM MANIFIESTO': r.numManifiestoCarga,
+          'PLACA': r.numPlaca,
+          'FECHA EXPEDICION': r.fechaExpedicion,
+          'PUNTO CONTROL': '',
+          'COD MUNICIPIO': '',
+          'DIRECCION': '',
+          'FECHA CITA': '',
+          'HORA CITA': '',
+          'LATITUD': '',
+          'LONGITUD': '',
+          'TIEMPO PACTADO': '',
+          'ESTADO': r.status === "success" ? 'Sin puntos' : r.errorMessage || 'Error',
+        });
+      }
+    });
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tiempos Logisticos");
+    XLSX.writeFile(wb, `tiempos_logisticos_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    toast({
+      title: "Exportado",
+      description: `Se exportaron ${dataToExport.length} registros`,
     });
   };
 
@@ -759,9 +1006,27 @@ ${TERCEROS_VARIABLES}
                       {manifiestoResults.filter(r => r.status === "error").length} errores
                     </CardDescription>
                   </div>
-                  <Button variant="outline" onClick={exportManifiestoResults} data-testid="button-export-manifiestos">
-                    <Download className="mr-2 h-4 w-4" /> Exportar Excel
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleQueryLogistics} 
+                      disabled={isQueryingLogistics || manifiestoResults.filter(r => r.status === "success").length === 0}
+                      data-testid="button-query-logistics"
+                    >
+                      {isQueryingLogistics ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {logisticsProgress.current}/{logisticsProgress.total}
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="mr-2 h-4 w-4" /> Consultar Tiempos
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="outline" onClick={exportManifiestoResults} data-testid="button-export-manifiestos">
+                      <Download className="mr-2 h-4 w-4" /> Exportar Excel
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[400px] rounded border">
@@ -794,6 +1059,78 @@ ${TERCEROS_VARIABLES}
                               {result.errorMessage || ""}
                             </TableCell>
                           </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            )}
+
+            {logisticsResults.length > 0 && showLogisticsResults && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-blue-500" />
+                      Tiempos Logísticos
+                    </CardTitle>
+                    <CardDescription>
+                      {logisticsResults.filter(r => r.status === "success").length} con puntos de control, {" "}
+                      {logisticsResults.filter(r => r.status === "error").length} sin datos
+                    </CardDescription>
+                  </div>
+                  <Button variant="outline" onClick={exportLogisticsResults} data-testid="button-export-logistics">
+                    <Download className="mr-2 h-4 w-4" /> Exportar Excel
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[500px] rounded border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>CONSECUTIVO</TableHead>
+                          <TableHead>INGRESOID</TableHead>
+                          <TableHead>MANIFIESTO</TableHead>
+                          <TableHead>PLACA</TableHead>
+                          <TableHead>PUNTO</TableHead>
+                          <TableHead>MUNICIPIO</TableHead>
+                          <TableHead>DIRECCIÓN</TableHead>
+                          <TableHead>FECHA CITA</TableHead>
+                          <TableHead>HORA CITA</TableHead>
+                          <TableHead>LAT</TableHead>
+                          <TableHead>LONG</TableHead>
+                          <TableHead>TIEMPO PACTADO</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logisticsResults.map((result, idx) => (
+                          result.controlPoints.length > 0 ? (
+                            result.controlPoints.map((cp, cpIdx) => (
+                              <TableRow key={`${idx}-${cpIdx}`}>
+                                <TableCell className="font-mono">{result.consecutivoRemesa}</TableCell>
+                                <TableCell className="font-mono text-primary">{result.ingresoidManifiesto}</TableCell>
+                                <TableCell>{result.numManifiestoCarga}</TableCell>
+                                <TableCell>{result.numPlaca}</TableCell>
+                                <TableCell className="font-medium">{cp.codpuntocontrol}</TableCell>
+                                <TableCell>{cp.codmunicipio}</TableCell>
+                                <TableCell className="max-w-[200px] truncate">{cp.direccion}</TableCell>
+                                <TableCell>{cp.fechacita}</TableCell>
+                                <TableCell>{cp.horacita}</TableCell>
+                                <TableCell className="font-mono text-xs">{cp.latitud}</TableCell>
+                                <TableCell className="font-mono text-xs">{cp.longitud}</TableCell>
+                                <TableCell>{cp.tiempopactado}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono">{result.consecutivoRemesa}</TableCell>
+                              <TableCell className="font-mono text-primary">{result.ingresoidManifiesto}</TableCell>
+                              <TableCell colSpan={10} className="text-center text-muted-foreground">
+                                {result.errorMessage || "Sin puntos de control"}
+                              </TableCell>
+                            </TableRow>
+                          )
                         ))}
                       </TableBody>
                     </Table>
