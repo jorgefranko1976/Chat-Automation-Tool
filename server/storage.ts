@@ -10,6 +10,8 @@ import {
   rndcManifests,
   rndcControlPoints,
   rndcQueries,
+  terceros,
+  vehiculos,
   type User,
   type InsertUser,
   type UpdateUserProfile,
@@ -29,6 +31,10 @@ import {
   type InsertRndcControlPoint,
   type RndcQuery,
   type InsertRndcQuery,
+  type Tercero,
+  type InsertTercero,
+  type Vehiculo,
+  type InsertVehiculo,
 } from "@shared/schema";
 
 export interface DashboardStats {
@@ -95,6 +101,22 @@ export interface IStorage {
   updateRndcQuery(id: string, updates: Partial<RndcQuery>): Promise<RndcQuery | undefined>;
   getRndcQueries(limit?: number): Promise<RndcQuery[]>;
   getRndcQueriesByType(queryType: string, limit?: number): Promise<RndcQuery[]>;
+  
+  createTercero(tercero: InsertTercero): Promise<Tercero>;
+  getTercero(id: string): Promise<Tercero | undefined>;
+  getTerceroByIdentificacion(tipoId: string, numeroId: string): Promise<Tercero | undefined>;
+  updateTercero(id: string, updates: Partial<Tercero>): Promise<Tercero | undefined>;
+  deleteTercero(id: string): Promise<void>;
+  getTerceros(tipoTercero?: string, limit?: number): Promise<Tercero[]>;
+  searchTerceros(query: string, tipoTercero?: string): Promise<Tercero[]>;
+  
+  createVehiculo(vehiculo: InsertVehiculo): Promise<Vehiculo>;
+  getVehiculo(id: string): Promise<Vehiculo | undefined>;
+  getVehiculoByPlaca(placa: string): Promise<Vehiculo | undefined>;
+  updateVehiculo(id: string, updates: Partial<Vehiculo>): Promise<Vehiculo | undefined>;
+  deleteVehiculo(id: string): Promise<void>;
+  getVehiculos(limit?: number): Promise<Vehiculo[]>;
+  searchVehiculos(query: string): Promise<Vehiculo[]>;
 }
 
 export interface ManifestSearchFilters {
@@ -390,6 +412,85 @@ export class DatabaseStorage implements IStorage {
 
   async getRndcQueriesByType(queryType: string, limit = 50): Promise<RndcQuery[]> {
     return db.select().from(rndcQueries).where(eq(rndcQueries.queryType, queryType)).orderBy(desc(rndcQueries.createdAt)).limit(limit);
+  }
+
+  async createTercero(tercero: InsertTercero): Promise<Tercero> {
+    const [newTercero] = await db.insert(terceros).values(tercero).returning();
+    return newTercero;
+  }
+
+  async getTercero(id: string): Promise<Tercero | undefined> {
+    const [tercero] = await db.select().from(terceros).where(eq(terceros.id, id));
+    return tercero;
+  }
+
+  async getTerceroByIdentificacion(tipoId: string, numeroId: string): Promise<Tercero | undefined> {
+    const [tercero] = await db.select().from(terceros).where(
+      and(eq(terceros.tipoIdentificacion, tipoId), eq(terceros.numeroIdentificacion, numeroId))
+    );
+    return tercero;
+  }
+
+  async updateTercero(id: string, updates: Partial<Tercero>): Promise<Tercero | undefined> {
+    const [tercero] = await db.update(terceros).set({ ...updates, updatedAt: new Date() }).where(eq(terceros.id, id)).returning();
+    return tercero;
+  }
+
+  async deleteTercero(id: string): Promise<void> {
+    await db.delete(terceros).where(eq(terceros.id, id));
+  }
+
+  async getTerceros(tipoTercero?: string, limit = 100): Promise<Tercero[]> {
+    if (tipoTercero) {
+      return db.select().from(terceros).where(eq(terceros.tipoTercero, tipoTercero)).orderBy(desc(terceros.createdAt)).limit(limit);
+    }
+    return db.select().from(terceros).orderBy(desc(terceros.createdAt)).limit(limit);
+  }
+
+  async searchTerceros(query: string, tipoTercero?: string): Promise<Tercero[]> {
+    const searchPattern = `%${query}%`;
+    const conditions = [
+      sql`(${terceros.nombre} ILIKE ${searchPattern} OR ${terceros.numeroIdentificacion} ILIKE ${searchPattern} OR ${terceros.primerApellido} ILIKE ${searchPattern})`
+    ];
+    if (tipoTercero) {
+      conditions.push(eq(terceros.tipoTercero, tipoTercero));
+    }
+    return db.select().from(terceros).where(and(...conditions)).orderBy(desc(terceros.createdAt)).limit(50);
+  }
+
+  async createVehiculo(vehiculo: InsertVehiculo): Promise<Vehiculo> {
+    const [newVehiculo] = await db.insert(vehiculos).values(vehiculo).returning();
+    return newVehiculo;
+  }
+
+  async getVehiculo(id: string): Promise<Vehiculo | undefined> {
+    const [vehiculo] = await db.select().from(vehiculos).where(eq(vehiculos.id, id));
+    return vehiculo;
+  }
+
+  async getVehiculoByPlaca(placa: string): Promise<Vehiculo | undefined> {
+    const [vehiculo] = await db.select().from(vehiculos).where(eq(vehiculos.placa, placa.toUpperCase()));
+    return vehiculo;
+  }
+
+  async updateVehiculo(id: string, updates: Partial<Vehiculo>): Promise<Vehiculo | undefined> {
+    const [vehiculo] = await db.update(vehiculos).set({ ...updates, updatedAt: new Date() }).where(eq(vehiculos.id, id)).returning();
+    return vehiculo;
+  }
+
+  async deleteVehiculo(id: string): Promise<void> {
+    await db.delete(vehiculos).where(eq(vehiculos.id, id));
+  }
+
+  async getVehiculos(limit = 100): Promise<Vehiculo[]> {
+    return db.select().from(vehiculos).orderBy(desc(vehiculos.createdAt)).limit(limit);
+  }
+
+  async searchVehiculos(query: string): Promise<Vehiculo[]> {
+    const searchPattern = `%${query}%`;
+    return db.select().from(vehiculos).where(
+      sql`(${vehiculos.placa} ILIKE ${searchPattern} OR ${vehiculos.marca} ILIKE ${searchPattern} OR ${vehiculos.propietarioNombre} ILIKE ${searchPattern})`
+    ).orderBy(desc(vehiculos.createdAt)).limit(50);
   }
 }
 
