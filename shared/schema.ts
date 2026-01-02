@@ -240,3 +240,80 @@ export const insertRndcQuerySchema = createInsertSchema(rndcQueries).omit({
 
 export type InsertRndcQuery = z.infer<typeof insertRndcQuerySchema>;
 export type RndcQuery = typeof rndcQueries.$inferSelect;
+
+export const terceros = pgTable("terceros", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tipoTercero: varchar("tipo_tercero").notNull(),
+  tipoIdentificacion: varchar("tipo_identificacion").notNull(),
+  numeroIdentificacion: varchar("numero_identificacion").notNull(),
+  nombre: varchar("nombre").notNull(),
+  primerApellido: varchar("primer_apellido").notNull(),
+  segundoApellido: varchar("segundo_apellido"),
+  sede: varchar("sede"),
+  nombreSede: varchar("nombre_sede"),
+  telefonoFijo: varchar("telefono_fijo"),
+  celular: varchar("celular"),
+  regimenSimple: varchar("regimen_simple"),
+  direccion: varchar("direccion"),
+  pais: varchar("pais").default("COLOMBIA"),
+  codPais: varchar("cod_pais").default("169"),
+  municipio: varchar("municipio"),
+  latitud: varchar("latitud"),
+  longitud: varchar("longitud"),
+  email: varchar("email"),
+  categoriaLicencia: varchar("categoria_licencia"),
+  licencia: varchar("licencia"),
+  vencimientoLicencia: varchar("vencimiento_licencia"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertTerceroSchema = createInsertSchema(terceros).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTercero = z.infer<typeof insertTerceroSchema>;
+export type Tercero = typeof terceros.$inferSelect;
+
+export const vehiculos = pgTable("vehiculos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  placa: varchar("placa").notNull().unique(),
+  configuracion: varchar("configuracion"),
+  marca: varchar("marca"),
+  clase: varchar("clase"),
+  carroceria: varchar("carroceria"),
+  servicio: varchar("servicio"),
+  tipoCombustible: varchar("tipo_combustible"),
+  numeroEjes: varchar("numero_ejes"),
+  fechaMatricula: varchar("fecha_matricula"),
+  modelo: varchar("modelo"),
+  modalidad: varchar("modalidad"),
+  pbv: varchar("pbv"),
+  pesoVacio: varchar("peso_vacio"),
+  numeroPoliza: varchar("numero_poliza"),
+  aseguradora: varchar("aseguradora"),
+  nitAseguradora: varchar("nit_aseguradora"),
+  venceSoat: varchar("vence_soat"),
+  venceRevisionTecnomecanica: varchar("vence_revision_tecnomecanica"),
+  propietarioTipoId: varchar("propietario_tipo_id"),
+  propietarioNumeroId: varchar("propietario_numero_id"),
+  propietarioNombre: varchar("propietario_nombre"),
+  tenedorTipoId: varchar("tenedor_tipo_id"),
+  tenedorNumeroId: varchar("tenedor_numero_id"),
+  tenedorNombre: varchar("tenedor_nombre"),
+  fechaVinculacionInicial: varchar("fecha_vinculacion_inicial"),
+  fechaVinculacionFinal: varchar("fecha_vinculacion_final"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertVehiculoSchema = createInsertSchema(vehiculos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertVehiculo = z.infer<typeof insertVehiculoSchema>;
+export type Vehiculo = typeof vehiculos.$inferSelect;
