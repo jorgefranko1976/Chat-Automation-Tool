@@ -13,6 +13,7 @@ import Settings from "@/pages/settings";
 import Cumplidos from "@/pages/cumplidos";
 import Queries from "@/pages/queries";
 import Login from "@/pages/login";
+import Enrollment from "@/pages/enrollment";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/import">{() => <ProtectedRoute component={Import} />}</Route>
       <Route path="/cumplidos">{() => <ProtectedRoute component={Cumplidos} />}</Route>
       <Route path="/queries">{() => <ProtectedRoute component={Queries} />}</Route>
+      <Route path="/enrollment">{() => <ProtectedRoute component={Enrollment} />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
       <Route component={NotFound} />
     </Switch>
