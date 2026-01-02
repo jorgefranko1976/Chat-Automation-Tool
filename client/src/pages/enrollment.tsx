@@ -277,7 +277,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold bg-[#c5713e] text-white -m-6 mb-4 p-4 rounded-t-lg">
+          <DialogTitle className="text-lg font-bold bg-primary text-primary-foreground -m-6 mb-4 p-4 rounded-t-lg">
             {isEditing ? "Editar Tercero" : "Nuevo Tercero"}
           </DialogTitle>
         </DialogHeader>
@@ -297,7 +297,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
             </Select>
           </div>
 
-          <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium">
+          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
             Datos generales del Tercero
           </div>
 
@@ -352,7 +352,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
             </div>
           </div>
 
-          <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium">
+          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
             Datos obligatorios de ubicación
           </div>
 
@@ -459,7 +459,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
 
           {formData.tipoTercero === "CONDUCTOR" && (
             <>
-              <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium">
+              <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
                 Datos Obligatorios para Conductor
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -704,13 +704,13 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold bg-[#c5713e] text-white -m-6 mb-4 p-4 rounded-t-lg">
+          <DialogTitle className="text-lg font-bold bg-primary text-primary-foreground -m-6 mb-4 p-4 rounded-t-lg">
             {isEditing ? "Editar Vehículo" : "Nuevo Vehículo"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium">
+          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
             CARACTERÍSTICAS GENERALES DEL VEHÍCULO
           </div>
 
@@ -825,7 +825,7 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
             </div>
           </div>
 
-          <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium">
+          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
             INFORMACIÓN DEL SOAT Y REVISIÓN TECNOMECÁNICA
           </div>
 
@@ -876,7 +876,7 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
 
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium mb-4">
+              <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium mb-4">
                 INFORMACIÓN DEL PROPIETARIO
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -913,7 +913,7 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
             </div>
 
             <div>
-              <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium mb-4">
+              <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium mb-4">
                 INFORMACIÓN DEL TENEDOR O LOCATARIO
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -950,7 +950,7 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
             </div>
           </div>
 
-          <div className="bg-[#c5713e] text-white px-4 py-2 -mx-6 font-medium">
+          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
             AÑADIR VINCULACIÓN DE VEHÍCULOS
           </div>
 
