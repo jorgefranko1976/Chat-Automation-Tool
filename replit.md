@@ -9,6 +9,7 @@ The system handles:
 - **Monitoring Module**: Retrieves authorized cargo manifests from RNDC via SOAP web services
 - **Tracking Module**: Reports arrival/departure times at control points
 - **Bulk Import**: Processes Excel files for batch submission of control point data
+- **Enrollment Module**: Manages Terceros (third parties: farms, plants, drivers, owners) and Vehiculos (vehicles with SOAT, technical review, owner/holder information)
 - **Settings Management**: User profile, RNDC credentials and company information
 
 ## User Preferences
@@ -56,7 +57,7 @@ Preferred communication style: Simple, everyday language.
 
 **Data Layer:**
 - Database abstraction through storage interface (`IStorage`)
-- Three main entities: Users, RNDC Batches, RNDC Submissions
+- Main entities: Users, RNDC Batches, RNDC Submissions, Terceros, Vehiculos
 - Drizzle ORM for type-safe database queries
 - Schema-first approach with Zod validation
 

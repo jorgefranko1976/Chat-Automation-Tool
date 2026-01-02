@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,7 +210,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
   const queryClient = useQueryClient();
   const isEditing = !!tercero;
 
-  const [formData, setFormData] = useState({
+  const getInitialFormData = () => ({
     tipoTercero: tercero?.tipoTercero || "GRANJA",
     tipoIdentificacion: tercero?.tipoIdentificacion || "CC",
     numeroIdentificacion: tercero?.numeroIdentificacion || "",
@@ -233,6 +233,14 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
     licencia: tercero?.licencia || "",
     vencimientoLicencia: tercero?.vencimientoLicencia || "",
   });
+
+  const [formData, setFormData] = useState(getInitialFormData);
+
+  useEffect(() => {
+    if (open) {
+      setFormData(getInitialFormData());
+    }
+  }, [open, tercero]);
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -624,7 +632,7 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
   const queryClient = useQueryClient();
   const isEditing = !!vehiculo;
 
-  const [formData, setFormData] = useState({
+  const getInitialFormData = () => ({
     placa: vehiculo?.placa || "",
     configuracion: vehiculo?.configuracion || "",
     marca: vehiculo?.marca || "",
@@ -652,6 +660,14 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
     fechaVinculacionInicial: vehiculo?.fechaVinculacionInicial || "",
     fechaVinculacionFinal: vehiculo?.fechaVinculacionFinal || "",
   });
+
+  const [formData, setFormData] = useState(getInitialFormData);
+
+  useEffect(() => {
+    if (open) {
+      setFormData(getInitialFormData());
+    }
+  }, [open, vehiculo]);
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
