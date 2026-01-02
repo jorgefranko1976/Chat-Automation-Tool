@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { sendXmlToRndc } from "./rndc-service";
-import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema } from "@shared/schema";
+import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema, insertTerceroSchema, insertVehiculoSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import session from "express-session";
@@ -982,6 +982,157 @@ export async function registerRoutes(
       res.json({ success: true, batches });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener historial de cumplidos" });
+    }
+  });
+
+  app.get("/api/terceros", requireAuth, async (req, res) => {
+    try {
+      const tipoTercero = req.query.tipo as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const terceros = await storage.getTerceros(tipoTercero, limit);
+      res.json({ success: true, terceros });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener terceros" });
+    }
+  });
+
+  app.get("/api/terceros/search", requireAuth, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      const tipoTercero = req.query.tipo as string | undefined;
+      if (!query) {
+        return res.status(400).json({ success: false, message: "Parámetro de búsqueda requerido" });
+      }
+      const terceros = await storage.searchTerceros(query, tipoTercero);
+      res.json({ success: true, terceros });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar terceros" });
+    }
+  });
+
+  app.get("/api/terceros/:id", requireAuth, async (req, res) => {
+    try {
+      const tercero = await storage.getTercero(req.params.id);
+      if (!tercero) {
+        return res.status(404).json({ success: false, message: "Tercero no encontrado" });
+      }
+      res.json({ success: true, tercero });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener tercero" });
+    }
+  });
+
+  app.post("/api/terceros", requireAuth, async (req, res) => {
+    try {
+      const parsed = insertTerceroSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, message: "Datos inválidos", errors: parsed.error.flatten() });
+      }
+      const existing = await storage.getTerceroByIdentificacion(parsed.data.tipoIdentificacion, parsed.data.numeroIdentificacion);
+      if (existing) {
+        return res.status(400).json({ success: false, message: "Ya existe un tercero con esta identificación" });
+      }
+      const tercero = await storage.createTercero(parsed.data);
+      res.json({ success: true, tercero });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al crear tercero" });
+    }
+  });
+
+  app.put("/api/terceros/:id", requireAuth, async (req, res) => {
+    try {
+      const tercero = await storage.updateTercero(req.params.id, req.body);
+      if (!tercero) {
+        return res.status(404).json({ success: false, message: "Tercero no encontrado" });
+      }
+      res.json({ success: true, tercero });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al actualizar tercero" });
+    }
+  });
+
+  app.delete("/api/terceros/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteTercero(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al eliminar tercero" });
+    }
+  });
+
+  app.get("/api/vehiculos", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const vehiculos = await storage.getVehiculos(limit);
+      res.json({ success: true, vehiculos });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener vehículos" });
+    }
+  });
+
+  app.get("/api/vehiculos/search", requireAuth, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ success: false, message: "Parámetro de búsqueda requerido" });
+      }
+      const vehiculos = await storage.searchVehiculos(query);
+      res.json({ success: true, vehiculos });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar vehículos" });
+    }
+  });
+
+  app.get("/api/vehiculos/:id", requireAuth, async (req, res) => {
+    try {
+      const vehiculo = await storage.getVehiculo(req.params.id);
+      if (!vehiculo) {
+        return res.status(404).json({ success: false, message: "Vehículo no encontrado" });
+      }
+      res.json({ success: true, vehiculo });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener vehículo" });
+    }
+  });
+
+  app.post("/api/vehiculos", requireAuth, async (req, res) => {
+    try {
+      const data = { ...req.body, placa: req.body.placa?.toUpperCase() };
+      const parsed = insertVehiculoSchema.safeParse(data);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, message: "Datos inválidos", errors: parsed.error.flatten() });
+      }
+      const existing = await storage.getVehiculoByPlaca(parsed.data.placa);
+      if (existing) {
+        return res.status(400).json({ success: false, message: "Ya existe un vehículo con esta placa" });
+      }
+      const vehiculo = await storage.createVehiculo(parsed.data);
+      res.json({ success: true, vehiculo });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al crear vehículo" });
+    }
+  });
+
+  app.put("/api/vehiculos/:id", requireAuth, async (req, res) => {
+    try {
+      const data = { ...req.body };
+      if (data.placa) data.placa = data.placa.toUpperCase();
+      const vehiculo = await storage.updateVehiculo(req.params.id, data);
+      if (!vehiculo) {
+        return res.status(404).json({ success: false, message: "Vehículo no encontrado" });
+      }
+      res.json({ success: true, vehiculo });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al actualizar vehículo" });
+    }
+  });
+
+  app.delete("/api/vehiculos/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteVehiculo(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al eliminar vehículo" });
     }
   });
 
