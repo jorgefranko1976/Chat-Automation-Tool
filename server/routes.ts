@@ -1503,7 +1503,7 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
   <procesoid>11</procesoid>
  </solicitud>
  <variables>
-INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
+INGRESOID,FECHAING,NUMIDTERCERO,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA
  </variables>
  <documento>
   <NUMNITEMPRESATRANSPORTE>${credentials.nitEmpresa}</NUMNITEMPRESATRANSPORTE>
@@ -1516,20 +1516,62 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
                 console.log(`[RNDC-C] Cédula ${cedulaKey}: success=${response.success}, code=${response.code}`);
                 if (response.success) {
                   const parsedXml = parser.parse(response.rawXml);
-                  let doc = parsedXml?.root?.documento;
-                  if (Array.isArray(doc)) doc = doc[doc.length - 1];
-                  if (doc) {
-                    cedulaValid = true;
-                    cedulaData = {
-                      venceLicencia: String(doc.FECHAVENCIMIENTOLICENCIA || doc.fechavencimientolicencia || ""),
-                    };
-                    cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
-                  } else {
+                  let docs = parsedXml?.root?.documento;
+                  if (!docs) {
                     cedulaValid = false;
                     console.log(`[RNDC-C] Cédula ${cedulaKey} sin documento. Raw: ${response.rawXml?.substring(0, 500)}`);
                     const err = `Cédula '${row.cedula}' no encontrada en RNDC`;
                     errors.push(err);
                     cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+                  } else {
+                    if (!Array.isArray(docs)) docs = [docs];
+                    
+                    const validCategories = ["C1", "C2", "C3"];
+                    const now = new Date();
+                    
+                    const parseDateDDMMYYYY = (dateStr: string): Date | null => {
+                      if (!dateStr) return null;
+                      const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                      if (match) {
+                        const [, day, month, year] = match;
+                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      }
+                      return null;
+                    };
+                    
+                    const validDocs = docs
+                      .filter((d: any) => {
+                        const cat = String(d.codcategorialicenciaconduccion || d.CODCATEGORIALICENCIACONDUCCION || "").toUpperCase();
+                        return validCategories.includes(cat);
+                      })
+                      .filter((d: any) => {
+                        const fechaStr = String(d.fechavencimientolicencia || d.FECHAVENCIMIENTOLICENCIA || "");
+                        const fecha = parseDateDDMMYYYY(fechaStr);
+                        return fecha && fecha > now;
+                      })
+                      .sort((a: any, b: any) => {
+                        const fechaA = parseDateDDMMYYYY(String(a.fechavencimientolicencia || a.FECHAVENCIMIENTOLICENCIA || ""));
+                        const fechaB = parseDateDDMMYYYY(String(b.fechavencimientolicencia || b.FECHAVENCIMIENTOLICENCIA || ""));
+                        if (!fechaA) return 1;
+                        if (!fechaB) return -1;
+                        return fechaB.getTime() - fechaA.getTime();
+                      });
+                    
+                    console.log(`[RNDC-C] Cédula ${cedulaKey}: ${docs.length} registros, ${validDocs.length} válidos (C1/C2/C3 no vencidos)`);
+                    
+                    if (validDocs.length > 0) {
+                      const bestDoc = validDocs[0];
+                      cedulaValid = true;
+                      cedulaData = {
+                        venceLicencia: String(bestDoc.fechavencimientolicencia || bestDoc.FECHAVENCIMIENTOLICENCIA || ""),
+                      };
+                      cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+                    } else {
+                      cedulaValid = false;
+                      const err = `Cédula '${row.cedula}' sin licencia C1/C2/C3 vigente`;
+                      errors.push(err);
+                      cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+                    }
                   }
                 } else {
                   cedulaValid = false;
