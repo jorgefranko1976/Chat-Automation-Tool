@@ -1165,6 +1165,11 @@ export async function registerRoutes(
       const { XMLParser } = await import("fast-xml-parser");
       const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
 
+      const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; error?: string }>();
+      const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string } | null; error?: string }>();
+      const granjaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
+      const plantaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
+
       const validatedRows: any[] = [];
       
       for (const row of rows) {
@@ -1179,41 +1184,60 @@ export async function registerRoutes(
         let cedulaData: { venceLicencia: string } | null = null;
 
         if (row.granja) {
-          const granjaBase = row.granja.replace(/\s*\d+\s*$/, "").trim();
-          let tercero = await storage.getTerceroByCodigoGranja(row.granja);
-          if (!tercero) {
-            tercero = await storage.getTerceroByCodigoGranjaBase(granjaBase);
-          }
-          if (tercero) {
-            granjaValid = true;
-            const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
-            granjaData = {
-              sede: tercero.sede || "",
-              coordenadas: coords,
-            };
+          const granjaKey = row.granja.toLowerCase().trim();
+          if (granjaCache.has(granjaKey)) {
+            const cached = granjaCache.get(granjaKey)!;
+            granjaValid = cached.valid;
+            granjaData = cached.data;
+            if (!cached.valid) errors.push(`Granja '${row.granja}' no encontrada`);
           } else {
-            granjaValid = false;
-            errors.push(`Granja '${row.granja}' no encontrada`);
+            const granjaBase = row.granja.replace(/\s*\d+\s*$/, "").trim();
+            let tercero = await storage.getTerceroByCodigoGranja(row.granja);
+            if (!tercero) {
+              tercero = await storage.getTerceroByCodigoGranjaBase(granjaBase);
+            }
+            if (tercero) {
+              granjaValid = true;
+              const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
+              granjaData = { sede: tercero.sede || "", coordenadas: coords };
+            } else {
+              granjaValid = false;
+              errors.push(`Granja '${row.granja}' no encontrada`);
+            }
+            granjaCache.set(granjaKey, { valid: granjaValid, data: granjaData });
           }
         }
 
         if (row.planta) {
-          const tercero = await storage.getTerceroByNombreSede(row.planta);
-          if (tercero) {
-            plantaValid = true;
-            const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
-            plantaData = {
-              sede: tercero.sede || "",
-              coordenadas: coords,
-            };
+          const plantaKey = row.planta.toLowerCase().trim();
+          if (plantaCache.has(plantaKey)) {
+            const cached = plantaCache.get(plantaKey)!;
+            plantaValid = cached.valid;
+            plantaData = cached.data;
+            if (!cached.valid) errors.push(`Planta '${row.planta}' no encontrada`);
           } else {
-            plantaValid = false;
-            errors.push(`Planta '${row.planta}' no encontrada`);
+            const tercero = await storage.getTerceroByNombreSede(row.planta);
+            if (tercero) {
+              plantaValid = true;
+              const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
+              plantaData = { sede: tercero.sede || "", coordenadas: coords };
+            } else {
+              plantaValid = false;
+              errors.push(`Planta '${row.planta}' no encontrada`);
+            }
+            plantaCache.set(plantaKey, { valid: plantaValid, data: plantaData });
           }
         }
 
         if (row.placa && credentials) {
-          const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+          const placaKey = row.placa.toUpperCase().replace(/\s/g, "");
+          if (placaCache.has(placaKey)) {
+            const cached = placaCache.get(placaKey)!;
+            placaValid = cached.valid;
+            placaData = cached.data;
+            if (!cached.valid && cached.error) errors.push(cached.error);
+          } else {
+            const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
   <username>${credentials.username}</username>
@@ -1228,42 +1252,57 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
  </variables>
  <documento>
   <NUMNITEMPRESATRANSPORTE>${credentials.nitEmpresa}</NUMNITEMPRESATRANSPORTE>
-  <NUMPLACA>'${row.placa}'</NUMPLACA>
+  <NUMPLACA>'${placaKey}'</NUMPLACA>
  </documento>
 </root>`;
-          
-          try {
-            const response = await sendXmlToRndc(xmlPlaca);
-            if (response.success) {
-              const parsedXml = parser.parse(response.rawXml);
-              const doc = parsedXml?.root?.documento;
-              if (doc) {
-                placaValid = true;
-                placaData = {
-                  propietarioId: String(doc.NUMIDPROPIETARIO || doc.numidpropietario || ""),
-                  venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
-                  pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
-                };
+            
+            try {
+              const response = await sendXmlToRndc(xmlPlaca);
+              if (response.success) {
+                const parsedXml = parser.parse(response.rawXml);
+                const doc = parsedXml?.root?.documento;
+                if (doc) {
+                  placaValid = true;
+                  placaData = {
+                    propietarioId: String(doc.NUMIDPROPIETARIO || doc.numidpropietario || ""),
+                    venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
+                    pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
+                  };
+                  placaCache.set(placaKey, { valid: true, data: placaData });
+                } else {
+                  placaValid = false;
+                  const err = `Placa '${row.placa}' no encontrada en RNDC`;
+                  errors.push(err);
+                  placaCache.set(placaKey, { valid: false, data: null, error: err });
+                }
               } else {
                 placaValid = false;
-                errors.push(`Placa '${row.placa}' no encontrada en RNDC`);
+                const err = `Error RNDC placa: ${response.message}`;
+                errors.push(err);
+                placaCache.set(placaKey, { valid: false, data: null, error: err });
               }
-            } else {
+            } catch (e) {
               placaValid = false;
-              errors.push(`Error RNDC placa: ${response.message}`);
+              const err = `Error consultando placa en RNDC`;
+              errors.push(err);
+              placaCache.set(placaKey, { valid: false, data: null, error: err });
             }
-          } catch (e) {
-            placaValid = false;
-            errors.push(`Error consultando placa en RNDC`);
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
-          await new Promise(resolve => setTimeout(resolve, 300));
         } else if (row.placa) {
           placaValid = null;
           placaData = { propietarioId: "", venceSoat: "", pesoVacio: "" };
         }
 
         if (row.cedula && credentials) {
-          const xmlCedula = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+          const cedulaKey = String(row.cedula).trim();
+          if (cedulaCache.has(cedulaKey)) {
+            const cached = cedulaCache.get(cedulaKey)!;
+            cedulaValid = cached.valid;
+            cedulaData = cached.data;
+            if (!cached.valid && cached.error) errors.push(cached.error);
+          } else {
+            const xmlCedula = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
   <username>${credentials.username}</username>
@@ -1278,33 +1317,41 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
  </variables>
  <documento>
   <NUMNITEMPRESATRANSPORTE>${credentials.nitEmpresa}</NUMNITEMPRESATRANSPORTE>
-  <NUMIDTERCERO>${row.cedula}</NUMIDTERCERO>
+  <NUMIDTERCERO>${cedulaKey}</NUMIDTERCERO>
  </documento>
 </root>`;
-          
-          try {
-            const response = await sendXmlToRndc(xmlCedula);
-            if (response.success) {
-              const parsedXml = parser.parse(response.rawXml);
-              const doc = parsedXml?.root?.documento;
-              if (doc) {
-                cedulaValid = true;
-                cedulaData = {
-                  venceLicencia: String(doc.FECHAVENCIMIENTOLICENCIA || doc.fechavencimientolicencia || ""),
-                };
+            
+            try {
+              const response = await sendXmlToRndc(xmlCedula);
+              if (response.success) {
+                const parsedXml = parser.parse(response.rawXml);
+                const doc = parsedXml?.root?.documento;
+                if (doc) {
+                  cedulaValid = true;
+                  cedulaData = {
+                    venceLicencia: String(doc.FECHAVENCIMIENTOLICENCIA || doc.fechavencimientolicencia || ""),
+                  };
+                  cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+                } else {
+                  cedulaValid = false;
+                  const err = `Cédula '${row.cedula}' no encontrada en RNDC`;
+                  errors.push(err);
+                  cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+                }
               } else {
                 cedulaValid = false;
-                errors.push(`Cédula '${row.cedula}' no encontrada en RNDC`);
+                const err = `Error RNDC cédula: ${response.message}`;
+                errors.push(err);
+                cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
               }
-            } else {
+            } catch (e) {
               cedulaValid = false;
-              errors.push(`Error RNDC cédula: ${response.message}`);
+              const err = `Error consultando cédula en RNDC`;
+              errors.push(err);
+              cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
             }
-          } catch (e) {
-            cedulaValid = false;
-            errors.push(`Error consultando cédula en RNDC`);
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
-          await new Promise(resolve => setTimeout(resolve, 300));
         } else if (row.cedula) {
           cedulaValid = null;
           cedulaData = { venceLicencia: "" };
