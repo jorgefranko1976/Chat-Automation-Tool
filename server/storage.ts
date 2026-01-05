@@ -105,6 +105,8 @@ export interface IStorage {
   createTercero(tercero: InsertTercero): Promise<Tercero>;
   getTercero(id: string): Promise<Tercero | undefined>;
   getTerceroByIdentificacion(tipoId: string, numeroId: string): Promise<Tercero | undefined>;
+  getTerceroByCodigoGranja(codigoGranja: string): Promise<Tercero | undefined>;
+  getTerceroByNombreSede(nombreSede: string): Promise<Tercero | undefined>;
   updateTercero(id: string, updates: Partial<Tercero>): Promise<Tercero | undefined>;
   deleteTercero(id: string): Promise<void>;
   getTerceros(tipoTercero?: string, limit?: number): Promise<Tercero[]>;
@@ -427,6 +429,20 @@ export class DatabaseStorage implements IStorage {
   async getTerceroByIdentificacion(tipoId: string, numeroId: string): Promise<Tercero | undefined> {
     const [tercero] = await db.select().from(terceros).where(
       and(eq(terceros.tipoIdentificacion, tipoId), eq(terceros.numeroIdentificacion, numeroId))
+    );
+    return tercero;
+  }
+
+  async getTerceroByCodigoGranja(codigoGranja: string): Promise<Tercero | undefined> {
+    const [tercero] = await db.select().from(terceros).where(
+      and(eq(terceros.tipoTercero, "GRANJA"), eq(terceros.codigoGranja, codigoGranja))
+    );
+    return tercero;
+  }
+
+  async getTerceroByNombreSede(nombreSede: string): Promise<Tercero | undefined> {
+    const [tercero] = await db.select().from(terceros).where(
+      sql`${terceros.nombreSede} ILIKE ${nombreSede}`
     );
     return tercero;
   }

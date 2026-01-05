@@ -1132,6 +1132,113 @@ export async function registerRoutes(
     }
   });
 
+  const despachosValidateSchema = z.object({
+    rows: z.array(z.object({
+      granja: z.string(),
+      planta: z.string(),
+      placa: z.string(),
+      cedula: z.string(),
+      toneladas: z.string(),
+      fecha: z.string(),
+      granjaValid: z.boolean().nullable(),
+      granjaData: z.any().nullable(),
+      plantaValid: z.boolean().nullable(),
+      plantaData: z.any().nullable(),
+      placaValid: z.boolean().nullable(),
+      placaData: z.any().nullable(),
+      cedulaValid: z.boolean().nullable(),
+      cedulaData: z.any().nullable(),
+      errors: z.array(z.string()),
+    })),
+  });
+
+  app.post("/api/despachos/validate", requireAuth, async (req, res) => {
+    try {
+      const parsed = despachosValidateSchema.parse(req.body);
+      const { rows } = parsed;
+
+      const validatedRows = await Promise.all(rows.map(async (row) => {
+        const errors: string[] = [];
+        let granjaValid: boolean | null = null;
+        let granjaData: { sede: string; coordenadas: string } | null = null;
+        let plantaValid: boolean | null = null;
+        let plantaData: { sede: string; coordenadas: string } | null = null;
+        let placaValid: boolean | null = null;
+        let placaData: { propietarioId: string; venceSoat: string; pesoVacio: string } | null = null;
+        let cedulaValid: boolean | null = null;
+        let cedulaData: { venceLicencia: string } | null = null;
+
+        if (row.granja) {
+          const tercero = await storage.getTerceroByCodigoGranja(row.granja);
+          if (tercero) {
+            granjaValid = true;
+            const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
+            granjaData = {
+              sede: tercero.nombreSede || "",
+              coordenadas: coords,
+            };
+          } else {
+            granjaValid = false;
+            errors.push(`Granja '${row.granja}' no encontrada`);
+          }
+        }
+
+        if (row.planta) {
+          const tercero = await storage.getTerceroByNombreSede(row.planta);
+          if (tercero) {
+            plantaValid = true;
+            const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
+            plantaData = {
+              sede: tercero.nombreSede || "",
+              coordenadas: coords,
+            };
+          } else {
+            plantaValid = false;
+            errors.push(`Planta '${row.planta}' no encontrada`);
+          }
+        }
+
+        if (row.placa) {
+          const vehiculo = await storage.getVehiculoByPlaca(row.placa.toUpperCase());
+          if (vehiculo) {
+            placaValid = true;
+            placaData = {
+              propietarioId: vehiculo.propietarioNumeroId || "",
+              venceSoat: vehiculo.venceSoat || "",
+              pesoVacio: "",
+            };
+          } else {
+            placaValid = false;
+            errors.push(`Placa '${row.placa}' no encontrada en BD local`);
+          }
+        }
+
+        if (row.cedula) {
+          cedulaValid = true;
+          cedulaData = { venceLicencia: "" };
+        }
+
+        return {
+          ...row,
+          granjaValid,
+          granjaData,
+          plantaValid,
+          plantaData,
+          placaValid,
+          placaData,
+          cedulaValid,
+          cedulaData,
+          errors,
+        };
+      }));
+
+      res.json({ success: true, rows: validatedRows });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en validación";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
   return httpServer;
 }
 

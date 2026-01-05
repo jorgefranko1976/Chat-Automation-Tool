@@ -1,0 +1,54 @@
+MODULO DESPACHOS:
+
+El modulo despachos consiste en generar el despacho de las Remesas de viaje y los manifiestos de carga, esto a travez del cargue de un excel -> el cual de acuerdo a informacion guardada en nuestra base de datos nos crea otro excel  el cual ya contendria toda la informacion nescesaria para despachar. 
+
+El primer archivo que cargamos de excel es este :  lO PRIMERO QUE VAMOS HA HACER ES UNA VALIDACION DE GRANJAS PLACAS E IDENTIFICACIONES  DE LA SIGUIENTE FORMA:
+
+GRANJA /// buscar en terceros granja  si existe y extraer  el nuevo dato (Sede) ademas traer las coordenadas ///	
+PLANTA	/// buscar en terceros Nombre Sede que exista y extraer  el nuevo dato (Sede) ademas traer las coordenadas ///
+PLACA /// buscar en el rndc la  placa y agregar NUMIDPROPIETARIO, fechavencimientosoat y el PESOVEHICULOVACIO al nuevo excel (si no existe mostrar el error) ///
+CEDULA	/// BUSCAR EN EL RNDC  si el TERCERO existe  y agregar al nuevo excel la fecha de vencimieto de la licencia ////
+TONELADAS	
+FECHA
+
+
+CONSULTA PLACA
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>MANIFIESTOS@0739</username>
+  <password>Alejandro_321</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>12</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOSOAT
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>9013690938</NUMNITEMPRESATRANSPORTE>
+  <NUMPLACA>'EXZ070'</NUMPLACA>//// ESTE DATO LO SACA DEL EXCEL PARA PODER CONSULTAR  nota: ten en cuenta la comilla simple////
+ </documento>
+</root>
+____________________________________________________
+
+CONSULTA TERCERO
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>MANIFIESTOS@0739</username>
+  <password>Alejandro_321</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>11</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>9013690938</NUMNITEMPRESATRANSPORTE>
+  <NUMIDTERCERO>1127946352</NUMIDTERCERO>//// ESTE DATO LO SACA DEL EXCEL PARA PODER CONSULTAR ////
+ </documento>
+</root>
