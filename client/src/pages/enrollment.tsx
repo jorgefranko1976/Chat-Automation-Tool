@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
+import * as XLSX from "xlsx";
 import type { Tercero, Vehiculo } from "@shared/schema";
 
 const TIPOS_TERCERO = [
@@ -107,6 +108,31 @@ function TercerosSection() {
     currentPage * itemsPerPage
   );
 
+  const exportToExcel = () => {
+    const data = filteredTerceros.map(t => ({
+      Tipo: t.tipoTercero,
+      Granja: t.codigoGranja || "",
+      Nombre: `${t.nombre} ${t.primerApellido || ""} ${t.segundoApellido || ""}`.trim(),
+      Identificacion: `${t.tipoIdentificacion} ${t.numeroIdentificacion}`,
+      Flete: t.flete || "",
+      Latitud: t.latitud || "",
+      Longitud: t.longitud || "",
+      Municipio: t.municipio || "",
+      Direccion: t.direccion || "",
+      Celular: t.celular || "",
+      Email: t.email || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Terceros");
+    XLSX.writeFile(wb, "terceros.xlsx");
+    toast({ title: "Excel exportado correctamente" });
+  };
+
+  const openMaps = (lat: string, lng: string) => {
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`, "_blank");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -133,10 +159,16 @@ function TercerosSection() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => { setEditingTercero(null); setShowForm(true); }} data-testid="button-add-tercero">
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Tercero
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportToExcel} data-testid="button-export-excel">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar Excel
+          </Button>
+          <Button onClick={() => { setEditingTercero(null); setShowForm(true); }} data-testid="button-add-tercero">
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Tercero
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -174,7 +206,18 @@ function TercerosSection() {
                       <td className="p-3">{tercero.codigoGranja || "-"}</td>
                       <td className="p-3">{tercero.nombre} {tercero.primerApellido} {tercero.segundoApellido || ""}</td>
                       <td className="p-3">{tercero.flete || "-"}</td>
-                      <td className="p-3">{tercero.latitud && tercero.longitud ? `${tercero.latitud}, ${tercero.longitud}` : "-"}</td>
+                      <td className="p-3">
+                        {tercero.latitud && tercero.longitud ? (
+                          <button
+                            onClick={() => openMaps(tercero.latitud!, tercero.longitud!)}
+                            className="flex items-center gap-1 text-primary hover:underline"
+                            data-testid={`button-maps-${tercero.id}`}
+                          >
+                            <MapPin className="h-3 w-3" />
+                            {tercero.latitud}, {tercero.longitud}
+                          </button>
+                        ) : "-"}
+                      </td>
                       <td className="p-3">
                         <div className="flex items-center gap-1">
                           <Button
