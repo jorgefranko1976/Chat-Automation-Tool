@@ -1169,7 +1169,11 @@ export async function registerRoutes(
         let cedulaData: { venceLicencia: string } | null = null;
 
         if (row.granja) {
-          const tercero = await storage.getTerceroByCodigoGranja(row.granja);
+          const granjaBase = row.granja.replace(/\s*\d+\s*$/, "").trim();
+          let tercero = await storage.getTerceroByCodigoGranja(row.granja);
+          if (!tercero) {
+            tercero = await storage.getTerceroByCodigoGranjaBase(granjaBase);
+          }
           if (tercero) {
             granjaValid = true;
             const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
