@@ -254,8 +254,12 @@ export default function Despachos() {
                       <tr>
                         <th className="text-left p-3 font-medium">#</th>
                         <th className="text-left p-3 font-medium">Granja</th>
+                        <th className="text-left p-3 font-medium">Sede Granja</th>
+                        <th className="text-left p-3 font-medium">Coord. Granja</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Planta</th>
+                        <th className="text-left p-3 font-medium">Sede Planta</th>
+                        <th className="text-left p-3 font-medium">Coord. Planta</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Placa</th>
                         <th className="text-center p-3 font-medium">OK</th>
@@ -271,8 +275,34 @@ export default function Despachos() {
                         <tr key={idx} className={`border-t ${row.errors.length > 0 ? "bg-red-50" : ""}`}>
                           <td className="p-3 text-muted-foreground">{idx + 1}</td>
                           <td className="p-3">{row.granja}</td>
+                          <td className="p-3 text-xs">{row.granjaData?.sede || "-"}</td>
+                          <td className="p-3 text-xs font-mono">
+                            {row.granjaData?.coordenadas ? (
+                              <a 
+                                href={`https://www.google.com/maps?q=${row.granjaData.coordenadas}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                {row.granjaData.coordenadas}
+                              </a>
+                            ) : "-"}
+                          </td>
                           <td className="p-3 text-center">{getStatusIcon(row.granjaValid)}</td>
                           <td className="p-3">{row.planta}</td>
+                          <td className="p-3 text-xs">{row.plantaData?.sede || "-"}</td>
+                          <td className="p-3 text-xs font-mono">
+                            {row.plantaData?.coordenadas ? (
+                              <a 
+                                href={`https://www.google.com/maps?q=${row.plantaData.coordenadas}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                {row.plantaData.coordenadas}
+                              </a>
+                            ) : "-"}
+                          </td>
                           <td className="p-3 text-center">{getStatusIcon(row.plantaValid)}</td>
                           <td className="p-3 font-mono">{row.placa}</td>
                           <td className="p-3 text-center">{getStatusIcon(row.placaValid)}</td>
