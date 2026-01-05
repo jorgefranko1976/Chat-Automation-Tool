@@ -1028,10 +1028,6 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ success: false, message: "Datos inválidos", errors: parsed.error.flatten() });
       }
-      const existing = await storage.getTerceroByIdentificacion(parsed.data.tipoIdentificacion, parsed.data.numeroIdentificacion);
-      if (existing) {
-        return res.status(400).json({ success: false, message: "Ya existe un tercero con esta identificación" });
-      }
       const tercero = await storage.createTercero(parsed.data);
       res.json({ success: true, tercero });
     } catch (error) {
