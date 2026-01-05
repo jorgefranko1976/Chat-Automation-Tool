@@ -65,7 +65,7 @@ export default function Despachos() {
       return {
         granja: String(row["GRANJA"] || "").trim(),
         planta: String(row["PLANTA"] || "").trim(),
-        placa: String(row["PLACA"] || "").trim().toUpperCase(),
+        placa: String(row["PLACA"] || "").trim().replace(/\s+/g, "").toUpperCase(),
         cedula: String(row["CEDULA"] || "").trim(),
         toneladas: String(row["TONELADAS"] || "").trim(),
         fecha: fechaVal,
