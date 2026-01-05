@@ -723,8 +723,8 @@ function VehiculosSection() {
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left p-3 font-medium">Placa</th>
+                  <th className="text-left p-3 font-medium">Tipo ID</th>
                   <th className="text-left p-3 font-medium">Propietario</th>
-                  <th className="text-left p-3 font-medium">Conductor</th>
                   <th className="text-left p-3 font-medium">Toneladas</th>
                   <th className="text-left p-3 font-medium">Vence SOAT</th>
                   <th className="text-left p-3 font-medium">Vence Licencia</th>
@@ -740,8 +740,14 @@ function VehiculosSection() {
                   filteredVehiculos.map((vehiculo) => (
                     <tr key={vehiculo.id} className="border-t" data-testid={`row-vehiculo-${vehiculo.id}`}>
                       <td className="p-3 font-mono font-medium">{vehiculo.placa}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          vehiculo.propietarioTipoId === "NIT" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {vehiculo.propietarioTipoId || "CC"}
+                        </span>
+                      </td>
                       <td className="p-3">{vehiculo.propietarioNombre || "-"}</td>
-                      <td className="p-3">{vehiculo.conductorNombre || "-"}</td>
                       <td className="p-3">{vehiculo.toneladas || "-"}</td>
                       <td className="p-3">{vehiculo.venceSoat || "-"}</td>
                       <td className="p-3">{vehiculo.venceLicenciaConduccion || "-"}</td>
