@@ -1165,6 +1165,9 @@ export async function registerRoutes(
       const { XMLParser } = await import("fast-xml-parser");
       const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
 
+      console.log(`[DESPACHOS] Iniciando validación de ${rows.length} filas`);
+      console.log(`[DESPACHOS] Credenciales RNDC: ${credentials ? 'SÍ' : 'NO'}`);
+      
       const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; error?: string }>();
       const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string } | null; error?: string }>();
       const granjaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
@@ -1231,12 +1234,15 @@ export async function registerRoutes(
 
         if (row.placa && credentials) {
           const placaKey = row.placa.toUpperCase().replace(/\s/g, "");
+          console.log(`[RNDC] Consultando placa: ${placaKey}`);
           if (placaCache.has(placaKey)) {
+            console.log(`[RNDC] Placa ${placaKey} encontrada en caché`);
             const cached = placaCache.get(placaKey)!;
             placaValid = cached.valid;
             placaData = cached.data;
             if (!cached.valid && cached.error) errors.push(cached.error);
           } else {
+            console.log(`[RNDC] Consultando placa ${placaKey} en RNDC...`);
             const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
@@ -1258,6 +1264,7 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
             
             try {
               const response = await sendXmlToRndc(xmlPlaca);
+              console.log(`[RNDC] Respuesta placa ${placaKey}: success=${response.success}`);
               if (response.success) {
                 const parsedXml = parser.parse(response.rawXml);
                 const doc = parsedXml?.root?.documento;
@@ -1268,22 +1275,26 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
                     venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
                     pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
                   };
+                  console.log(`[RNDC] Placa ${placaKey}: PropietarioID=${placaData.propietarioId}, SOAT=${placaData.venceSoat}`);
                   placaCache.set(placaKey, { valid: true, data: placaData });
                 } else {
                   placaValid = false;
                   const err = `Placa '${row.placa}' no encontrada en RNDC`;
+                  console.log(`[RNDC] Placa ${placaKey}: no encontrada`);
                   errors.push(err);
                   placaCache.set(placaKey, { valid: false, data: null, error: err });
                 }
               } else {
                 placaValid = false;
                 const err = `Error RNDC placa: ${response.message}`;
+                console.log(`[RNDC] Error placa ${placaKey}: ${response.message}`);
                 errors.push(err);
                 placaCache.set(placaKey, { valid: false, data: null, error: err });
               }
             } catch (e) {
               placaValid = false;
               const err = `Error consultando placa en RNDC`;
+              console.log(`[RNDC] Excepción placa ${placaKey}: ${e}`);
               errors.push(err);
               placaCache.set(placaKey, { valid: false, data: null, error: err });
             }
