@@ -12,6 +12,7 @@ import {
   rndcQueries,
   terceros,
   vehiculos,
+  rndcVehiculos,
   type User,
   type InsertUser,
   type UpdateUserProfile,
@@ -35,6 +36,8 @@ import {
   type InsertTercero,
   type Vehiculo,
   type InsertVehiculo,
+  type RndcVehiculo,
+  type InsertRndcVehiculo,
 } from "@shared/schema";
 
 export interface DashboardStats {
@@ -120,6 +123,10 @@ export interface IStorage {
   deleteVehiculo(id: string): Promise<void>;
   getVehiculos(limit?: number): Promise<Vehiculo[]>;
   searchVehiculos(query: string): Promise<Vehiculo[]>;
+  
+  getRndcVehiculoByPlaca(placa: string): Promise<RndcVehiculo | undefined>;
+  getRndcVehiculosByPlacas(placas: string[]): Promise<RndcVehiculo[]>;
+  upsertRndcVehiculo(vehiculo: InsertRndcVehiculo): Promise<RndcVehiculo>;
 }
 
 export interface ManifestSearchFilters {
@@ -518,6 +525,39 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(vehiculos).where(
       sql`(${vehiculos.placa} ILIKE ${searchPattern} OR ${vehiculos.marca} ILIKE ${searchPattern} OR ${vehiculos.propietarioNombre} ILIKE ${searchPattern})`
     ).orderBy(desc(vehiculos.createdAt)).limit(50);
+  }
+
+  async getRndcVehiculoByPlaca(placa: string): Promise<RndcVehiculo | undefined> {
+    const [vehiculo] = await db.select().from(rndcVehiculos).where(eq(rndcVehiculos.placa, placa.toUpperCase()));
+    return vehiculo;
+  }
+
+  async getRndcVehiculosByPlacas(placas: string[]): Promise<RndcVehiculo[]> {
+    if (placas.length === 0) return [];
+    const upperPlacas = placas.map(p => p.toUpperCase());
+    return db.select().from(rndcVehiculos).where(sql`${rndcVehiculos.placa} = ANY(${upperPlacas})`);
+  }
+
+  async upsertRndcVehiculo(vehiculo: InsertRndcVehiculo): Promise<RndcVehiculo> {
+    const upperPlaca = vehiculo.placa.toUpperCase();
+    const [result] = await db.insert(rndcVehiculos)
+      .values({ ...vehiculo, placa: upperPlaca })
+      .onConflictDoUpdate({
+        target: rndcVehiculos.placa,
+        set: {
+          propietarioTipoId: vehiculo.propietarioTipoId,
+          propietarioNumeroId: vehiculo.propietarioNumeroId,
+          propietarioNombre: vehiculo.propietarioNombre,
+          venceSoat: vehiculo.venceSoat,
+          venceTecnicomecanica: vehiculo.venceTecnicomecanica,
+          pesoVacio: vehiculo.pesoVacio,
+          ingresoId: vehiculo.ingresoId,
+          rawXml: vehiculo.rawXml,
+          lastSyncedAt: new Date(),
+        }
+      })
+      .returning();
+    return result;
   }
 }
 

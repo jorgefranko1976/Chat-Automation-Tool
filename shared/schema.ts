@@ -312,3 +312,26 @@ export const insertVehiculoSchema = createInsertSchema(vehiculos).omit({
 
 export type InsertVehiculo = z.infer<typeof insertVehiculoSchema>;
 export type Vehiculo = typeof vehiculos.$inferSelect;
+
+export const rndcVehiculos = pgTable("rndc_vehiculos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  placa: varchar("placa").notNull().unique(),
+  propietarioTipoId: varchar("propietario_tipo_id"),
+  propietarioNumeroId: varchar("propietario_numero_id"),
+  propietarioNombre: varchar("propietario_nombre"),
+  venceSoat: varchar("vence_soat"),
+  venceTecnicomecanica: varchar("vence_tecnomecanica"),
+  pesoVacio: varchar("peso_vacio"),
+  ingresoId: varchar("ingreso_id"),
+  rawXml: text("raw_xml"),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRndcVehiculoSchema = createInsertSchema(rndcVehiculos).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRndcVehiculo = z.infer<typeof insertRndcVehiculoSchema>;
+export type RndcVehiculo = typeof rndcVehiculos.$inferSelect;
