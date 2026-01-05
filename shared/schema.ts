@@ -283,7 +283,8 @@ export const vehiculos = pgTable("vehiculos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   placa: varchar("placa").notNull().unique(),
   // Propietario
-  propietarioCc: varchar("propietario_cc"),
+  propietarioTipoId: varchar("propietario_tipo_id").default("CC"),
+  propietarioNumeroId: varchar("propietario_numero_id"),
   propietarioNombre: varchar("propietario_nombre"),
   propietarioDireccion: varchar("propietario_direccion"),
   propietarioTelefono: varchar("propietario_telefono"),

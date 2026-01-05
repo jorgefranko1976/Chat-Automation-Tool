@@ -810,10 +810,11 @@ function VehiculoViewDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="font-medium">Placa:</span> {vehiculo.placa}</div>
           <div><span className="font-medium">Toneladas:</span> {vehiculo.toneladas || "-"}</div>
-          <div><span className="font-medium">CC Propietario:</span> {vehiculo.propietarioCc || "-"}</div>
+          <div><span className="font-medium">Tipo ID Propietario:</span> {vehiculo.propietarioTipoId || "CC"}</div>
+          <div><span className="font-medium">Número ID Propietario:</span> {vehiculo.propietarioNumeroId || "-"}</div>
           <div><span className="font-medium">Nombre Propietario:</span> {vehiculo.propietarioNombre || "-"}</div>
-          <div><span className="font-medium">Dirección Propietario:</span> {vehiculo.propietarioDireccion || "-"}</div>
           <div><span className="font-medium">Teléfono Propietario:</span> {vehiculo.propietarioTelefono || "-"}</div>
+          <div><span className="font-medium">Dirección Propietario:</span> {vehiculo.propietarioDireccion || "-"}</div>
           <div><span className="font-medium">CC Conductor:</span> {vehiculo.conductorCc || "-"}</div>
           <div><span className="font-medium">Nombre Conductor:</span> {vehiculo.conductorNombre || "-"}</div>
           <div><span className="font-medium">Dirección Conductor:</span> {vehiculo.conductorDireccion || "-"}</div>
@@ -835,7 +836,8 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
 
   const getInitialFormData = () => ({
     placa: vehiculo?.placa || "",
-    propietarioCc: vehiculo?.propietarioCc || "",
+    propietarioTipoId: vehiculo?.propietarioTipoId || "CC",
+    propietarioNumeroId: vehiculo?.propietarioNumeroId || "",
     propietarioNombre: vehiculo?.propietarioNombre || "",
     propietarioDireccion: vehiculo?.propietarioDireccion || "",
     propietarioTelefono: vehiculo?.propietarioTelefono || "",
@@ -935,11 +937,23 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>CC Propietario</Label>
+              <Label>Tipo Identificación</Label>
+              <Select value={formData.propietarioTipoId} onValueChange={(v) => updateField("propietarioTipoId", v)}>
+                <SelectTrigger data-testid="select-propietario-tipo-id">
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                  <SelectItem value="NIT">NIT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Número Identificación</Label>
               <Input
-                value={formData.propietarioCc}
-                onChange={(e) => updateField("propietarioCc", e.target.value)}
-                data-testid="input-propietario-cc"
+                value={formData.propietarioNumeroId}
+                onChange={(e) => updateField("propietarioNumeroId", e.target.value)}
+                data-testid="input-propietario-numero-id"
               />
             </div>
             <div className="space-y-2">
@@ -951,19 +965,19 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
               />
             </div>
             <div className="space-y-2">
-              <Label>Dirección Propietario</Label>
-              <Input
-                value={formData.propietarioDireccion}
-                onChange={(e) => updateField("propietarioDireccion", e.target.value)}
-                data-testid="input-propietario-direccion"
-              />
-            </div>
-            <div className="space-y-2">
               <Label>Teléfono Propietario</Label>
               <Input
                 value={formData.propietarioTelefono}
                 onChange={(e) => updateField("propietarioTelefono", e.target.value)}
                 data-testid="input-propietario-telefono"
+              />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Dirección Propietario</Label>
+              <Input
+                value={formData.propietarioDireccion}
+                onChange={(e) => updateField("propietarioDireccion", e.target.value)}
+                data-testid="input-propietario-direccion"
               />
             </div>
           </div>
