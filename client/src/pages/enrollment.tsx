@@ -137,10 +137,10 @@ function TercerosSection() {
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left p-3 font-medium">Tipo</th>
-                  <th className="text-left p-3 font-medium">Identificación</th>
+                  <th className="text-left p-3 font-medium">Granja</th>
                   <th className="text-left p-3 font-medium">Nombre</th>
-                  <th className="text-left p-3 font-medium">Municipio</th>
-                  <th className="text-left p-3 font-medium">Celular</th>
+                  <th className="text-left p-3 font-medium">Flete</th>
+                  <th className="text-left p-3 font-medium">Coordenadas</th>
                   <th className="text-left p-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -162,10 +162,10 @@ function TercerosSection() {
                           {tercero.tipoTercero}
                         </span>
                       </td>
-                      <td className="p-3">{tercero.tipoIdentificacion} {tercero.numeroIdentificacion}</td>
+                      <td className="p-3">{tercero.codigoGranja || "-"}</td>
                       <td className="p-3">{tercero.nombre} {tercero.primerApellido} {tercero.segundoApellido || ""}</td>
-                      <td className="p-3">{tercero.municipio || "-"}</td>
-                      <td className="p-3">{tercero.celular || "-"}</td>
+                      <td className="p-3">{tercero.flete || "-"}</td>
+                      <td className="p-3">{tercero.latitud && tercero.longitud ? `${tercero.latitud}, ${tercero.longitud}` : "-"}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           <Button
