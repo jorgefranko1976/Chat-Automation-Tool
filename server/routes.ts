@@ -1541,8 +1541,9 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
       }
 
       const jobId = `cedulas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const sanitizeCedula = (c: string) => String(c).replace(/[\s.,]/g, "");
       const toProcess = onlyMissing ? rows.filter(r => r.cedulaValid !== true && r.cedula) : rows.filter(r => r.cedula);
-      const uniqueCedulas = new Set(toProcess.map(r => String(r.cedula).trim()));
+      const uniqueCedulas = new Set(toProcess.map(r => sanitizeCedula(r.cedula)));
       
       validationJobs.set(jobId, { progress: 0, total: uniqueCedulas.size, current: "", completed: false, rows: [] });
       console.log(`[DESPACHOS-C] Job ${jobId}: Consultando ${uniqueCedulas.size} cédulas únicas (onlyMissing=${onlyMissing})`);
@@ -1567,7 +1568,7 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
           }
 
           if (row.cedula) {
-            const cedulaKey = String(row.cedula).trim();
+            const cedulaKey = sanitizeCedula(row.cedula);
             
             if (cedulaCache.has(cedulaKey)) {
               const cached = cedulaCache.get(cedulaKey)!;
