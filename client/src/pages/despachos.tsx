@@ -198,6 +198,29 @@ export default function Despachos() {
 
   const hasCredentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit;
 
+  const getProgressA = () => {
+    if (rows.length === 0) return 0;
+    const granjasDone = rows.filter(r => r.granjaValid !== null).length;
+    const plantasDone = rows.filter(r => r.plantaValid !== null).length;
+    const total = rows.filter(r => r.granja).length + rows.filter(r => r.planta).length;
+    if (total === 0) return 100;
+    return Math.round(((granjasDone + plantasDone) / total) * 100);
+  };
+
+  const getProgressB = () => {
+    const withPlaca = rows.filter(r => r.placa);
+    if (withPlaca.length === 0) return 100;
+    const done = withPlaca.filter(r => r.placaValid !== null).length;
+    return Math.round((done / withPlaca.length) * 100);
+  };
+
+  const getProgressC = () => {
+    const withCedula = rows.filter(r => r.cedula);
+    if (withCedula.length === 0) return 100;
+    const done = withCedula.filter(r => r.cedulaValid !== null).length;
+    return Math.round((done / withCedula.length) * 100);
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -262,9 +285,14 @@ export default function Despachos() {
                     <div className="flex items-center gap-2 mb-2">
                       <Database className="h-5 w-5 text-blue-600" />
                       <span className="font-semibold">A) Datos Internos</span>
-                      {stepAComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                      <span className={`ml-auto text-xs font-bold ${getProgressA() === 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                        {getProgressA()}%
+                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">Valida Granjas y Plantas contra la base de datos local</p>
+                    <p className="text-xs text-muted-foreground mb-2">Valida Granjas y Plantas contra la base de datos local</p>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
+                      <div className="bg-blue-600 h-1.5 rounded-full transition-all" style={{ width: `${getProgressA()}%` }}></div>
+                    </div>
                     <Button
                       onClick={() => validateInternalMutation.mutate(rows)}
                       disabled={rows.length === 0 || validateInternalMutation.isPending}
@@ -283,9 +311,14 @@ export default function Despachos() {
                     <div className="flex items-center gap-2 mb-2">
                       <Car className="h-5 w-5 text-orange-600" />
                       <span className="font-semibold">B) Placas RNDC</span>
-                      {stepBComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                      <span className={`ml-auto text-xs font-bold ${getProgressB() === 100 ? 'text-green-600' : 'text-orange-600'}`}>
+                        {getProgressB()}%
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">Consulta NUMIDPROPIETARIO, SOAT, Peso Vacío</p>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                      <div className="bg-orange-500 h-1.5 rounded-full transition-all" style={{ width: `${getProgressB()}%` }}></div>
+                    </div>
                     {stepBComplete && rows.filter(r => r.placaValid === null && r.placa).length > 0 && (
                       <p className="text-xs text-amber-600 mb-2">
                         {rows.filter(r => r.placaValid === null && r.placa).length} placas pendientes
@@ -324,9 +357,14 @@ export default function Despachos() {
                     <div className="flex items-center gap-2 mb-2">
                       <User className="h-5 w-5 text-purple-600" />
                       <span className="font-semibold">C) Cédulas RNDC</span>
-                      {stepCComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                      <span className={`ml-auto text-xs font-bold ${getProgressC() === 100 ? 'text-green-600' : 'text-purple-600'}`}>
+                        {getProgressC()}%
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">Consulta FECHAVENCIMIENTOLICENCIA</p>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                      <div className="bg-purple-500 h-1.5 rounded-full transition-all" style={{ width: `${getProgressC()}%` }}></div>
+                    </div>
                     {stepCComplete && rows.filter(r => r.cedulaValid === null && r.cedula).length > 0 && (
                       <p className="text-xs text-amber-600 mb-2">
                         {rows.filter(r => r.cedulaValid === null && r.cedula).length} cédulas pendientes
