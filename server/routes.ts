@@ -1513,6 +1513,7 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
               
               try {
                 const response = await sendXmlToRndc(xmlCedula);
+                console.log(`[RNDC-C] Cédula ${cedulaKey}: success=${response.success}, code=${response.code}`);
                 if (response.success) {
                   const parsedXml = parser.parse(response.rawXml);
                   let doc = parsedXml?.root?.documento;
@@ -1525,18 +1526,21 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
                     cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
                   } else {
                     cedulaValid = false;
+                    console.log(`[RNDC-C] Cédula ${cedulaKey} sin documento. Raw: ${response.rawXml?.substring(0, 500)}`);
                     const err = `Cédula '${row.cedula}' no encontrada en RNDC`;
                     errors.push(err);
                     cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
                   }
                 } else {
                   cedulaValid = false;
+                  console.log(`[RNDC-C] Cédula ${cedulaKey} error: ${response.message}. Raw: ${response.rawXml?.substring(0, 500)}`);
                   const err = `Error RNDC cédula: ${response.message}`;
                   errors.push(err);
                   cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
                 }
               } catch (e) {
                 cedulaValid = false;
+                console.log(`[RNDC-C] Cédula ${cedulaKey} excepción: ${e}`);
                 const err = `Error consultando cédula en RNDC`;
                 errors.push(err);
                 cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
