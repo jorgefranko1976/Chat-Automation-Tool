@@ -205,7 +205,7 @@ function TercerosSection() {
                       </td>
                       <td className="p-3">{tercero.codigoGranja || "-"}</td>
                       <td className="p-3">{tercero.nombre} {tercero.primerApellido} {tercero.segundoApellido || ""}</td>
-                      <td className="p-3">{tercero.flete || "-"}</td>
+                      <td className="p-3">{tercero.flete ? Math.round(Number(tercero.flete)).toLocaleString() : "-"}</td>
                       <td className="p-3">
                         {tercero.latitud && tercero.longitud ? (
                           <button
