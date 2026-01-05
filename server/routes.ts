@@ -1386,6 +1386,7 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
               
               try {
                 const response = await sendXmlToRndc(xmlPlaca);
+                console.log(`[RNDC-B] Placa ${placaKey}: success=${response.success}, code=${response.code}`);
                 if (response.success) {
                   const parsedXml = parser.parse(response.rawXml);
                   let doc = parsedXml?.root?.documento;
@@ -1400,18 +1401,21 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
                     placaCache.set(placaKey, { valid: true, data: placaData });
                   } else {
                     placaValid = false;
+                    console.log(`[RNDC-B] Placa ${placaKey} sin documento. Raw: ${response.rawXml?.substring(0, 500)}`);
                     const err = `Placa '${row.placa}' no encontrada en RNDC`;
                     errors.push(err);
                     placaCache.set(placaKey, { valid: false, data: null, error: err });
                   }
                 } else {
                   placaValid = false;
+                  console.log(`[RNDC-B] Placa ${placaKey} error: ${response.message}. Raw: ${response.rawXml?.substring(0, 500)}`);
                   const err = `Error RNDC placa: ${response.message}`;
                   errors.push(err);
                   placaCache.set(placaKey, { valid: false, data: null, error: err });
                 }
               } catch (e) {
                 placaValid = false;
+                console.log(`[RNDC-B] Placa ${placaKey} excepción: ${e}`);
                 const err = `Error consultando placa en RNDC`;
                 errors.push(err);
                 placaCache.set(placaKey, { valid: false, data: null, error: err });
