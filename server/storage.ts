@@ -523,7 +523,7 @@ export class DatabaseStorage implements IStorage {
   async searchVehiculos(query: string): Promise<Vehiculo[]> {
     const searchPattern = `%${query}%`;
     return db.select().from(vehiculos).where(
-      sql`(${vehiculos.placa} ILIKE ${searchPattern} OR ${vehiculos.marca} ILIKE ${searchPattern} OR ${vehiculos.propietarioNombre} ILIKE ${searchPattern})`
+      sql`(${vehiculos.placa} ILIKE ${searchPattern} OR ${vehiculos.propietarioNombre} ILIKE ${searchPattern} OR ${vehiculos.conductorNombre} ILIKE ${searchPattern})`
     ).orderBy(desc(vehiculos.createdAt)).limit(50);
   }
 

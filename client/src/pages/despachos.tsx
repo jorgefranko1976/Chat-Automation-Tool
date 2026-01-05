@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -109,6 +109,26 @@ export default function Despachos() {
     },
   });
 
+  const validatePlacasInternalMutation = useMutation({
+    mutationFn: async ({ data, onlyMissing }: { data: DespachoRow[], onlyMissing: boolean }) => {
+      const response = await apiRequest("POST", "/api/despachos/validate-placas-internal", { rows: data, onlyMissing });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setRows(data.rows);
+      setStepBComplete(true);
+      const failedCount = data.rows.filter((r: DespachoRow) => r.placaValid === false && r.placa).length;
+      toast({
+        title: "Consulta interna completada",
+        description: failedCount > 0 ? `${failedCount} placas no encontradas en BD local` : "Todas las placas validadas",
+        variant: failedCount > 0 ? "destructive" : "default",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const validatePlacasMutation = useMutation({
     mutationFn: async ({ data, onlyMissing }: { data: DespachoRow[], onlyMissing: boolean }) => {
       const credentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit ? {
@@ -150,8 +170,8 @@ export default function Despachos() {
       setStepBComplete(true);
       const pendingCount = data.rows.filter((r: DespachoRow) => r.placaValid === null && r.placa).length;
       toast({
-        title: "Paso B completado",
-        description: `Placas consultadas. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
+        title: "Consulta RNDC completada",
+        description: `Placas consultadas y guardadas en caché. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
         variant: pendingCount > 0 ? "destructive" : "default",
       });
     },
@@ -366,7 +386,7 @@ export default function Despachos() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Car className="h-5 w-5 text-orange-600" />
-                      <span className="font-semibold">B) Placas RNDC</span>
+                      <span className="font-semibold">B) Placas</span>
                       <span className={`ml-auto text-xs font-bold ${getProgressB() === 100 ? 'text-green-600' : 'text-orange-600'}`}>
                         {placasProgress.processing 
                           ? `${placasProgress.current}/${placasProgress.total}` 
@@ -376,7 +396,7 @@ export default function Despachos() {
                     <p className="text-xs text-muted-foreground mb-2">
                       {placasProgress.processing && placasProgress.currentItem 
                         ? `Consultando: ${placasProgress.currentItem}` 
-                        : "Consulta NUMIDPROPIETARIO, SOAT, Peso Vacío"}
+                        : "Valida propietario, SOAT, peso vacío"}
                     </p>
                     <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
                       <div 
@@ -391,28 +411,47 @@ export default function Despachos() {
                         {rows.filter(r => r.placaValid === false && r.placa).length} fallidas, {rows.filter(r => r.placaValid === null && r.placa).length} pendientes
                       </p>
                     )}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => validatePlacasMutation.mutate({ data: rows, onlyMissing: false })}
-                        disabled={rows.length === 0 || !hasCredentials || validatePlacasMutation.isPending}
-                        className="flex-1"
-                        variant={stepAComplete ? "default" : "outline"}
-                        size="sm"
-                        data-testid="button-validate-placas"
-                      >
-                        {validatePlacasMutation.isPending ? (
-                          <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
-                        ) : stepBComplete ? "Todo" : "Consultar"}
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => validatePlacasInternalMutation.mutate({ data: rows, onlyMissing: false })}
+                          disabled={rows.length === 0 || validatePlacasInternalMutation.isPending || validatePlacasMutation.isPending}
+                          className="flex-1"
+                          variant="outline"
+                          size="sm"
+                          data-testid="button-validate-placas-internal"
+                        >
+                          {validatePlacasInternalMutation.isPending ? (
+                            <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
+                          ) : (
+                            <><Database className="mr-1 h-3 w-3" />Interna</>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={() => validatePlacasMutation.mutate({ data: rows, onlyMissing: false })}
+                          disabled={rows.length === 0 || !hasCredentials || validatePlacasMutation.isPending || validatePlacasInternalMutation.isPending}
+                          className="flex-1"
+                          variant={stepAComplete ? "default" : "outline"}
+                          size="sm"
+                          data-testid="button-validate-placas"
+                        >
+                          {validatePlacasMutation.isPending ? (
+                            <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
+                          ) : (
+                            <><RefreshCw className="mr-1 h-3 w-3" />RNDC</>
+                          )}
+                        </Button>
+                      </div>
                       {stepBComplete && rows.filter(r => (r.placaValid === null || r.placaValid === false) && r.placa).length > 0 && (
                         <Button
                           onClick={() => validatePlacasMutation.mutate({ data: rows, onlyMissing: true })}
                           disabled={!hasCredentials || validatePlacasMutation.isPending}
                           variant="outline"
                           size="sm"
+                          className="w-full"
                           data-testid="button-validate-placas-missing"
                         >
-                          Reintentar
+                          Reintentar fallidas/pendientes
                         </Button>
                       )}
                     </div>
