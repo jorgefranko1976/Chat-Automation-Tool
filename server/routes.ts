@@ -1150,14 +1150,24 @@ export async function registerRoutes(
       cedulaData: z.any().nullable(),
       errors: z.array(z.string()),
     })),
+    credentials: z.object({
+      username: z.string(),
+      password: z.string(),
+      nitEmpresa: z.string(),
+    }).optional(),
   });
 
   app.post("/api/despachos/validate", requireAuth, async (req, res) => {
     try {
       const parsed = despachosValidateSchema.parse(req.body);
-      const { rows } = parsed;
+      const { rows, credentials } = parsed;
 
-      const validatedRows = await Promise.all(rows.map(async (row) => {
+      const { XMLParser } = await import("fast-xml-parser");
+      const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+
+      const validatedRows: any[] = [];
+      
+      for (const row of rows) {
         const errors: string[] = [];
         let granjaValid: boolean | null = null;
         let granjaData: { sede: string; coordenadas: string } | null = null;
@@ -1202,27 +1212,105 @@ export async function registerRoutes(
           }
         }
 
-        if (row.placa) {
-          const vehiculo = await storage.getVehiculoByPlaca(row.placa.toUpperCase());
-          if (vehiculo) {
-            placaValid = true;
-            placaData = {
-              propietarioId: vehiculo.propietarioNumeroId || "",
-              venceSoat: vehiculo.venceSoat || "",
-              pesoVacio: "",
-            };
-          } else {
+        if (row.placa && credentials) {
+          const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>${credentials.username}</username>
+  <password>${credentials.password}</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>12</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOSOAT
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>${credentials.nitEmpresa}</NUMNITEMPRESATRANSPORTE>
+  <NUMPLACA>'${row.placa}'</NUMPLACA>
+ </documento>
+</root>`;
+          
+          try {
+            const response = await sendXmlToRndc(xmlPlaca);
+            if (response.success) {
+              const parsedXml = parser.parse(response.rawXml);
+              const doc = parsedXml?.root?.documento;
+              if (doc) {
+                placaValid = true;
+                placaData = {
+                  propietarioId: String(doc.NUMIDPROPIETARIO || doc.numidpropietario || ""),
+                  venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
+                  pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
+                };
+              } else {
+                placaValid = false;
+                errors.push(`Placa '${row.placa}' no encontrada en RNDC`);
+              }
+            } else {
+              placaValid = false;
+              errors.push(`Error RNDC placa: ${response.message}`);
+            }
+          } catch (e) {
             placaValid = false;
-            errors.push(`Placa '${row.placa}' no encontrada en BD local`);
+            errors.push(`Error consultando placa en RNDC`);
           }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else if (row.placa) {
+          placaValid = null;
+          placaData = { propietarioId: "", venceSoat: "", pesoVacio: "" };
         }
 
-        if (row.cedula) {
-          cedulaValid = true;
+        if (row.cedula && credentials) {
+          const xmlCedula = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>${credentials.username}</username>
+  <password>${credentials.password}</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>11</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>${credentials.nitEmpresa}</NUMNITEMPRESATRANSPORTE>
+  <NUMIDTERCERO>${row.cedula}</NUMIDTERCERO>
+ </documento>
+</root>`;
+          
+          try {
+            const response = await sendXmlToRndc(xmlCedula);
+            if (response.success) {
+              const parsedXml = parser.parse(response.rawXml);
+              const doc = parsedXml?.root?.documento;
+              if (doc) {
+                cedulaValid = true;
+                cedulaData = {
+                  venceLicencia: String(doc.FECHAVENCIMIENTOLICENCIA || doc.fechavencimientolicencia || ""),
+                };
+              } else {
+                cedulaValid = false;
+                errors.push(`Cédula '${row.cedula}' no encontrada en RNDC`);
+              }
+            } else {
+              cedulaValid = false;
+              errors.push(`Error RNDC cédula: ${response.message}`);
+            }
+          } catch (e) {
+            cedulaValid = false;
+            errors.push(`Error consultando cédula en RNDC`);
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else if (row.cedula) {
+          cedulaValid = null;
           cedulaData = { venceLicencia: "" };
         }
 
-        return {
+        validatedRows.push({
           ...row,
           granjaValid,
           granjaData,
@@ -1233,8 +1321,8 @@ export async function registerRoutes(
           cedulaValid,
           cedulaData,
           errors,
-        };
-      }));
+        });
+      }
 
       res.json({ success: true, rows: validatedRows });
     } catch (error) {

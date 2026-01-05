@@ -32,6 +32,7 @@ interface DespachoRow {
 
 export default function Despachos() {
   const { toast } = useToast();
+  const { settings } = useSettings();
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<DespachoRow[]>([]);
   const [isValidating, setIsValidating] = useState(false);
@@ -86,7 +87,12 @@ export default function Despachos() {
 
   const validateMutation = useMutation({
     mutationFn: async (data: DespachoRow[]) => {
-      const response = await apiRequest("POST", "/api/despachos/validate", { rows: data });
+      const credentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit ? {
+        username: settings.usernameRndc,
+        password: settings.passwordRndc,
+        nitEmpresa: settings.companyNit,
+      } : undefined;
+      const response = await apiRequest("POST", "/api/despachos/validate", { rows: data, credentials });
       return response.json();
     },
     onSuccess: (data) => {
@@ -217,6 +223,13 @@ export default function Despachos() {
                 <strong>Columnas esperadas:</strong> GRANJA, PLANTA, PLACA, CEDULA, TONELADAS, FECHA
               </div>
 
+              {(!settings.usernameRndc || !settings.passwordRndc || !settings.companyNit) && (
+                <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-md">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Configure las credenciales RNDC en Configuración para consultar PLACA y CEDULA en el RNDC.</span>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <Button
                   onClick={handleValidate}
@@ -262,8 +275,12 @@ export default function Despachos() {
                         <th className="text-left p-3 font-medium">Coord. Planta</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Placa</th>
+                        <th className="text-left p-3 font-medium">ID Propietario</th>
+                        <th className="text-left p-3 font-medium">Vence SOAT</th>
+                        <th className="text-left p-3 font-medium">Peso Vacío</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Cédula</th>
+                        <th className="text-left p-3 font-medium">Vence Licencia</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Toneladas</th>
                         <th className="text-left p-3 font-medium">Fecha</th>
@@ -305,8 +322,12 @@ export default function Despachos() {
                           </td>
                           <td className="p-3 text-center">{getStatusIcon(row.plantaValid)}</td>
                           <td className="p-3 font-mono">{row.placa}</td>
+                          <td className="p-3 text-xs">{row.placaData?.propietarioId || "-"}</td>
+                          <td className="p-3 text-xs">{row.placaData?.venceSoat || "-"}</td>
+                          <td className="p-3 text-xs">{row.placaData?.pesoVacio || "-"}</td>
                           <td className="p-3 text-center">{getStatusIcon(row.placaValid)}</td>
                           <td className="p-3">{row.cedula}</td>
+                          <td className="p-3 text-xs">{row.cedulaData?.venceLicencia || "-"}</td>
                           <td className="p-3 text-center">{getStatusIcon(row.cedulaValid)}</td>
                           <td className="p-3">{row.toneladas}</td>
                           <td className="p-3">{row.fecha}</td>
