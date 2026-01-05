@@ -722,11 +722,11 @@ function VehiculosSection() {
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left p-3 font-medium">Placa</th>
-                  <th className="text-left p-3 font-medium">Marca</th>
-                  <th className="text-left p-3 font-medium">Modelo</th>
-                  <th className="text-left p-3 font-medium">Clase</th>
                   <th className="text-left p-3 font-medium">Propietario</th>
+                  <th className="text-left p-3 font-medium">Conductor</th>
+                  <th className="text-left p-3 font-medium">Toneladas</th>
                   <th className="text-left p-3 font-medium">Vence SOAT</th>
+                  <th className="text-left p-3 font-medium">Vence Licencia</th>
                   <th className="text-left p-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -739,11 +739,11 @@ function VehiculosSection() {
                   filteredVehiculos.map((vehiculo) => (
                     <tr key={vehiculo.id} className="border-t" data-testid={`row-vehiculo-${vehiculo.id}`}>
                       <td className="p-3 font-mono font-medium">{vehiculo.placa}</td>
-                      <td className="p-3">{vehiculo.marca || "-"}</td>
-                      <td className="p-3">{vehiculo.modelo || "-"}</td>
-                      <td className="p-3">{vehiculo.clase || "-"}</td>
                       <td className="p-3">{vehiculo.propietarioNombre || "-"}</td>
+                      <td className="p-3">{vehiculo.conductorNombre || "-"}</td>
+                      <td className="p-3">{vehiculo.toneladas || "-"}</td>
                       <td className="p-3">{vehiculo.venceSoat || "-"}</td>
+                      <td className="p-3">{vehiculo.venceLicenciaConduccion || "-"}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           <Button
@@ -790,31 +790,19 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
 
   const getInitialFormData = () => ({
     placa: vehiculo?.placa || "",
-    configuracion: vehiculo?.configuracion || "",
-    marca: vehiculo?.marca || "",
-    clase: vehiculo?.clase || "",
-    carroceria: vehiculo?.carroceria || "",
-    servicio: vehiculo?.servicio || "",
-    tipoCombustible: vehiculo?.tipoCombustible || "",
-    numeroEjes: vehiculo?.numeroEjes || "",
-    fechaMatricula: vehiculo?.fechaMatricula || "",
-    modelo: vehiculo?.modelo || "",
-    modalidad: vehiculo?.modalidad || "",
-    pbv: vehiculo?.pbv || "",
-    pesoVacio: vehiculo?.pesoVacio || "",
-    numeroPoliza: vehiculo?.numeroPoliza || "",
-    aseguradora: vehiculo?.aseguradora || "",
-    nitAseguradora: vehiculo?.nitAseguradora || "",
-    venceSoat: vehiculo?.venceSoat || "",
-    venceRevisionTecnomecanica: vehiculo?.venceRevisionTecnomecanica || "",
-    propietarioTipoId: vehiculo?.propietarioTipoId || "",
-    propietarioNumeroId: vehiculo?.propietarioNumeroId || "",
+    propietarioCc: vehiculo?.propietarioCc || "",
     propietarioNombre: vehiculo?.propietarioNombre || "",
-    tenedorTipoId: vehiculo?.tenedorTipoId || "",
-    tenedorNumeroId: vehiculo?.tenedorNumeroId || "",
-    tenedorNombre: vehiculo?.tenedorNombre || "",
-    fechaVinculacionInicial: vehiculo?.fechaVinculacionInicial || "",
-    fechaVinculacionFinal: vehiculo?.fechaVinculacionFinal || "",
+    propietarioDireccion: vehiculo?.propietarioDireccion || "",
+    propietarioTelefono: vehiculo?.propietarioTelefono || "",
+    conductorCc: vehiculo?.conductorCc || "",
+    conductorNombre: vehiculo?.conductorNombre || "",
+    conductorDireccion: vehiculo?.conductorDireccion || "",
+    conductorTelefono: vehiculo?.conductorTelefono || "",
+    venceSoat: vehiculo?.venceSoat || "",
+    venceLicenciaConduccion: vehiculo?.venceLicenciaConduccion || "",
+    venceTecnicomecanica: vehiculo?.venceTecnicomecanica || "",
+    toneladas: vehiculo?.toneladas || "",
+    comparendos: vehiculo?.comparendos || "",
   });
 
   const [formData, setFormData] = useState(getInitialFormData);
@@ -858,7 +846,7 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold bg-primary text-primary-foreground -m-6 mb-4 p-4 rounded-t-lg">
             {isEditing ? "Editar Vehículo" : "Nuevo Vehículo"}
@@ -866,11 +854,7 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
-            CARACTERÍSTICAS GENERALES DEL VEHÍCULO
-          </div>
-
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Placa *</Label>
               <Input
@@ -882,134 +866,107 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
                 data-testid="input-placa"
               />
             </div>
-            <div className="space-y-2 col-span-2">
-              <Label>Configuración</Label>
+            <div className="space-y-2">
+              <Label>Toneladas</Label>
               <Input
-                value={formData.configuracion}
-                onChange={(e) => updateField("configuracion", e.target.value)}
-                data-testid="input-configuracion"
+                value={formData.toneladas}
+                onChange={(e) => updateField("toneladas", e.target.value)}
+                data-testid="input-toneladas"
               />
             </div>
             <div className="space-y-2">
-              <Label>Marca</Label>
+              <Label>Comparendos</Label>
               <Input
-                value={formData.marca}
-                onChange={(e) => updateField("marca", e.target.value)}
-                data-testid="input-marca"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Clase</Label>
-              <Input
-                value={formData.clase}
-                onChange={(e) => updateField("clase", e.target.value)}
-                data-testid="input-clase"
-              />
-            </div>
-            <div className="space-y-2 col-span-2">
-              <Label>Carrocería</Label>
-              <Input
-                value={formData.carroceria}
-                onChange={(e) => updateField("carroceria", e.target.value)}
-                data-testid="input-carroceria"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Servicio</Label>
-              <Input
-                value={formData.servicio}
-                onChange={(e) => updateField("servicio", e.target.value)}
-                data-testid="input-servicio"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo Combustible</Label>
-              <Input
-                value={formData.tipoCombustible}
-                onChange={(e) => updateField("tipoCombustible", e.target.value)}
-                data-testid="input-tipo-combustible"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Número Ejes</Label>
-              <Input
-                value={formData.numeroEjes}
-                onChange={(e) => updateField("numeroEjes", e.target.value)}
-                data-testid="input-numero-ejes"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Fecha Matrícula</Label>
-              <Input
-                type="date"
-                value={formData.fechaMatricula}
-                onChange={(e) => updateField("fechaMatricula", e.target.value)}
-                data-testid="input-fecha-matricula"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Modelo</Label>
-              <Input
-                value={formData.modelo}
-                onChange={(e) => updateField("modelo", e.target.value)}
-                data-testid="input-modelo"
-              />
-            </div>
-            <div className="space-y-2 col-span-2">
-              <Label>Modalidad</Label>
-              <Input
-                value={formData.modalidad}
-                onChange={(e) => updateField("modalidad", e.target.value)}
-                data-testid="input-modalidad"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>PBV (Kilos)</Label>
-              <Input
-                value={formData.pbv}
-                onChange={(e) => updateField("pbv", e.target.value)}
-                data-testid="input-pbv"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Peso Vacío (Kilos)</Label>
-              <Input
-                value={formData.pesoVacio}
-                onChange={(e) => updateField("pesoVacio", e.target.value)}
-                data-testid="input-peso-vacio"
+                value={formData.comparendos}
+                onChange={(e) => updateField("comparendos", e.target.value)}
+                data-testid="input-comparendos"
               />
             </div>
           </div>
 
           <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
-            INFORMACIÓN DEL SOAT Y REVISIÓN TECNOMECÁNICA
+            INFORMACIÓN DEL PROPIETARIO
           </div>
 
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Número Póliza</Label>
+              <Label>CC Propietario</Label>
               <Input
-                value={formData.numeroPoliza}
-                onChange={(e) => updateField("numeroPoliza", e.target.value)}
-                data-testid="input-numero-poliza"
+                value={formData.propietarioCc}
+                onChange={(e) => updateField("propietarioCc", e.target.value)}
+                data-testid="input-propietario-cc"
               />
             </div>
             <div className="space-y-2">
-              <Label>Aseguradora</Label>
+              <Label>Nombre Propietario</Label>
               <Input
-                value={formData.aseguradora}
-                onChange={(e) => updateField("aseguradora", e.target.value)}
-                data-testid="input-aseguradora"
+                value={formData.propietarioNombre}
+                onChange={(e) => updateField("propietarioNombre", e.target.value)}
+                data-testid="input-propietario-nombre"
               />
             </div>
             <div className="space-y-2">
-              <Label>NIT Aseguradora</Label>
+              <Label>Dirección Propietario</Label>
               <Input
-                value={formData.nitAseguradora}
-                onChange={(e) => updateField("nitAseguradora", e.target.value)}
-                data-testid="input-nit-aseguradora"
+                value={formData.propietarioDireccion}
+                onChange={(e) => updateField("propietarioDireccion", e.target.value)}
+                data-testid="input-propietario-direccion"
               />
             </div>
+            <div className="space-y-2">
+              <Label>Teléfono Propietario</Label>
+              <Input
+                value={formData.propietarioTelefono}
+                onChange={(e) => updateField("propietarioTelefono", e.target.value)}
+                data-testid="input-propietario-telefono"
+              />
+            </div>
+          </div>
+
+          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
+            INFORMACIÓN DEL CONDUCTOR
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>CC Conductor</Label>
+              <Input
+                value={formData.conductorCc}
+                onChange={(e) => updateField("conductorCc", e.target.value)}
+                data-testid="input-conductor-cc"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nombre Conductor</Label>
+              <Input
+                value={formData.conductorNombre}
+                onChange={(e) => updateField("conductorNombre", e.target.value)}
+                data-testid="input-conductor-nombre"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Dirección Conductor</Label>
+              <Input
+                value={formData.conductorDireccion}
+                onChange={(e) => updateField("conductorDireccion", e.target.value)}
+                data-testid="input-conductor-direccion"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Teléfono Conductor</Label>
+              <Input
+                value={formData.conductorTelefono}
+                onChange={(e) => updateField("conductorTelefono", e.target.value)}
+                data-testid="input-conductor-telefono"
+              />
+            </div>
+          </div>
+
+          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
+            FECHAS DE VENCIMIENTO
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Vence SOAT</Label>
               <Input
@@ -1020,113 +977,21 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
               />
             </div>
             <div className="space-y-2">
-              <Label>Vence Revisión TecnMeca</Label>
+              <Label>Vence Licencia Conducción</Label>
               <Input
                 type="date"
-                value={formData.venceRevisionTecnomecanica}
-                onChange={(e) => updateField("venceRevisionTecnomecanica", e.target.value)}
-                data-testid="input-vence-revision"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium mb-4">
-                INFORMACIÓN DEL PROPIETARIO
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo Identificación</Label>
-                  <Select value={formData.propietarioTipoId} onValueChange={(v) => updateField("propietarioTipoId", v)}>
-                    <SelectTrigger data-testid="select-propietario-tipo-id">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_IDENTIFICACION.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Número Identificación</Label>
-                  <Input
-                    value={formData.propietarioNumeroId}
-                    onChange={(e) => updateField("propietarioNumeroId", e.target.value)}
-                    data-testid="input-propietario-numero-id"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label>Nombre</Label>
-                  <Input
-                    value={formData.propietarioNombre}
-                    onChange={(e) => updateField("propietarioNombre", e.target.value)}
-                    data-testid="input-propietario-nombre"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium mb-4">
-                INFORMACIÓN DEL TENEDOR O LOCATARIO
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo Identificación</Label>
-                  <Select value={formData.tenedorTipoId} onValueChange={(v) => updateField("tenedorTipoId", v)}>
-                    <SelectTrigger data-testid="select-tenedor-tipo-id">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_IDENTIFICACION.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Número Identificación</Label>
-                  <Input
-                    value={formData.tenedorNumeroId}
-                    onChange={(e) => updateField("tenedorNumeroId", e.target.value)}
-                    data-testid="input-tenedor-numero-id"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label>Nombre</Label>
-                  <Input
-                    value={formData.tenedorNombre}
-                    onChange={(e) => updateField("tenedorNombre", e.target.value)}
-                    data-testid="input-tenedor-nombre"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
-            AÑADIR VINCULACIÓN DE VEHÍCULOS
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Fecha Inicial</Label>
-              <Input
-                type="date"
-                value={formData.fechaVinculacionInicial}
-                onChange={(e) => updateField("fechaVinculacionInicial", e.target.value)}
-                data-testid="input-fecha-vinculacion-inicial"
+                value={formData.venceLicenciaConduccion}
+                onChange={(e) => updateField("venceLicenciaConduccion", e.target.value)}
+                data-testid="input-vence-licencia"
               />
             </div>
             <div className="space-y-2">
-              <Label>Fecha Final</Label>
+              <Label>Vence Tecnomecánica</Label>
               <Input
                 type="date"
-                value={formData.fechaVinculacionFinal}
-                onChange={(e) => updateField("fechaVinculacionFinal", e.target.value)}
-                data-testid="input-fecha-vinculacion-final"
+                value={formData.venceTecnicomecanica}
+                onChange={(e) => updateField("venceTecnicomecanica", e.target.value)}
+                data-testid="input-vence-tecnomecanica"
               />
             </div>
           </div>
