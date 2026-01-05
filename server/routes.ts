@@ -1178,7 +1178,7 @@ export async function registerRoutes(
             granjaValid = true;
             const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
             granjaData = {
-              sede: tercero.nombreSede || "",
+              sede: tercero.sede || "",
               coordenadas: coords,
             };
           } else {
@@ -1193,7 +1193,7 @@ export async function registerRoutes(
             plantaValid = true;
             const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
             plantaData = {
-              sede: tercero.nombreSede || "",
+              sede: tercero.sede || "",
               coordenadas: coords,
             };
           } else {
