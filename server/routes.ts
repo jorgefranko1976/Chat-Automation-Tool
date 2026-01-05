@@ -15,6 +15,14 @@ declare module "express-session" {
   }
 }
 
+const validationJobs = new Map<string, { 
+  progress: number; 
+  total: number; 
+  current: string;
+  completed: boolean;
+  rows: any[];
+}>();
+
 const submitBatchSchema = z.object({
   submissions: z.array(z.object({
     ingresoidmanifiesto: z.string(),
@@ -1279,6 +1287,40 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/despachos/progress/:jobId", requireAuth, (req, res) => {
+    const { jobId } = req.params;
+    
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    });
+
+    const sendProgress = () => {
+      const job = validationJobs.get(jobId);
+      if (job) {
+        res.write(`data: ${JSON.stringify({ progress: job.progress, total: job.total, current: job.current, completed: job.completed })}\n\n`);
+        if (job.completed) {
+          res.write(`data: ${JSON.stringify({ done: true, rows: job.rows })}\n\n`);
+          res.end();
+          validationJobs.delete(jobId);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const interval = setInterval(() => {
+      if (sendProgress()) {
+        clearInterval(interval);
+      }
+    }, 200);
+
+    req.on("close", () => {
+      clearInterval(interval);
+    });
+  });
+
   app.post("/api/despachos/validate-placas", requireAuth, async (req, res) => {
     try {
       const parsed = despachosRowsSchema.parse(req.body);
@@ -1288,36 +1330,42 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Credenciales RNDC requeridas" });
       }
 
-      console.log(`[DESPACHOS-B] Consultando placas de ${rows.length} filas (onlyMissing=${onlyMissing})`);
+      const jobId = `placas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const toProcess = onlyMissing ? rows.filter(r => r.placaValid === null && r.placa) : rows.filter(r => r.placa);
+      const uniquePlacas = new Set(toProcess.map(r => r.placa.toUpperCase().replace(/\s/g, "")));
+      
+      validationJobs.set(jobId, { progress: 0, total: uniquePlacas.size, current: "", completed: false, rows: [] });
+      console.log(`[DESPACHOS-B] Job ${jobId}: Consultando ${uniquePlacas.size} placas únicas (onlyMissing=${onlyMissing})`);
+      
+      res.json({ success: true, jobId, total: uniquePlacas.size });
 
-      const { XMLParser } = await import("fast-xml-parser");
-      const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+      (async () => {
+        const { XMLParser } = await import("fast-xml-parser");
+        const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+        const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; error?: string }>();
+        let progress = 0;
 
-      const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; error?: string }>();
+        const validatedRows = [];
+        for (const row of rows) {
+          const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("placa"))];
+          let placaValid: boolean | null = row.placaValid;
+          let placaData = row.placaData;
 
-      const validatedRows = [];
-      for (const row of rows) {
-        const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("placa"))];
-        let placaValid: boolean | null = row.placaValid;
-        let placaData = row.placaData;
+          if (onlyMissing && row.placaValid !== null) {
+            validatedRows.push({ ...row, errors });
+            continue;
+          }
 
-        if (onlyMissing && row.placaValid !== null) {
-          validatedRows.push({ ...row, errors });
-          continue;
-        }
-
-        if (row.placa) {
-          const placaKey = row.placa.toUpperCase().replace(/\s/g, "");
-          
-          if (placaCache.has(placaKey)) {
-            const cached = placaCache.get(placaKey)!;
-            placaValid = cached.valid;
-            placaData = cached.data;
-            if (!cached.valid && cached.error) errors.push(cached.error);
-            console.log(`[RNDC-B] Placa ${placaKey} desde caché`);
-          } else {
-            console.log(`[RNDC-B] Consultando placa ${placaKey} en RNDC...`);
-            const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+          if (row.placa) {
+            const placaKey = row.placa.toUpperCase().replace(/\s/g, "");
+            
+            if (placaCache.has(placaKey)) {
+              const cached = placaCache.get(placaKey)!;
+              placaValid = cached.valid;
+              placaData = cached.data;
+              if (!cached.valid && cached.error) errors.push(cached.error);
+            } else {
+              const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
   <username>${credentials.username}</username>
@@ -1335,50 +1383,61 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
   <NUMPLACA>'${placaKey}'</NUMPLACA>
  </documento>
 </root>`;
-            
-            try {
-              const response = await sendXmlToRndc(xmlPlaca);
-              console.log(`[RNDC-B] Respuesta placa ${placaKey}: success=${response.success}`);
-              if (response.success) {
-                const parsedXml = parser.parse(response.rawXml);
-                let doc = parsedXml?.root?.documento;
-                if (Array.isArray(doc)) doc = doc[doc.length - 1];
-                if (doc) {
-                  placaValid = true;
-                  placaData = {
-                    propietarioId: String(doc.NUMIDPROPIETARIO || doc.numidpropietario || ""),
-                    venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
-                    pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
-                  };
-                  console.log(`[RNDC-B] Placa ${placaKey}: PropID=${placaData.propietarioId}, SOAT=${placaData.venceSoat}`);
-                  placaCache.set(placaKey, { valid: true, data: placaData });
+              
+              try {
+                const response = await sendXmlToRndc(xmlPlaca);
+                if (response.success) {
+                  const parsedXml = parser.parse(response.rawXml);
+                  let doc = parsedXml?.root?.documento;
+                  if (Array.isArray(doc)) doc = doc[doc.length - 1];
+                  if (doc) {
+                    placaValid = true;
+                    placaData = {
+                      propietarioId: String(doc.NUMIDPROPIETARIO || doc.numidpropietario || ""),
+                      venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
+                      pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
+                    };
+                    placaCache.set(placaKey, { valid: true, data: placaData });
+                  } else {
+                    placaValid = false;
+                    const err = `Placa '${row.placa}' no encontrada en RNDC`;
+                    errors.push(err);
+                    placaCache.set(placaKey, { valid: false, data: null, error: err });
+                  }
                 } else {
                   placaValid = false;
-                  const err = `Placa '${row.placa}' no encontrada en RNDC`;
+                  const err = `Error RNDC placa: ${response.message}`;
                   errors.push(err);
                   placaCache.set(placaKey, { valid: false, data: null, error: err });
                 }
-              } else {
+              } catch (e) {
                 placaValid = false;
-                const err = `Error RNDC placa: ${response.message}`;
+                const err = `Error consultando placa en RNDC`;
                 errors.push(err);
                 placaCache.set(placaKey, { valid: false, data: null, error: err });
               }
-            } catch (e) {
-              placaValid = false;
-              const err = `Error consultando placa en RNDC`;
-              errors.push(err);
-              placaCache.set(placaKey, { valid: false, data: null, error: err });
+              
+              progress++;
+              const job = validationJobs.get(jobId);
+              if (job) {
+                job.progress = progress;
+                job.current = placaKey;
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 100));
             }
-            await new Promise(resolve => setTimeout(resolve, 100));
           }
+
+          validatedRows.push({ ...row, placaValid, placaData, errors });
         }
 
-        validatedRows.push({ ...row, placaValid, placaData, errors });
-      }
-
-      console.log(`[DESPACHOS-B] Completado. Placas únicas consultadas: ${placaCache.size}`);
-      res.json({ success: true, rows: validatedRows, uniquePlacas: placaCache.size });
+        const job = validationJobs.get(jobId);
+        if (job) {
+          job.completed = true;
+          job.rows = validatedRows;
+        }
+        console.log(`[DESPACHOS-B] Job ${jobId} completado. Placas consultadas: ${placaCache.size}`);
+      })();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error consultando placas";
       res.status(400).json({ success: false, message });
@@ -1394,36 +1453,42 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
         return res.status(400).json({ success: false, message: "Credenciales RNDC requeridas" });
       }
 
-      console.log(`[DESPACHOS-C] Consultando cédulas de ${rows.length} filas (onlyMissing=${onlyMissing})`);
+      const jobId = `cedulas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const toProcess = onlyMissing ? rows.filter(r => r.cedulaValid === null && r.cedula) : rows.filter(r => r.cedula);
+      const uniqueCedulas = new Set(toProcess.map(r => String(r.cedula).trim()));
+      
+      validationJobs.set(jobId, { progress: 0, total: uniqueCedulas.size, current: "", completed: false, rows: [] });
+      console.log(`[DESPACHOS-C] Job ${jobId}: Consultando ${uniqueCedulas.size} cédulas únicas (onlyMissing=${onlyMissing})`);
+      
+      res.json({ success: true, jobId, total: uniqueCedulas.size });
 
-      const { XMLParser } = await import("fast-xml-parser");
-      const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+      (async () => {
+        const { XMLParser } = await import("fast-xml-parser");
+        const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+        const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string } | null; error?: string }>();
+        let progress = 0;
 
-      const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string } | null; error?: string }>();
+        const validatedRows = [];
+        for (const row of rows) {
+          const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("cédula"))];
+          let cedulaValid: boolean | null = row.cedulaValid;
+          let cedulaData = row.cedulaData;
 
-      const validatedRows = [];
-      for (const row of rows) {
-        const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("cédula"))];
-        let cedulaValid: boolean | null = row.cedulaValid;
-        let cedulaData = row.cedulaData;
+          if (onlyMissing && row.cedulaValid !== null) {
+            validatedRows.push({ ...row, errors });
+            continue;
+          }
 
-        if (onlyMissing && row.cedulaValid !== null) {
-          validatedRows.push({ ...row, errors });
-          continue;
-        }
-
-        if (row.cedula) {
-          const cedulaKey = String(row.cedula).trim();
-          
-          if (cedulaCache.has(cedulaKey)) {
-            const cached = cedulaCache.get(cedulaKey)!;
-            cedulaValid = cached.valid;
-            cedulaData = cached.data;
-            if (!cached.valid && cached.error) errors.push(cached.error);
-            console.log(`[RNDC-C] Cédula ${cedulaKey} desde caché`);
-          } else {
-            console.log(`[RNDC-C] Consultando cédula ${cedulaKey} en RNDC...`);
-            const xmlCedula = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+          if (row.cedula) {
+            const cedulaKey = String(row.cedula).trim();
+            
+            if (cedulaCache.has(cedulaKey)) {
+              const cached = cedulaCache.get(cedulaKey)!;
+              cedulaValid = cached.valid;
+              cedulaData = cached.data;
+              if (!cached.valid && cached.error) errors.push(cached.error);
+            } else {
+              const xmlCedula = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
   <username>${credentials.username}</username>
@@ -1441,48 +1506,59 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
   <NUMIDTERCERO>${cedulaKey}</NUMIDTERCERO>
  </documento>
 </root>`;
-            
-            try {
-              const response = await sendXmlToRndc(xmlCedula);
-              console.log(`[RNDC-C] Respuesta cédula ${cedulaKey}: success=${response.success}`);
-              if (response.success) {
-                const parsedXml = parser.parse(response.rawXml);
-                let doc = parsedXml?.root?.documento;
-                if (Array.isArray(doc)) doc = doc[doc.length - 1];
-                if (doc) {
-                  cedulaValid = true;
-                  cedulaData = {
-                    venceLicencia: String(doc.FECHAVENCIMIENTOLICENCIA || doc.fechavencimientolicencia || ""),
-                  };
-                  console.log(`[RNDC-C] Cédula ${cedulaKey}: Lic=${cedulaData.venceLicencia}`);
-                  cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+              
+              try {
+                const response = await sendXmlToRndc(xmlCedula);
+                if (response.success) {
+                  const parsedXml = parser.parse(response.rawXml);
+                  let doc = parsedXml?.root?.documento;
+                  if (Array.isArray(doc)) doc = doc[doc.length - 1];
+                  if (doc) {
+                    cedulaValid = true;
+                    cedulaData = {
+                      venceLicencia: String(doc.FECHAVENCIMIENTOLICENCIA || doc.fechavencimientolicencia || ""),
+                    };
+                    cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+                  } else {
+                    cedulaValid = false;
+                    const err = `Cédula '${row.cedula}' no encontrada en RNDC`;
+                    errors.push(err);
+                    cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+                  }
                 } else {
                   cedulaValid = false;
-                  const err = `Cédula '${row.cedula}' no encontrada en RNDC`;
+                  const err = `Error RNDC cédula: ${response.message}`;
                   errors.push(err);
                   cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
                 }
-              } else {
+              } catch (e) {
                 cedulaValid = false;
-                const err = `Error RNDC cédula: ${response.message}`;
+                const err = `Error consultando cédula en RNDC`;
                 errors.push(err);
                 cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
               }
-            } catch (e) {
-              cedulaValid = false;
-              const err = `Error consultando cédula en RNDC`;
-              errors.push(err);
-              cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+              
+              progress++;
+              const job = validationJobs.get(jobId);
+              if (job) {
+                job.progress = progress;
+                job.current = cedulaKey;
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 100));
             }
-            await new Promise(resolve => setTimeout(resolve, 100));
           }
+
+          validatedRows.push({ ...row, cedulaValid, cedulaData, errors });
         }
 
-        validatedRows.push({ ...row, cedulaValid, cedulaData, errors });
-      }
-
-      console.log(`[DESPACHOS-C] Completado. Cédulas únicas consultadas: ${cedulaCache.size}`);
-      res.json({ success: true, rows: validatedRows, uniqueCedulas: cedulaCache.size });
+        const job = validationJobs.get(jobId);
+        if (job) {
+          job.completed = true;
+          job.rows = validatedRows;
+        }
+        console.log(`[DESPACHOS-C] Job ${jobId} completado. Cédulas consultadas: ${cedulaCache.size}`);
+      })();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error consultando cédulas";
       res.status(400).json({ success: false, message });

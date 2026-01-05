@@ -37,6 +37,8 @@ export default function Despachos() {
   const [stepAComplete, setStepAComplete] = useState(false);
   const [stepBComplete, setStepBComplete] = useState(false);
   const [stepCComplete, setStepCComplete] = useState(false);
+  const [placasProgress, setPlacasProgress] = useState({ current: 0, total: 0, processing: false, currentItem: "" });
+  const [cedulasProgress, setCedulasProgress] = useState({ current: 0, total: 0, processing: false, currentItem: "" });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -115,7 +117,33 @@ export default function Despachos() {
         nitEmpresa: settings.companyNit,
       } : undefined;
       const response = await apiRequest("POST", "/api/despachos/validate-placas", { rows: data, credentials, onlyMissing });
-      return response.json();
+      const result = await response.json();
+      
+      if (result.jobId) {
+        setPlacasProgress({ current: 0, total: result.total, processing: true, currentItem: "" });
+        
+        return new Promise<{ rows: DespachoRow[] }>((resolve, reject) => {
+          const eventSource = new EventSource(`/api/despachos/progress/${result.jobId}`);
+          
+          eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.done) {
+              eventSource.close();
+              setPlacasProgress({ current: 0, total: 0, processing: false, currentItem: "" });
+              resolve({ rows: data.rows });
+            } else {
+              setPlacasProgress({ current: data.progress, total: data.total, processing: true, currentItem: data.current });
+            }
+          };
+          
+          eventSource.onerror = () => {
+            eventSource.close();
+            setPlacasProgress({ current: 0, total: 0, processing: false, currentItem: "" });
+            reject(new Error("Error en conexión SSE"));
+          };
+        });
+      }
+      return result;
     },
     onSuccess: (data) => {
       setRows(data.rows);
@@ -123,11 +151,12 @@ export default function Despachos() {
       const pendingCount = data.rows.filter((r: DespachoRow) => r.placaValid === null && r.placa).length;
       toast({
         title: "Paso B completado",
-        description: `${data.uniquePlacas || 0} placas consultadas. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
+        description: `Placas consultadas. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
         variant: pendingCount > 0 ? "destructive" : "default",
       });
     },
     onError: (error: Error) => {
+      setPlacasProgress({ current: 0, total: 0, processing: false, currentItem: "" });
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -140,7 +169,33 @@ export default function Despachos() {
         nitEmpresa: settings.companyNit,
       } : undefined;
       const response = await apiRequest("POST", "/api/despachos/validate-cedulas", { rows: data, credentials, onlyMissing });
-      return response.json();
+      const result = await response.json();
+      
+      if (result.jobId) {
+        setCedulasProgress({ current: 0, total: result.total, processing: true, currentItem: "" });
+        
+        return new Promise<{ rows: DespachoRow[] }>((resolve, reject) => {
+          const eventSource = new EventSource(`/api/despachos/progress/${result.jobId}`);
+          
+          eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.done) {
+              eventSource.close();
+              setCedulasProgress({ current: 0, total: 0, processing: false, currentItem: "" });
+              resolve({ rows: data.rows });
+            } else {
+              setCedulasProgress({ current: data.progress, total: data.total, processing: true, currentItem: data.current });
+            }
+          };
+          
+          eventSource.onerror = () => {
+            eventSource.close();
+            setCedulasProgress({ current: 0, total: 0, processing: false, currentItem: "" });
+            reject(new Error("Error en conexión SSE"));
+          };
+        });
+      }
+      return result;
     },
     onSuccess: (data) => {
       setRows(data.rows);
@@ -148,11 +203,12 @@ export default function Despachos() {
       const pendingCount = data.rows.filter((r: DespachoRow) => r.cedulaValid === null && r.cedula).length;
       toast({
         title: "Paso C completado",
-        description: `${data.uniqueCedulas || 0} cédulas consultadas. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
+        description: `Cédulas consultadas. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
         variant: pendingCount > 0 ? "destructive" : "default",
       });
     },
     onError: (error: Error) => {
+      setCedulasProgress({ current: 0, total: 0, processing: false, currentItem: "" });
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -312,12 +368,23 @@ export default function Despachos() {
                       <Car className="h-5 w-5 text-orange-600" />
                       <span className="font-semibold">B) Placas RNDC</span>
                       <span className={`ml-auto text-xs font-bold ${getProgressB() === 100 ? 'text-green-600' : 'text-orange-600'}`}>
-                        {getProgressB()}%
+                        {placasProgress.processing 
+                          ? `${placasProgress.current}/${placasProgress.total}` 
+                          : `${getProgressB()}%`}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">Consulta NUMIDPROPIETARIO, SOAT, Peso Vacío</p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {placasProgress.processing && placasProgress.currentItem 
+                        ? `Consultando: ${placasProgress.currentItem}` 
+                        : "Consulta NUMIDPROPIETARIO, SOAT, Peso Vacío"}
+                    </p>
                     <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
-                      <div className="bg-orange-500 h-1.5 rounded-full transition-all" style={{ width: `${getProgressB()}%` }}></div>
+                      <div 
+                        className="bg-orange-500 h-1.5 rounded-full transition-all" 
+                        style={{ width: placasProgress.processing 
+                          ? `${placasProgress.total > 0 ? (placasProgress.current / placasProgress.total) * 100 : 0}%` 
+                          : `${getProgressB()}%` }}
+                      ></div>
                     </div>
                     {stepBComplete && rows.filter(r => r.placaValid === null && r.placa).length > 0 && (
                       <p className="text-xs text-amber-600 mb-2">
@@ -358,12 +425,23 @@ export default function Despachos() {
                       <User className="h-5 w-5 text-purple-600" />
                       <span className="font-semibold">C) Cédulas RNDC</span>
                       <span className={`ml-auto text-xs font-bold ${getProgressC() === 100 ? 'text-green-600' : 'text-purple-600'}`}>
-                        {getProgressC()}%
+                        {cedulasProgress.processing 
+                          ? `${cedulasProgress.current}/${cedulasProgress.total}` 
+                          : `${getProgressC()}%`}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">Consulta FECHAVENCIMIENTOLICENCIA</p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {cedulasProgress.processing && cedulasProgress.currentItem 
+                        ? `Consultando: ${cedulasProgress.currentItem}` 
+                        : "Consulta FECHAVENCIMIENTOLICENCIA"}
+                    </p>
                     <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
-                      <div className="bg-purple-500 h-1.5 rounded-full transition-all" style={{ width: `${getProgressC()}%` }}></div>
+                      <div 
+                        className="bg-purple-500 h-1.5 rounded-full transition-all" 
+                        style={{ width: cedulasProgress.processing 
+                          ? `${cedulasProgress.total > 0 ? (cedulasProgress.current / cedulasProgress.total) * 100 : 0}%` 
+                          : `${getProgressC()}%` }}
+                      ></div>
                     </div>
                     {stepCComplete && rows.filter(r => r.cedulaValid === null && r.cedula).length > 0 && (
                       <p className="text-xs text-amber-600 mb-2">
