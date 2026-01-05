@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users, Car } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Tercero, Vehiculo } from "@shared/schema";
 
 const TIPOS_TERCERO = [
@@ -68,6 +68,9 @@ function TercerosSection() {
   const [filterTipo, setFilterTipo] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [editingTercero, setEditingTercero] = useState<Tercero | null>(null);
+  const [viewingTercero, setViewingTercero] = useState<Tercero | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { data: tercerosData, isLoading } = useQuery({
     queryKey: ["/api/terceros", filterTipo],
@@ -96,6 +99,12 @@ function TercerosSection() {
       ? t.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.numeroIdentificacion.includes(searchQuery)
       : true
+  );
+  
+  const totalPages = Math.ceil(filteredTerceros.length / itemsPerPage);
+  const paginatedTerceros = filteredTerceros.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   return (
@@ -147,10 +156,10 @@ function TercerosSection() {
               <tbody>
                 {isLoading ? (
                   <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Cargando...</td></tr>
-                ) : filteredTerceros.length === 0 ? (
+                ) : paginatedTerceros.length === 0 ? (
                   <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No hay terceros registrados</td></tr>
                 ) : (
-                  filteredTerceros.map((tercero) => (
+                  paginatedTerceros.map((tercero) => (
                     <tr key={tercero.id} className="border-t" data-testid={`row-tercero-${tercero.id}`}>
                       <td className="p-3">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -167,7 +176,15 @@ function TercerosSection() {
                       <td className="p-3">{tercero.flete || "-"}</td>
                       <td className="p-3">{tercero.latitud && tercero.longitud ? `${tercero.latitud}, ${tercero.longitud}` : "-"}</td>
                       <td className="p-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setViewingTercero(tercero)}
+                            data-testid={`button-view-tercero-${tercero.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -196,12 +213,79 @@ function TercerosSection() {
         </CardContent>
       </Card>
 
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
+            Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredTerceros.length)} de {filteredTerceros.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm">Página {currentPage} de {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              data-testid="button-next-page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <TerceroFormDialog
         open={showForm}
         onOpenChange={setShowForm}
         tercero={editingTercero}
       />
+
+      <TerceroViewDialog
+        open={!!viewingTercero}
+        onOpenChange={(open) => !open && setViewingTercero(null)}
+        tercero={viewingTercero}
+      />
     </div>
+  );
+}
+
+function TerceroViewDialog({ open, onOpenChange, tercero }: { open: boolean; onOpenChange: (open: boolean) => void; tercero: Tercero | null }) {
+  if (!tercero) return null;
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Detalle del Tercero</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div><span className="font-medium">Tipo:</span> {tercero.tipoTercero}</div>
+          <div><span className="font-medium">Identificación:</span> {tercero.tipoIdentificacion} {tercero.numeroIdentificacion}</div>
+          <div><span className="font-medium">Nombre:</span> {tercero.nombre} {tercero.primerApellido || ""} {tercero.segundoApellido || ""}</div>
+          <div><span className="font-medium">Granja:</span> {tercero.codigoGranja || "-"}</div>
+          <div><span className="font-medium">Flete:</span> {tercero.flete || "-"}</div>
+          <div><span className="font-medium">Sede:</span> {tercero.sede || "-"}</div>
+          <div><span className="font-medium">Nombre Sede:</span> {tercero.nombreSede || "-"}</div>
+          <div><span className="font-medium">Municipio:</span> {tercero.municipio || "-"}</div>
+          <div><span className="font-medium">Dirección:</span> {tercero.direccion || "-"}</div>
+          <div><span className="font-medium">País:</span> {tercero.pais || "-"}</div>
+          <div><span className="font-medium">Latitud:</span> {tercero.latitud || "-"}</div>
+          <div><span className="font-medium">Longitud:</span> {tercero.longitud || "-"}</div>
+          <div><span className="font-medium">Teléfono:</span> {tercero.telefonoFijo || "-"}</div>
+          <div><span className="font-medium">Celular:</span> {tercero.celular || "-"}</div>
+          <div><span className="font-medium">Email:</span> {tercero.email || "-"}</div>
+          <div><span className="font-medium">Régimen Simple:</span> {tercero.regimenSimple || "-"}</div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
