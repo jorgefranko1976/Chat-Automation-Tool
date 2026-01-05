@@ -1321,6 +1321,75 @@ export async function registerRoutes(
     });
   });
 
+  app.post("/api/despachos/validate-placas-internal", requireAuth, async (req, res) => {
+    try {
+      const parsed = despachosRowsSchema.parse(req.body);
+      const { rows, onlyMissing } = parsed;
+
+      console.log(`[DESPACHOS-B-INT] Validando ${rows.length} placas contra BD local`);
+      
+      const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; source: string; error?: string }>();
+      const validatedRows = [];
+
+      for (const row of rows) {
+        const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("placa"))];
+        let placaValid: boolean | null = row.placaValid;
+        let placaData = row.placaData;
+
+        if (onlyMissing && row.placaValid === true) {
+          validatedRows.push({ ...row, errors });
+          continue;
+        }
+
+        if (row.placa) {
+          const placaKey = row.placa.toUpperCase().replace(/\s/g, "");
+          
+          if (placaCache.has(placaKey)) {
+            const cached = placaCache.get(placaKey)!;
+            placaValid = cached.valid;
+            placaData = cached.data;
+            if (!cached.valid && cached.error) errors.push(cached.error);
+          } else {
+            const rndcCached = await storage.getRndcVehiculoByPlaca(placaKey);
+            if (rndcCached) {
+              placaValid = true;
+              placaData = {
+                propietarioId: rndcCached.propietarioNumeroId || "",
+                venceSoat: rndcCached.venceSoat || "",
+                pesoVacio: rndcCached.pesoVacio || "",
+              };
+              placaCache.set(placaKey, { valid: true, data: placaData, source: "rndc_cache" });
+            } else {
+              const localVehiculo = await storage.getVehiculoByPlaca(placaKey);
+              if (localVehiculo) {
+                placaValid = true;
+                placaData = {
+                  propietarioId: localVehiculo.propietarioNumeroId || "",
+                  venceSoat: localVehiculo.venceSoat || "",
+                  pesoVacio: "",
+                };
+                placaCache.set(placaKey, { valid: true, data: placaData, source: "vehiculos" });
+              } else {
+                placaValid = false;
+                const err = `Placa '${row.placa}' no encontrada en BD local`;
+                errors.push(err);
+                placaCache.set(placaKey, { valid: false, data: null, source: "none", error: err });
+              }
+            }
+          }
+        }
+
+        validatedRows.push({ ...row, placaValid, placaData, errors });
+      }
+
+      console.log(`[DESPACHOS-B-INT] Completado. Placas consultadas: ${placaCache.size}`);
+      res.json({ success: true, rows: validatedRows });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en validación interna";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
   app.post("/api/despachos/validate-placas", requireAuth, async (req, res) => {
     try {
       const parsed = despachosRowsSchema.parse(req.body);
@@ -1335,7 +1404,7 @@ export async function registerRoutes(
       const uniquePlacas = new Set(toProcess.map(r => r.placa.toUpperCase().replace(/\s/g, "")));
       
       validationJobs.set(jobId, { progress: 0, total: uniquePlacas.size, current: "", completed: false, rows: [] });
-      console.log(`[DESPACHOS-B] Job ${jobId}: Consultando ${uniquePlacas.size} placas únicas (onlyMissing=${onlyMissing})`);
+      console.log(`[DESPACHOS-B-RNDC] Job ${jobId}: Consultando ${uniquePlacas.size} placas únicas (onlyMissing=${onlyMissing})`);
       
       res.json({ success: true, jobId, total: uniquePlacas.size });
 
@@ -1393,12 +1462,26 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
                   if (Array.isArray(doc)) doc = doc[doc.length - 1];
                   if (doc) {
                     placaValid = true;
+                    const propId = String(doc.NUMIDPROPIETARIO || doc.numidpropietario || "");
+                    const soat = String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || "");
+                    const peso = String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || "");
+                    const ingresoId = String(doc.INGRESOID || doc.ingresoid || "");
                     placaData = {
-                      propietarioId: String(doc.NUMIDPROPIETARIO || doc.numidpropietario || ""),
-                      venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
-                      pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
+                      propietarioId: propId,
+                      venceSoat: soat,
+                      pesoVacio: peso,
                     };
                     placaCache.set(placaKey, { valid: true, data: placaData });
+                    
+                    storage.upsertRndcVehiculo({
+                      placa: placaKey,
+                      propietarioNumeroId: propId,
+                      venceSoat: soat,
+                      pesoVacio: peso,
+                      ingresoId,
+                      rawXml: response.rawXml,
+                      lastSyncedAt: new Date(),
+                    }).catch(err => console.log(`[RNDC-B] Error guardando cache para ${placaKey}:`, err));
                   } else {
                     placaValid = false;
                     console.log(`[RNDC-B] Placa ${placaKey} sin documento. Raw: ${response.rawXml?.substring(0, 500)}`);
