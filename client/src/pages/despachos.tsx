@@ -386,9 +386,9 @@ export default function Despachos() {
                           : `${getProgressB()}%` }}
                       ></div>
                     </div>
-                    {stepBComplete && rows.filter(r => r.placaValid === null && r.placa).length > 0 && (
+                    {stepBComplete && rows.filter(r => (r.placaValid === null || r.placaValid === false) && r.placa).length > 0 && (
                       <p className="text-xs text-amber-600 mb-2">
-                        {rows.filter(r => r.placaValid === null && r.placa).length} placas pendientes
+                        {rows.filter(r => r.placaValid === false && r.placa).length} fallidas, {rows.filter(r => r.placaValid === null && r.placa).length} pendientes
                       </p>
                     )}
                     <div className="flex gap-2">
@@ -404,7 +404,7 @@ export default function Despachos() {
                           <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
                         ) : stepBComplete ? "Todo" : "Consultar"}
                       </Button>
-                      {stepBComplete && rows.filter(r => r.placaValid === null && r.placa).length > 0 && (
+                      {stepBComplete && rows.filter(r => (r.placaValid === null || r.placaValid === false) && r.placa).length > 0 && (
                         <Button
                           onClick={() => validatePlacasMutation.mutate({ data: rows, onlyMissing: true })}
                           disabled={!hasCredentials || validatePlacasMutation.isPending}
@@ -412,7 +412,7 @@ export default function Despachos() {
                           size="sm"
                           data-testid="button-validate-placas-missing"
                         >
-                          Faltantes
+                          Reintentar
                         </Button>
                       )}
                     </div>
@@ -443,9 +443,9 @@ export default function Despachos() {
                           : `${getProgressC()}%` }}
                       ></div>
                     </div>
-                    {stepCComplete && rows.filter(r => r.cedulaValid === null && r.cedula).length > 0 && (
+                    {stepCComplete && rows.filter(r => (r.cedulaValid === null || r.cedulaValid === false) && r.cedula).length > 0 && (
                       <p className="text-xs text-amber-600 mb-2">
-                        {rows.filter(r => r.cedulaValid === null && r.cedula).length} cédulas pendientes
+                        {rows.filter(r => r.cedulaValid === false && r.cedula).length} fallidas, {rows.filter(r => r.cedulaValid === null && r.cedula).length} pendientes
                       </p>
                     )}
                     <div className="flex gap-2">
@@ -461,7 +461,7 @@ export default function Despachos() {
                           <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
                         ) : stepCComplete ? "Todo" : "Consultar"}
                       </Button>
-                      {stepCComplete && rows.filter(r => r.cedulaValid === null && r.cedula).length > 0 && (
+                      {stepCComplete && rows.filter(r => (r.cedulaValid === null || r.cedulaValid === false) && r.cedula).length > 0 && (
                         <Button
                           onClick={() => validateCedulasMutation.mutate({ data: rows, onlyMissing: true })}
                           disabled={!hasCredentials || validateCedulasMutation.isPending}
@@ -469,7 +469,7 @@ export default function Despachos() {
                           size="sm"
                           data-testid="button-validate-cedulas-missing"
                         >
-                          Faltantes
+                          Reintentar
                         </Button>
                       )}
                     </div>

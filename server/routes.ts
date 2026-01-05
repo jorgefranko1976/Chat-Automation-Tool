@@ -1331,7 +1331,7 @@ export async function registerRoutes(
       }
 
       const jobId = `placas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const toProcess = onlyMissing ? rows.filter(r => r.placaValid === null && r.placa) : rows.filter(r => r.placa);
+      const toProcess = onlyMissing ? rows.filter(r => r.placaValid !== true && r.placa) : rows.filter(r => r.placa);
       const uniquePlacas = new Set(toProcess.map(r => r.placa.toUpperCase().replace(/\s/g, "")));
       
       validationJobs.set(jobId, { progress: 0, total: uniquePlacas.size, current: "", completed: false, rows: [] });
@@ -1351,7 +1351,7 @@ export async function registerRoutes(
           let placaValid: boolean | null = row.placaValid;
           let placaData = row.placaData;
 
-          if (onlyMissing && row.placaValid !== null) {
+          if (onlyMissing && row.placaValid === true) {
             validatedRows.push({ ...row, errors });
             continue;
           }
@@ -1454,7 +1454,7 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
       }
 
       const jobId = `cedulas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const toProcess = onlyMissing ? rows.filter(r => r.cedulaValid === null && r.cedula) : rows.filter(r => r.cedula);
+      const toProcess = onlyMissing ? rows.filter(r => r.cedulaValid !== true && r.cedula) : rows.filter(r => r.cedula);
       const uniqueCedulas = new Set(toProcess.map(r => String(r.cedula).trim()));
       
       validationJobs.set(jobId, { progress: 0, total: uniqueCedulas.size, current: "", completed: false, rows: [] });
@@ -1474,7 +1474,7 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
           let cedulaValid: boolean | null = row.cedulaValid;
           let cedulaData = row.cedulaData;
 
-          if (onlyMissing && row.cedulaValid !== null) {
+          if (onlyMissing && row.cedulaValid === true) {
             validatedRows.push({ ...row, errors });
             continue;
           }
