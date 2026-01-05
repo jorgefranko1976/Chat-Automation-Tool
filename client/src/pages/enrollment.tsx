@@ -217,6 +217,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
     nombre: tercero?.nombre || "",
     primerApellido: tercero?.primerApellido || "",
     segundoApellido: tercero?.segundoApellido || "",
+    codigoGranja: tercero?.codigoGranja || "",
     sede: tercero?.sede || "",
     nombreSede: tercero?.nombreSede || "",
     telefonoFijo: tercero?.telefonoFijo || "",
@@ -353,6 +354,17 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
                   />
                 </div>
               </>
+            )}
+            {formData.tipoTercero === "GRANJA" && (
+              <div className="space-y-2">
+                <Label>Granja</Label>
+                <Input
+                  value={formData.codigoGranja}
+                  onChange={(e) => updateField("codigoGranja", e.target.value)}
+                  placeholder="Código de granja"
+                  data-testid="input-codigo-granja"
+                />
+              </div>
             )}
           </div>
 
