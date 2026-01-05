@@ -250,6 +250,7 @@ export const terceros = pgTable("terceros", {
   primerApellido: varchar("primer_apellido"),
   segundoApellido: varchar("segundo_apellido"),
   codigoGranja: varchar("codigo_granja"),
+  flete: varchar("flete"),
   sede: varchar("sede"),
   nombreSede: varchar("nombre_sede"),
   telefonoFijo: varchar("telefono_fijo"),
