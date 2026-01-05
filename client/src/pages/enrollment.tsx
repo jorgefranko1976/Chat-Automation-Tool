@@ -668,6 +668,7 @@ function VehiculosSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingVehiculo, setEditingVehiculo] = useState<Vehiculo | null>(null);
+  const [viewingVehiculo, setViewingVehiculo] = useState<Vehiculo | null>(null);
 
   const { data: vehiculosData, isLoading } = useQuery({
     queryKey: ["/api/vehiculos"],
@@ -745,7 +746,15 @@ function VehiculosSection() {
                       <td className="p-3">{vehiculo.venceSoat || "-"}</td>
                       <td className="p-3">{vehiculo.venceLicenciaConduccion || "-"}</td>
                       <td className="p-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setViewingVehiculo(vehiculo)}
+                            data-testid={`button-view-vehiculo-${vehiculo.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -779,7 +788,43 @@ function VehiculosSection() {
         onOpenChange={setShowForm}
         vehiculo={editingVehiculo}
       />
+
+      <VehiculoViewDialog
+        open={!!viewingVehiculo}
+        onOpenChange={(open) => !open && setViewingVehiculo(null)}
+        vehiculo={viewingVehiculo}
+      />
     </div>
+  );
+}
+
+function VehiculoViewDialog({ open, onOpenChange, vehiculo }: { open: boolean; onOpenChange: (open: boolean) => void; vehiculo: Vehiculo | null }) {
+  if (!vehiculo) return null;
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Detalle del Vehículo</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div><span className="font-medium">Placa:</span> {vehiculo.placa}</div>
+          <div><span className="font-medium">Toneladas:</span> {vehiculo.toneladas || "-"}</div>
+          <div><span className="font-medium">CC Propietario:</span> {vehiculo.propietarioCc || "-"}</div>
+          <div><span className="font-medium">Nombre Propietario:</span> {vehiculo.propietarioNombre || "-"}</div>
+          <div><span className="font-medium">Dirección Propietario:</span> {vehiculo.propietarioDireccion || "-"}</div>
+          <div><span className="font-medium">Teléfono Propietario:</span> {vehiculo.propietarioTelefono || "-"}</div>
+          <div><span className="font-medium">CC Conductor:</span> {vehiculo.conductorCc || "-"}</div>
+          <div><span className="font-medium">Nombre Conductor:</span> {vehiculo.conductorNombre || "-"}</div>
+          <div><span className="font-medium">Dirección Conductor:</span> {vehiculo.conductorDireccion || "-"}</div>
+          <div><span className="font-medium">Teléfono Conductor:</span> {vehiculo.conductorTelefono || "-"}</div>
+          <div><span className="font-medium">Vence SOAT:</span> {vehiculo.venceSoat || "-"}</div>
+          <div><span className="font-medium">Vence Licencia:</span> {vehiculo.venceLicenciaConduccion || "-"}</div>
+          <div><span className="font-medium">Vence Tecnomecánica:</span> {vehiculo.venceTecnicomecanica || "-"}</div>
+          <div><span className="font-medium">Comparendos:</span> {vehiculo.comparendos || "-"}</div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
