@@ -1165,26 +1165,54 @@ export async function registerRoutes(
       const { XMLParser } = await import("fast-xml-parser");
       const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
 
-      console.log(`[DESPACHOS] Iniciando validación de ${rows.length} filas`);
-      console.log(`[DESPACHOS] Credenciales RNDC: ${credentials ? 'SÍ' : 'NO'}`);
-      
-      const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; error?: string }>();
-      const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string } | null; error?: string }>();
+      res.status(400).json({ success: false, message: "Este endpoint ya no se usa. Use validate-internal, validate-placas, validate-cedulas" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en validación";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  const despachosRowsSchema = z.object({
+    rows: z.array(z.object({
+      granja: z.string(),
+      planta: z.string(),
+      placa: z.string(),
+      cedula: z.string(),
+      toneladas: z.string(),
+      fecha: z.string(),
+      granjaValid: z.boolean().nullable(),
+      granjaData: z.object({ sede: z.string(), coordenadas: z.string() }).nullable(),
+      plantaValid: z.boolean().nullable(),
+      plantaData: z.object({ sede: z.string(), coordenadas: z.string() }).nullable(),
+      placaValid: z.boolean().nullable(),
+      placaData: z.object({ propietarioId: z.string(), venceSoat: z.string(), pesoVacio: z.string() }).nullable(),
+      cedulaValid: z.boolean().nullable(),
+      cedulaData: z.object({ venceLicencia: z.string() }).nullable(),
+      errors: z.array(z.string()),
+    })),
+    credentials: z.object({
+      username: z.string(),
+      password: z.string(),
+      nitEmpresa: z.string(),
+    }).optional(),
+  });
+
+  app.post("/api/despachos/validate-internal", requireAuth, async (req, res) => {
+    try {
+      const parsed = despachosRowsSchema.parse(req.body);
+      const { rows } = parsed;
+      console.log(`[DESPACHOS-A] Validando datos internos de ${rows.length} filas`);
+
       const granjaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
       const plantaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
 
-      const validatedRows: any[] = [];
-      
+      const validatedRows = [];
       for (const row of rows) {
-        const errors: string[] = [];
+        const errors: string[] = [...row.errors.filter(e => !e.includes("Granja") && !e.includes("Planta"))];
         let granjaValid: boolean | null = null;
         let granjaData: { sede: string; coordenadas: string } | null = null;
         let plantaValid: boolean | null = null;
         let plantaData: { sede: string; coordenadas: string } | null = null;
-        let placaValid: boolean | null = null;
-        let placaData: { propietarioId: string; venceSoat: string; pesoVacio: string } | null = null;
-        let cedulaValid: boolean | null = null;
-        let cedulaData: { venceLicencia: string } | null = null;
 
         if (row.granja) {
           const granjaKey = row.granja.toLowerCase().trim();
@@ -1232,17 +1260,57 @@ export async function registerRoutes(
           }
         }
 
-        if (row.placa && credentials) {
+        validatedRows.push({
+          ...row,
+          granjaValid,
+          granjaData,
+          plantaValid,
+          plantaData,
+          errors,
+        });
+      }
+
+      console.log(`[DESPACHOS-A] Completado. Granjas únicas: ${granjaCache.size}, Plantas únicas: ${plantaCache.size}`);
+      res.json({ success: true, rows: validatedRows });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en validación interna";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.post("/api/despachos/validate-placas", requireAuth, async (req, res) => {
+    try {
+      const parsed = despachosRowsSchema.parse(req.body);
+      const { rows, credentials } = parsed;
+      
+      if (!credentials) {
+        return res.status(400).json({ success: false, message: "Credenciales RNDC requeridas" });
+      }
+
+      console.log(`[DESPACHOS-B] Consultando placas de ${rows.length} filas`);
+
+      const { XMLParser } = await import("fast-xml-parser");
+      const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+
+      const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; error?: string }>();
+
+      const validatedRows = [];
+      for (const row of rows) {
+        const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("placa"))];
+        let placaValid: boolean | null = row.placaValid;
+        let placaData = row.placaData;
+
+        if (row.placa) {
           const placaKey = row.placa.toUpperCase().replace(/\s/g, "");
-          console.log(`[RNDC] Consultando placa: ${placaKey}`);
+          
           if (placaCache.has(placaKey)) {
-            console.log(`[RNDC] Placa ${placaKey} encontrada en caché`);
             const cached = placaCache.get(placaKey)!;
             placaValid = cached.valid;
             placaData = cached.data;
             if (!cached.valid && cached.error) errors.push(cached.error);
+            console.log(`[RNDC-B] Placa ${placaKey} desde caché`);
           } else {
-            console.log(`[RNDC] Consultando placa ${placaKey} en RNDC...`);
+            console.log(`[RNDC-B] Consultando placa ${placaKey} en RNDC...`);
             const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
@@ -1264,10 +1332,11 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
             
             try {
               const response = await sendXmlToRndc(xmlPlaca);
-              console.log(`[RNDC] Respuesta placa ${placaKey}: success=${response.success}`);
+              console.log(`[RNDC-B] Respuesta placa ${placaKey}: success=${response.success}`);
               if (response.success) {
                 const parsedXml = parser.parse(response.rawXml);
-                const doc = parsedXml?.root?.documento;
+                let doc = parsedXml?.root?.documento;
+                if (Array.isArray(doc)) doc = doc[doc.length - 1];
                 if (doc) {
                   placaValid = true;
                   placaData = {
@@ -1275,44 +1344,74 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
                     venceSoat: String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || ""),
                     pesoVacio: String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || ""),
                   };
-                  console.log(`[RNDC] Placa ${placaKey}: PropietarioID=${placaData.propietarioId}, SOAT=${placaData.venceSoat}`);
+                  console.log(`[RNDC-B] Placa ${placaKey}: PropID=${placaData.propietarioId}, SOAT=${placaData.venceSoat}`);
                   placaCache.set(placaKey, { valid: true, data: placaData });
                 } else {
                   placaValid = false;
                   const err = `Placa '${row.placa}' no encontrada en RNDC`;
-                  console.log(`[RNDC] Placa ${placaKey}: no encontrada`);
                   errors.push(err);
                   placaCache.set(placaKey, { valid: false, data: null, error: err });
                 }
               } else {
                 placaValid = false;
                 const err = `Error RNDC placa: ${response.message}`;
-                console.log(`[RNDC] Error placa ${placaKey}: ${response.message}`);
                 errors.push(err);
                 placaCache.set(placaKey, { valid: false, data: null, error: err });
               }
             } catch (e) {
               placaValid = false;
               const err = `Error consultando placa en RNDC`;
-              console.log(`[RNDC] Excepción placa ${placaKey}: ${e}`);
               errors.push(err);
               placaCache.set(placaKey, { valid: false, data: null, error: err });
             }
             await new Promise(resolve => setTimeout(resolve, 100));
           }
-        } else if (row.placa) {
-          placaValid = null;
-          placaData = { propietarioId: "", venceSoat: "", pesoVacio: "" };
         }
 
-        if (row.cedula && credentials) {
+        validatedRows.push({ ...row, placaValid, placaData, errors });
+      }
+
+      console.log(`[DESPACHOS-B] Completado. Placas únicas consultadas: ${placaCache.size}`);
+      res.json({ success: true, rows: validatedRows, uniquePlacas: placaCache.size });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error consultando placas";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.post("/api/despachos/validate-cedulas", requireAuth, async (req, res) => {
+    try {
+      const parsed = despachosRowsSchema.parse(req.body);
+      const { rows, credentials } = parsed;
+      
+      if (!credentials) {
+        return res.status(400).json({ success: false, message: "Credenciales RNDC requeridas" });
+      }
+
+      console.log(`[DESPACHOS-C] Consultando cédulas de ${rows.length} filas`);
+
+      const { XMLParser } = await import("fast-xml-parser");
+      const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+
+      const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string } | null; error?: string }>();
+
+      const validatedRows = [];
+      for (const row of rows) {
+        const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("cédula"))];
+        let cedulaValid: boolean | null = row.cedulaValid;
+        let cedulaData = row.cedulaData;
+
+        if (row.cedula) {
           const cedulaKey = String(row.cedula).trim();
+          
           if (cedulaCache.has(cedulaKey)) {
             const cached = cedulaCache.get(cedulaKey)!;
             cedulaValid = cached.valid;
             cedulaData = cached.data;
             if (!cached.valid && cached.error) errors.push(cached.error);
+            console.log(`[RNDC-C] Cédula ${cedulaKey} desde caché`);
           } else {
+            console.log(`[RNDC-C] Consultando cédula ${cedulaKey} en RNDC...`);
             const xmlCedula = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
@@ -1334,14 +1433,17 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
             
             try {
               const response = await sendXmlToRndc(xmlCedula);
+              console.log(`[RNDC-C] Respuesta cédula ${cedulaKey}: success=${response.success}`);
               if (response.success) {
                 const parsedXml = parser.parse(response.rawXml);
-                const doc = parsedXml?.root?.documento;
+                let doc = parsedXml?.root?.documento;
+                if (Array.isArray(doc)) doc = doc[doc.length - 1];
                 if (doc) {
                   cedulaValid = true;
                   cedulaData = {
                     venceLicencia: String(doc.FECHAVENCIMIENTOLICENCIA || doc.fechavencimientolicencia || ""),
                   };
+                  console.log(`[RNDC-C] Cédula ${cedulaKey}: Lic=${cedulaData.venceLicencia}`);
                   cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
                 } else {
                   cedulaValid = false;
@@ -1363,28 +1465,15 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,FECHAVENCIMIENTOLICENCIA
             }
             await new Promise(resolve => setTimeout(resolve, 100));
           }
-        } else if (row.cedula) {
-          cedulaValid = null;
-          cedulaData = { venceLicencia: "" };
         }
 
-        validatedRows.push({
-          ...row,
-          granjaValid,
-          granjaData,
-          plantaValid,
-          plantaData,
-          placaValid,
-          placaData,
-          cedulaValid,
-          cedulaData,
-          errors,
-        });
+        validatedRows.push({ ...row, cedulaValid, cedulaData, errors });
       }
 
-      res.json({ success: true, rows: validatedRows });
+      console.log(`[DESPACHOS-C] Completado. Cédulas únicas consultadas: ${cedulaCache.size}`);
+      res.json({ success: true, rows: validatedRows, uniqueCedulas: cedulaCache.size });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Error en validación";
+      const message = error instanceof Error ? error.message : "Error consultando cédulas";
       res.status(400).json({ success: false, message });
     }
   });

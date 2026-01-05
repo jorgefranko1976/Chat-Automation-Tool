@@ -5,10 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Globe } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User } from "lucide-react";
 import * as XLSX from "xlsx";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -35,15 +34,18 @@ export default function Despachos() {
   const { settings } = useSettings();
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<DespachoRow[]>([]);
-  const [isValidating, setIsValidating] = useState(false);
-  const [validationComplete, setValidationComplete] = useState(false);
+  const [stepAComplete, setStepAComplete] = useState(false);
+  const [stepBComplete, setStepBComplete] = useState(false);
+  const [stepCComplete, setStepCComplete] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
       setRows([]);
-      setValidationComplete(false);
+      setStepAComplete(false);
+      setStepBComplete(false);
+      setStepCComplete(false);
       parseExcel(selectedFile);
     }
   };
@@ -85,55 +87,79 @@ export default function Despachos() {
     setRows(parsed);
   };
 
-  const validateMutation = useMutation({
+  const validateInternalMutation = useMutation({
+    mutationFn: async (data: DespachoRow[]) => {
+      const response = await apiRequest("POST", "/api/despachos/validate-internal", { rows: data });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setRows(data.rows);
+      setStepAComplete(true);
+      const errorCount = data.rows.filter((r: DespachoRow) => r.errors.length > 0).length;
+      toast({
+        title: "Paso A completado",
+        description: `Datos internos validados. ${errorCount} errores encontrados.`,
+        variant: errorCount > 0 ? "destructive" : "default",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const validatePlacasMutation = useMutation({
     mutationFn: async (data: DespachoRow[]) => {
       const credentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit ? {
         username: settings.usernameRndc,
         password: settings.passwordRndc,
         nitEmpresa: settings.companyNit,
       } : undefined;
-      const response = await apiRequest("POST", "/api/despachos/validate", { rows: data, credentials });
+      const response = await apiRequest("POST", "/api/despachos/validate-placas", { rows: data, credentials });
       return response.json();
     },
     onSuccess: (data) => {
       setRows(data.rows);
-      setValidationComplete(true);
-      const errorCount = data.rows.filter((r: DespachoRow) => r.errors.length > 0).length;
-      if (errorCount > 0) {
-        toast({
-          title: "Validación completada con errores",
-          description: `${errorCount} de ${data.rows.length} filas tienen errores`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Validación exitosa",
-          description: `${data.rows.length} filas validadas correctamente`,
-        });
-      }
+      setStepBComplete(true);
+      const errorCount = data.rows.filter((r: DespachoRow) => 
+        r.errors.some(e => e.toLowerCase().includes("placa"))
+      ).length;
+      toast({
+        title: "Paso B completado",
+        description: `Placas consultadas en RNDC. ${data.uniquePlacas || 0} placas únicas procesadas.`,
+        variant: errorCount > 0 ? "destructive" : "default",
+      });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error en validación",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
-  const handleValidate = () => {
-    if (rows.length === 0) {
+  const validateCedulasMutation = useMutation({
+    mutationFn: async (data: DespachoRow[]) => {
+      const credentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit ? {
+        username: settings.usernameRndc,
+        password: settings.passwordRndc,
+        nitEmpresa: settings.companyNit,
+      } : undefined;
+      const response = await apiRequest("POST", "/api/despachos/validate-cedulas", { rows: data, credentials });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setRows(data.rows);
+      setStepCComplete(true);
+      const errorCount = data.rows.filter((r: DespachoRow) => 
+        r.errors.some(e => e.toLowerCase().includes("cédula"))
+      ).length;
       toast({
-        title: "Sin datos",
-        description: "Por favor cargue un archivo Excel primero",
-        variant: "destructive",
+        title: "Paso C completado",
+        description: `Cédulas consultadas en RNDC. ${data.uniqueCedulas || 0} cédulas únicas procesadas.`,
+        variant: errorCount > 0 ? "destructive" : "default",
       });
-      return;
-    }
-    setIsValidating(true);
-    validateMutation.mutate(rows);
-    setIsValidating(false);
-  };
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
 
   const handleExportExcel = () => {
     const exportData = rows.map((row) => ({
@@ -163,7 +189,9 @@ export default function Despachos() {
   const clearFile = () => {
     setFile(null);
     setRows([]);
-    setValidationComplete(false);
+    setStepAComplete(false);
+    setStepBComplete(false);
+    setStepCComplete(false);
   };
 
   const getStatusIcon = (valid: boolean | null) => {
@@ -172,6 +200,8 @@ export default function Despachos() {
     return <AlertCircle className="h-4 w-4 text-red-500" />;
   };
 
+  const hasCredentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit;
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -179,7 +209,7 @@ export default function Despachos() {
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold text-foreground">Módulo Despachos</h1>
           <p className="text-sm text-muted-foreground">
-            Validación de despachos contra base de datos local y RNDC
+            Validación de despachos en 3 pasos: A) Datos internos, B) Placas RNDC, C) Cédulas RNDC
           </p>
         </div>
 
@@ -223,35 +253,86 @@ export default function Despachos() {
                 <strong>Columnas esperadas:</strong> GRANJA, PLANTA, PLACA, CEDULA, TONELADAS, FECHA
               </div>
 
-              {(!settings.usernameRndc || !settings.passwordRndc || !settings.companyNit) && (
+              {!hasCredentials && (
                 <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-md">
                   <AlertCircle className="h-4 w-4" />
-                  <span>Configure las credenciales RNDC en Configuración para consultar PLACA y CEDULA en el RNDC.</span>
+                  <span>Configure las credenciales RNDC en Configuración para los pasos B y C.</span>
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleValidate}
-                  disabled={rows.length === 0 || validateMutation.isPending}
-                  data-testid="button-validate"
-                >
-                  {validateMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Validando...
-                    </>
-                  ) : (
-                    "Validar Datos"
-                  )}
-                </Button>
-                {validationComplete && (
-                  <Button variant="outline" onClick={handleExportExcel} data-testid="button-export">
-                    <Download className="mr-2 h-4 w-4" />
-                    Exportar Excel Enriquecido
-                  </Button>
-                )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className={`border-2 ${stepAComplete ? 'border-green-500 bg-green-50' : 'border-blue-200'}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Database className="h-5 w-5 text-blue-600" />
+                      <span className="font-semibold">A) Datos Internos</span>
+                      {stepAComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">Valida Granjas y Plantas contra la base de datos local</p>
+                    <Button
+                      onClick={() => validateInternalMutation.mutate(rows)}
+                      disabled={rows.length === 0 || validateInternalMutation.isPending}
+                      className="w-full"
+                      data-testid="button-validate-internal"
+                    >
+                      {validateInternalMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Validando...</>
+                      ) : stepAComplete ? "Revalidar" : "Validar"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className={`border-2 ${stepBComplete ? 'border-green-500 bg-green-50' : stepAComplete ? 'border-orange-200' : 'border-gray-200'}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Car className="h-5 w-5 text-orange-600" />
+                      <span className="font-semibold">B) Placas RNDC</span>
+                      {stepBComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">Consulta NUMIDPROPIETARIO, SOAT, Peso Vacío</p>
+                    <Button
+                      onClick={() => validatePlacasMutation.mutate(rows)}
+                      disabled={rows.length === 0 || !hasCredentials || validatePlacasMutation.isPending}
+                      className="w-full"
+                      variant={stepAComplete ? "default" : "outline"}
+                      data-testid="button-validate-placas"
+                    >
+                      {validatePlacasMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Consultando...</>
+                      ) : stepBComplete ? "Reconsultar" : "Consultar RNDC"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className={`border-2 ${stepCComplete ? 'border-green-500 bg-green-50' : stepBComplete ? 'border-purple-200' : 'border-gray-200'}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="h-5 w-5 text-purple-600" />
+                      <span className="font-semibold">C) Cédulas RNDC</span>
+                      {stepCComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">Consulta FECHAVENCIMIENTOLICENCIA</p>
+                    <Button
+                      onClick={() => validateCedulasMutation.mutate(rows)}
+                      disabled={rows.length === 0 || !hasCredentials || validateCedulasMutation.isPending}
+                      className="w-full"
+                      variant={stepBComplete ? "default" : "outline"}
+                      data-testid="button-validate-cedulas"
+                    >
+                      {validateCedulasMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Consultando...</>
+                      ) : stepCComplete ? "Reconsultar" : "Consultar RNDC"}
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
+
+              {(stepAComplete || stepBComplete || stepCComplete) && (
+                <Button variant="outline" onClick={handleExportExcel} data-testid="button-export">
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar Excel Enriquecido
+                </Button>
+              )}
             </CardContent>
           </Card>
 
@@ -267,22 +348,22 @@ export default function Despachos() {
                       <tr>
                         <th className="text-left p-3 font-medium">#</th>
                         <th className="text-left p-3 font-medium">Granja</th>
-                        <th className="text-left p-3 font-medium">Sede Granja</th>
-                        <th className="text-left p-3 font-medium">Coord. Granja</th>
+                        <th className="text-left p-3 font-medium">Sede</th>
+                        <th className="text-left p-3 font-medium">Coord.</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Planta</th>
-                        <th className="text-left p-3 font-medium">Sede Planta</th>
-                        <th className="text-left p-3 font-medium">Coord. Planta</th>
+                        <th className="text-left p-3 font-medium">Sede</th>
+                        <th className="text-left p-3 font-medium">Coord.</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Placa</th>
-                        <th className="text-left p-3 font-medium">ID Propietario</th>
-                        <th className="text-left p-3 font-medium">Vence SOAT</th>
-                        <th className="text-left p-3 font-medium">Peso Vacío</th>
+                        <th className="text-left p-3 font-medium">ID Prop.</th>
+                        <th className="text-left p-3 font-medium">SOAT</th>
+                        <th className="text-left p-3 font-medium">Peso</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Cédula</th>
-                        <th className="text-left p-3 font-medium">Vence Licencia</th>
+                        <th className="text-left p-3 font-medium">Lic.</th>
                         <th className="text-center p-3 font-medium">OK</th>
-                        <th className="text-left p-3 font-medium">Toneladas</th>
+                        <th className="text-left p-3 font-medium">Ton</th>
                         <th className="text-left p-3 font-medium">Fecha</th>
                         <th className="text-left p-3 font-medium">Errores</th>
                       </tr>
@@ -301,7 +382,7 @@ export default function Despachos() {
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:underline"
                               >
-                                {row.granjaData.coordenadas}
+                                Ver
                               </a>
                             ) : "-"}
                           </td>
@@ -316,7 +397,7 @@ export default function Despachos() {
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:underline"
                               >
-                                {row.plantaData.coordenadas}
+                                Ver
                               </a>
                             ) : "-"}
                           </td>
