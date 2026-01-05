@@ -108,25 +108,23 @@ export default function Despachos() {
   });
 
   const validatePlacasMutation = useMutation({
-    mutationFn: async (data: DespachoRow[]) => {
+    mutationFn: async ({ data, onlyMissing }: { data: DespachoRow[], onlyMissing: boolean }) => {
       const credentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit ? {
         username: settings.usernameRndc,
         password: settings.passwordRndc,
         nitEmpresa: settings.companyNit,
       } : undefined;
-      const response = await apiRequest("POST", "/api/despachos/validate-placas", { rows: data, credentials });
+      const response = await apiRequest("POST", "/api/despachos/validate-placas", { rows: data, credentials, onlyMissing });
       return response.json();
     },
     onSuccess: (data) => {
       setRows(data.rows);
       setStepBComplete(true);
-      const errorCount = data.rows.filter((r: DespachoRow) => 
-        r.errors.some(e => e.toLowerCase().includes("placa"))
-      ).length;
+      const pendingCount = data.rows.filter((r: DespachoRow) => r.placaValid === null && r.placa).length;
       toast({
         title: "Paso B completado",
-        description: `Placas consultadas en RNDC. ${data.uniquePlacas || 0} placas únicas procesadas.`,
-        variant: errorCount > 0 ? "destructive" : "default",
+        description: `${data.uniquePlacas || 0} placas consultadas. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
+        variant: pendingCount > 0 ? "destructive" : "default",
       });
     },
     onError: (error: Error) => {
@@ -135,25 +133,23 @@ export default function Despachos() {
   });
 
   const validateCedulasMutation = useMutation({
-    mutationFn: async (data: DespachoRow[]) => {
+    mutationFn: async ({ data, onlyMissing }: { data: DespachoRow[], onlyMissing: boolean }) => {
       const credentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit ? {
         username: settings.usernameRndc,
         password: settings.passwordRndc,
         nitEmpresa: settings.companyNit,
       } : undefined;
-      const response = await apiRequest("POST", "/api/despachos/validate-cedulas", { rows: data, credentials });
+      const response = await apiRequest("POST", "/api/despachos/validate-cedulas", { rows: data, credentials, onlyMissing });
       return response.json();
     },
     onSuccess: (data) => {
       setRows(data.rows);
       setStepCComplete(true);
-      const errorCount = data.rows.filter((r: DespachoRow) => 
-        r.errors.some(e => e.toLowerCase().includes("cédula"))
-      ).length;
+      const pendingCount = data.rows.filter((r: DespachoRow) => r.cedulaValid === null && r.cedula).length;
       toast({
         title: "Paso C completado",
-        description: `Cédulas consultadas en RNDC. ${data.uniqueCedulas || 0} cédulas únicas procesadas.`,
-        variant: errorCount > 0 ? "destructive" : "default",
+        description: `${data.uniqueCedulas || 0} cédulas consultadas. ${pendingCount > 0 ? `${pendingCount} pendientes.` : ''}`,
+        variant: pendingCount > 0 ? "destructive" : "default",
       });
     },
     onError: (error: Error) => {
@@ -289,18 +285,37 @@ export default function Despachos() {
                       <span className="font-semibold">B) Placas RNDC</span>
                       {stepBComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">Consulta NUMIDPROPIETARIO, SOAT, Peso Vacío</p>
-                    <Button
-                      onClick={() => validatePlacasMutation.mutate(rows)}
-                      disabled={rows.length === 0 || !hasCredentials || validatePlacasMutation.isPending}
-                      className="w-full"
-                      variant={stepAComplete ? "default" : "outline"}
-                      data-testid="button-validate-placas"
-                    >
-                      {validatePlacasMutation.isPending ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Consultando...</>
-                      ) : stepBComplete ? "Reconsultar" : "Consultar RNDC"}
-                    </Button>
+                    <p className="text-xs text-muted-foreground mb-2">Consulta NUMIDPROPIETARIO, SOAT, Peso Vacío</p>
+                    {stepBComplete && rows.filter(r => r.placaValid === null && r.placa).length > 0 && (
+                      <p className="text-xs text-amber-600 mb-2">
+                        {rows.filter(r => r.placaValid === null && r.placa).length} placas pendientes
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => validatePlacasMutation.mutate({ data: rows, onlyMissing: false })}
+                        disabled={rows.length === 0 || !hasCredentials || validatePlacasMutation.isPending}
+                        className="flex-1"
+                        variant={stepAComplete ? "default" : "outline"}
+                        size="sm"
+                        data-testid="button-validate-placas"
+                      >
+                        {validatePlacasMutation.isPending ? (
+                          <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
+                        ) : stepBComplete ? "Todo" : "Consultar"}
+                      </Button>
+                      {stepBComplete && rows.filter(r => r.placaValid === null && r.placa).length > 0 && (
+                        <Button
+                          onClick={() => validatePlacasMutation.mutate({ data: rows, onlyMissing: true })}
+                          disabled={!hasCredentials || validatePlacasMutation.isPending}
+                          variant="outline"
+                          size="sm"
+                          data-testid="button-validate-placas-missing"
+                        >
+                          Faltantes
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -311,18 +326,37 @@ export default function Despachos() {
                       <span className="font-semibold">C) Cédulas RNDC</span>
                       {stepCComplete && <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">Consulta FECHAVENCIMIENTOLICENCIA</p>
-                    <Button
-                      onClick={() => validateCedulasMutation.mutate(rows)}
-                      disabled={rows.length === 0 || !hasCredentials || validateCedulasMutation.isPending}
-                      className="w-full"
-                      variant={stepBComplete ? "default" : "outline"}
-                      data-testid="button-validate-cedulas"
-                    >
-                      {validateCedulasMutation.isPending ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Consultando...</>
-                      ) : stepCComplete ? "Reconsultar" : "Consultar RNDC"}
-                    </Button>
+                    <p className="text-xs text-muted-foreground mb-2">Consulta FECHAVENCIMIENTOLICENCIA</p>
+                    {stepCComplete && rows.filter(r => r.cedulaValid === null && r.cedula).length > 0 && (
+                      <p className="text-xs text-amber-600 mb-2">
+                        {rows.filter(r => r.cedulaValid === null && r.cedula).length} cédulas pendientes
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => validateCedulasMutation.mutate({ data: rows, onlyMissing: false })}
+                        disabled={rows.length === 0 || !hasCredentials || validateCedulasMutation.isPending}
+                        className="flex-1"
+                        variant={stepBComplete ? "default" : "outline"}
+                        size="sm"
+                        data-testid="button-validate-cedulas"
+                      >
+                        {validateCedulasMutation.isPending ? (
+                          <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
+                        ) : stepCComplete ? "Todo" : "Consultar"}
+                      </Button>
+                      {stepCComplete && rows.filter(r => r.cedulaValid === null && r.cedula).length > 0 && (
+                        <Button
+                          onClick={() => validateCedulasMutation.mutate({ data: rows, onlyMissing: true })}
+                          disabled={!hasCredentials || validateCedulasMutation.isPending}
+                          variant="outline"
+                          size="sm"
+                          data-testid="button-validate-cedulas-missing"
+                        >
+                          Faltantes
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </div>

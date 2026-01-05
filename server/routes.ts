@@ -1195,6 +1195,7 @@ export async function registerRoutes(
       password: z.string(),
       nitEmpresa: z.string(),
     }).optional(),
+    onlyMissing: z.boolean().optional(),
   });
 
   app.post("/api/despachos/validate-internal", requireAuth, async (req, res) => {
@@ -1281,13 +1282,13 @@ export async function registerRoutes(
   app.post("/api/despachos/validate-placas", requireAuth, async (req, res) => {
     try {
       const parsed = despachosRowsSchema.parse(req.body);
-      const { rows, credentials } = parsed;
+      const { rows, credentials, onlyMissing } = parsed;
       
       if (!credentials) {
         return res.status(400).json({ success: false, message: "Credenciales RNDC requeridas" });
       }
 
-      console.log(`[DESPACHOS-B] Consultando placas de ${rows.length} filas`);
+      console.log(`[DESPACHOS-B] Consultando placas de ${rows.length} filas (onlyMissing=${onlyMissing})`);
 
       const { XMLParser } = await import("fast-xml-parser");
       const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
@@ -1299,6 +1300,11 @@ export async function registerRoutes(
         const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("placa"))];
         let placaValid: boolean | null = row.placaValid;
         let placaData = row.placaData;
+
+        if (onlyMissing && row.placaValid !== null) {
+          validatedRows.push({ ...row, errors });
+          continue;
+        }
 
         if (row.placa) {
           const placaKey = row.placa.toUpperCase().replace(/\s/g, "");
@@ -1382,13 +1388,13 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
   app.post("/api/despachos/validate-cedulas", requireAuth, async (req, res) => {
     try {
       const parsed = despachosRowsSchema.parse(req.body);
-      const { rows, credentials } = parsed;
+      const { rows, credentials, onlyMissing } = parsed;
       
       if (!credentials) {
         return res.status(400).json({ success: false, message: "Credenciales RNDC requeridas" });
       }
 
-      console.log(`[DESPACHOS-C] Consultando cédulas de ${rows.length} filas`);
+      console.log(`[DESPACHOS-C] Consultando cédulas de ${rows.length} filas (onlyMissing=${onlyMissing})`);
 
       const { XMLParser } = await import("fast-xml-parser");
       const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
@@ -1400,6 +1406,11 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
         const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("cédula"))];
         let cedulaValid: boolean | null = row.cedulaValid;
         let cedulaData = row.cedulaData;
+
+        if (onlyMissing && row.cedulaValid !== null) {
+          validatedRows.push({ ...row, errors });
+          continue;
+        }
 
         if (row.cedula) {
           const cedulaKey = String(row.cedula).trim();
