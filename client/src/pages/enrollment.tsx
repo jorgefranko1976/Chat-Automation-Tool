@@ -325,7 +325,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
               />
             </div>
             <div className="space-y-2">
-              <Label>Nombre *</Label>
+              <Label>{formData.tipoIdentificacion === "NIT" ? "Razón Social *" : "Nombre *"}</Label>
               <Input
                 value={formData.nombre}
                 onChange={(e) => updateField("nombre", e.target.value)}
@@ -333,23 +333,27 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
                 data-testid="input-nombre"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Primer Apellido *</Label>
-              <Input
-                value={formData.primerApellido}
-                onChange={(e) => updateField("primerApellido", e.target.value)}
-                required
-                data-testid="input-primer-apellido"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Segundo Apellido</Label>
-              <Input
-                value={formData.segundoApellido}
-                onChange={(e) => updateField("segundoApellido", e.target.value)}
-                data-testid="input-segundo-apellido"
-              />
-            </div>
+            {formData.tipoIdentificacion !== "NIT" && (
+              <>
+                <div className="space-y-2">
+                  <Label>Primer Apellido *</Label>
+                  <Input
+                    value={formData.primerApellido}
+                    onChange={(e) => updateField("primerApellido", e.target.value)}
+                    required
+                    data-testid="input-primer-apellido"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Segundo Apellido</Label>
+                  <Input
+                    value={formData.segundoApellido}
+                    onChange={(e) => updateField("segundoApellido", e.target.value)}
+                    data-testid="input-segundo-apellido"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="bg-primary text-primary-foreground px-4 py-2 -mx-6 font-medium">
