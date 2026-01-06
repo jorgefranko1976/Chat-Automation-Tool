@@ -535,7 +535,7 @@ export default function Despachos() {
     <CONSECUTIVOREMESA>${currentConsecutivo}</CONSECUTIVOREMESA>
     <CODOPERACIONTRANSPORTE>G</CODOPERACIONTRANSPORTE>
     <CODNATURALEZACARGA>1</CODNATURALEZACARGA>
-    <CANTIDADCARGADA>${row.toneladas}</CANTIDADCARGADA>
+    <CANTIDADCARGADA>${row.placaData?.capacidad || row.toneladas}</CANTIDADCARGADA>
     <UNIDADMEDIDACAPACIDAD>1</UNIDADMEDIDACAPACIDAD>
     <CODTIPOEMPAQUE>0</CODTIPOEMPAQUE>
     <MERCANCIAREMESA>002309</MERCANCIAREMESA>
@@ -563,7 +563,7 @@ export default function Despachos() {
       remesas.push({
         consecutivo: currentConsecutivo,
         placa: row.placa,
-        cantidadCargada: row.toneladas,
+        cantidadCargada: row.placaData?.capacidad || row.toneladas,
         fechaCargue: row.fecha,
         horaCargue: row.horaCargue || "08:00",
         fechaDescargue: row.fecha,
