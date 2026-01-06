@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -31,6 +35,18 @@ interface DespachoRow {
   errors: string[];
 }
 
+interface GeneratedRemesa {
+  consecutivo: number;
+  placa: string;
+  cantidadCargada: string;
+  fechaCargue: string;
+  horaCargue: string;
+  fechaDescargue: string;
+  horaDescargue: string;
+  xmlRequest: string;
+  status: "pending" | "success" | "error";
+}
+
 export default function Despachos() {
   const { toast } = useToast();
   const { settings, saveSettings } = useSettings();
@@ -45,6 +61,7 @@ export default function Despachos() {
   const [showSavedDespachos, setShowSavedDespachos] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [sortOrder, setSortOrder] = useState<"default" | "success_first" | "errors_first">("default");
+  const [generatedRemesas, setGeneratedRemesas] = useState<GeneratedRemesa[]>([]);
 
   const { data: savedDespachosData, refetch: refetchDespachos } = useQuery({
     queryKey: ["/api/despachos"],
@@ -498,7 +515,7 @@ export default function Despachos() {
     }
 
     let currentConsecutivo = settings.consecutivo;
-    const xmls: string[] = [];
+    const remesas: GeneratedRemesa[] = [];
     
     const selectedRowsArray = Array.from(selectedRows).map(idx => rows[idx]).filter(r => r);
 
@@ -542,15 +559,33 @@ export default function Despachos() {
     <NUMIDGPS>${settings.numIdGps}</NUMIDGPS>
   </variables>
 </root>`;
-      xmls.push(xml);
+      
+      remesas.push({
+        consecutivo: currentConsecutivo,
+        placa: row.placa,
+        cantidadCargada: row.toneladas,
+        fechaCargue: row.fecha,
+        horaCargue: row.horaCargue || "08:00",
+        fechaDescargue: row.fecha,
+        horaDescargue: row.horaDescargue || "13:00",
+        xmlRequest: xml,
+        status: "pending",
+      });
       currentConsecutivo++;
     }
 
-    // Guardar el nuevo consecutivo
+    setGeneratedRemesas(remesas);
     saveSettings({ ...settings, consecutivo: currentConsecutivo });
 
-    // Descargar como archivo
-    const allXml = xmls.join("\n\n<!-- ==================== SIGUIENTE REMESA ==================== -->\n\n");
+    toast({ 
+      title: "XMLs Generados", 
+      description: `${remesas.length} remesas listas para enviar. Consecutivo actualizado a ${currentConsecutivo}` 
+    });
+  };
+
+  const handleDownloadRemesas = () => {
+    if (generatedRemesas.length === 0) return;
+    const allXml = generatedRemesas.map(r => r.xmlRequest).join("\n\n<!-- ==================== SIGUIENTE REMESA ==================== -->\n\n");
     const blob = new Blob([allXml], { type: "application/xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -558,11 +593,18 @@ export default function Despachos() {
     a.download = `remesas_${new Date().toISOString().split("T")[0]}.xml`;
     a.click();
     URL.revokeObjectURL(url);
+  };
 
-    toast({ 
-      title: "Remesas generadas", 
-      description: `${xmls.length} remesas XML generadas. Consecutivo actualizado a ${currentConsecutivo}` 
-    });
+  const clearGeneratedRemesas = () => {
+    setGeneratedRemesas([]);
+  };
+
+  const getRemesaStatusBadge = (status: string) => {
+    switch (status) {
+      case "success": return <Badge className="bg-green-500">Listo</Badge>;
+      case "error": return <Badge variant="destructive">Error</Badge>;
+      default: return <Badge variant="secondary">Listo</Badge>;
+    }
   };
 
   return (
@@ -1098,6 +1140,92 @@ export default function Despachos() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {generatedRemesas.length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileCode className="h-5 w-5" /> XMLs Generados ({generatedRemesas.length})
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">Remesas listas para enviar al RNDC</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadRemesas}
+                    data-testid="button-download-remesas"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar XML
+                  </Button>
+                  <Button
+                    className="bg-green-600 hover:bg-green-700"
+                    data-testid="button-send-remesas"
+                  >
+                    Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearGeneratedRemesas}
+                    data-testid="button-clear-remesas"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-[300px] overflow-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Consecutivo</TableHead>
+                        <TableHead>Placa</TableHead>
+                        <TableHead>Cantidad Cargada</TableHead>
+                        <TableHead>Fecha Cargue</TableHead>
+                        <TableHead>Fecha Descargue</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>XML</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {generatedRemesas.map((remesa, i) => (
+                        <TableRow key={i} data-testid={`row-remesa-${i}`}>
+                          <TableCell className="font-mono">{remesa.consecutivo}</TableCell>
+                          <TableCell>{remesa.placa}</TableCell>
+                          <TableCell className="font-mono">{remesa.cantidadCargada}</TableCell>
+                          <TableCell>{remesa.fechaCargue} {remesa.horaCargue}</TableCell>
+                          <TableCell>{remesa.fechaDescargue} {remesa.horaDescargue}</TableCell>
+                          <TableCell>{getRemesaStatusBadge(remesa.status)}</TableCell>
+                          <TableCell>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" data-testid={`button-view-xml-${i}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-3xl max-h-[80vh]">
+                                <DialogHeader>
+                                  <DialogTitle>XML Remesa - Consecutivo {remesa.consecutivo}</DialogTitle>
+                                </DialogHeader>
+                                <ScrollArea className="h-[60vh]">
+                                  <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono">
+                                    {remesa.xmlRequest}
+                                  </pre>
+                                </ScrollArea>
+                              </DialogContent>
+                            </Dialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
