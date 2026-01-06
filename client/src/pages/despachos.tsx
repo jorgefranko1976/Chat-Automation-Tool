@@ -168,7 +168,12 @@ export default function Despachos() {
       if (typeof fechaVal === "number") {
         const date = XLSX.SSF.parse_date_code(fechaVal);
         if (date) {
-          fechaVal = `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
+          fechaVal = `${String(date.d).padStart(2, "0")}/${String(date.m).padStart(2, "0")}/${date.y}`;
+        }
+      } else if (typeof fechaVal === "string" && fechaVal.includes("-")) {
+        const parts = fechaVal.split("-");
+        if (parts.length === 3 && parts[0].length === 4) {
+          fechaVal = `${parts[2].padStart(2, "0")}/${parts[1].padStart(2, "0")}/${parts[0]}`;
         }
       }
 
