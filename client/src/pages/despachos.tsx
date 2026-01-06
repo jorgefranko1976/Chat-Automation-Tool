@@ -778,6 +778,7 @@ export default function Despachos() {
                         <th className="text-left p-3 font-medium">ID Prop.</th>
                         <th className="text-left p-3 font-medium">SOAT</th>
                         <th className="text-left p-3 font-medium">Peso</th>
+                        <th className="text-left p-3 font-medium">Cap.</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Cédula</th>
                         <th className="text-left p-3 font-medium">Lic.</th>
@@ -851,6 +852,7 @@ export default function Despachos() {
                           <td className="p-3 text-xs">{row.placaData?.propietarioId || "-"}</td>
                           <td className="p-3 text-xs">{row.placaData?.venceSoat || "-"}</td>
                           <td className="p-3 text-xs">{row.placaData?.pesoVacio || "-"}</td>
+                          <td className="p-3 text-xs">{row.placaData?.capacidad || "-"}</td>
                           <td className="p-3 text-center">{getStatusIcon(row.placaValid)}</td>
                           <td className="p-1">
                             <input
