@@ -14,6 +14,7 @@ import {
   terceros,
   vehiculos,
   rndcVehiculos,
+  rndcConductores,
   despachos,
   type User,
   type InsertUser,
@@ -42,6 +43,8 @@ import {
   type InsertVehiculo,
   type RndcVehiculo,
   type InsertRndcVehiculo,
+  type RndcConductor,
+  type InsertRndcConductor,
   type Despacho,
   type InsertDespacho,
 } from "@shared/schema";
@@ -140,6 +143,10 @@ export interface IStorage {
   getRndcVehiculoByPlaca(placa: string): Promise<RndcVehiculo | undefined>;
   getRndcVehiculosByPlacas(placas: string[]): Promise<RndcVehiculo[]>;
   upsertRndcVehiculo(vehiculo: InsertRndcVehiculo): Promise<RndcVehiculo>;
+  
+  getRndcConductorByCedula(cedula: string): Promise<RndcConductor | undefined>;
+  getRndcConductoresByCedulas(cedulas: string[]): Promise<RndcConductor[]>;
+  upsertRndcConductor(conductor: InsertRndcConductor): Promise<RndcConductor>;
   
   createDespacho(despacho: InsertDespacho): Promise<Despacho>;
   getDespacho(id: string): Promise<Despacho | undefined>;
@@ -607,6 +614,36 @@ export class DatabaseStorage implements IStorage {
           pesoVacio: vehiculo.pesoVacio,
           ingresoId: vehiculo.ingresoId,
           rawXml: vehiculo.rawXml,
+          lastSyncedAt: new Date(),
+        }
+      })
+      .returning();
+    return result;
+  }
+
+  async getRndcConductorByCedula(cedula: string): Promise<RndcConductor | undefined> {
+    const [conductor] = await db.select().from(rndcConductores).where(eq(rndcConductores.cedula, cedula));
+    return conductor;
+  }
+
+  async getRndcConductoresByCedulas(cedulas: string[]): Promise<RndcConductor[]> {
+    if (cedulas.length === 0) return [];
+    return db.select().from(rndcConductores).where(sql`${rndcConductores.cedula} = ANY(${cedulas})`);
+  }
+
+  async upsertRndcConductor(conductor: InsertRndcConductor): Promise<RndcConductor> {
+    const [result] = await db.insert(rndcConductores)
+      .values(conductor)
+      .onConflictDoUpdate({
+        target: rndcConductores.cedula,
+        set: {
+          nombre: conductor.nombre,
+          primerApellido: conductor.primerApellido,
+          segundoApellido: conductor.segundoApellido,
+          categoriaLicencia: conductor.categoriaLicencia,
+          venceLicencia: conductor.venceLicencia,
+          ingresoId: conductor.ingresoId,
+          rawXml: conductor.rawXml,
           lastSyncedAt: new Date(),
         }
       })

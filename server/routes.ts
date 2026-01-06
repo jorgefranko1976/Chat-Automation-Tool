@@ -1795,6 +1795,41 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
               cedulaData = cached.data;
               if (!cached.valid && cached.error) errors.push(cached.error);
             } else {
+              const storedConductor = await storage.getRndcConductorByCedula(cedulaKey);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              const parseDateDDMMYYYY = (dateStr: string): Date | null => {
+                if (!dateStr) return null;
+                const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                if (match) {
+                  const [, day, month, year] = match;
+                  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                }
+                return null;
+              };
+              
+              if (storedConductor && storedConductor.venceLicencia) {
+                const licenseDate = parseDateDDMMYYYY(storedConductor.venceLicencia);
+                const validCategories = ["C1", "C2", "C3"];
+                const hasValidCategory = validCategories.includes((storedConductor.categoriaLicencia || "").toUpperCase());
+                const isNotExpired = licenseDate && licenseDate >= today;
+                
+                if (hasValidCategory && isNotExpired) {
+                  console.log(`[RNDC-C] Cédula ${cedulaKey} encontrada en BD interna. Licencia válida hasta ${storedConductor.venceLicencia}`);
+                  cedulaValid = true;
+                  cedulaData = { venceLicencia: storedConductor.venceLicencia, nombre: storedConductor.nombre || undefined };
+                  cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+                  progress++;
+                  const job = validationJobs.get(jobId);
+                  if (job) { job.progress = progress; job.current = cedulaKey; }
+                  validatedRows.push({ ...row, cedulaValid, cedulaData, errors });
+                  continue;
+                } else {
+                  console.log(`[RNDC-C] Cédula ${cedulaKey} en BD pero licencia vencida o categoría inválida. Consultando RNDC...`);
+                }
+              }
+              
               const xmlCedula = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
@@ -1877,10 +1912,26 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
                     if (validDocs.length > 0) {
                       const bestDoc = validDocs[0];
                       cedulaValid = true;
-                      cedulaData = {
-                        venceLicencia: String(bestDoc.fechavencimientolicencia || bestDoc.FECHAVENCIMIENTOLICENCIA || ""),
-                      };
+                      const venceLicencia = String(bestDoc.fechavencimientolicencia || bestDoc.FECHAVENCIMIENTOLICENCIA || "");
+                      const categoriaLicencia = String(bestDoc.codcategorialicenciaconduccion || bestDoc.CODCATEGORIALICENCIACONDUCCION || "");
+                      const ingresoId = String(bestDoc.ingresoid || bestDoc.INGRESOID || "");
+                      
+                      cedulaData = { venceLicencia };
                       cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+                      
+                      try {
+                        await storage.upsertRndcConductor({
+                          cedula: cedulaKey,
+                          categoriaLicencia,
+                          venceLicencia,
+                          ingresoId,
+                          rawXml: response.rawXml,
+                          lastSyncedAt: new Date(),
+                        });
+                        console.log(`[RNDC-C] Cédula ${cedulaKey} guardada en BD interna`);
+                      } catch (saveErr) {
+                        console.log(`[RNDC-C] Error guardando cédula ${cedulaKey}: ${saveErr}`);
+                      }
                     } else {
                       cedulaValid = false;
                       const err = `Cédula '${row.cedula}' sin licencia C1/C2/C3 vigente`;

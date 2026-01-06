@@ -368,6 +368,28 @@ export const insertRndcVehiculoSchema = createInsertSchema(rndcVehiculos).omit({
 export type InsertRndcVehiculo = z.infer<typeof insertRndcVehiculoSchema>;
 export type RndcVehiculo = typeof rndcVehiculos.$inferSelect;
 
+export const rndcConductores = pgTable("rndc_conductores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  cedula: varchar("cedula").notNull().unique(),
+  nombre: varchar("nombre"),
+  primerApellido: varchar("primer_apellido"),
+  segundoApellido: varchar("segundo_apellido"),
+  categoriaLicencia: varchar("categoria_licencia"),
+  venceLicencia: varchar("vence_licencia"),
+  ingresoId: varchar("ingreso_id"),
+  rawXml: text("raw_xml"),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRndcConductorSchema = createInsertSchema(rndcConductores).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRndcConductor = z.infer<typeof insertRndcConductorSchema>;
+export type RndcConductor = typeof rndcConductores.$inferSelect;
+
 export const despachos = pgTable("despachos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   nombre: varchar("nombre").notNull(),
