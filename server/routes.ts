@@ -1788,11 +1788,25 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
       const parsed = despachosRowsSchema.parse(req.body);
       const { rows, onlyMissing } = parsed;
 
-      console.log(`[DESPACHOS-C-INT] Validando ${rows.length} cédulas contra BD local`);
+      console.log(`[DESPACHOS-C-INT] Validando ${rows.length} cédulas contra Conductores (Enrolamiento)`);
       
       const sanitizeCedula = (c: string) => String(c).replace(/[\s.,]/g, "");
       const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string; nombre?: string } | null; error?: string }>();
       const validatedRows = [];
+      
+      const parseDateDDMMYYYY = (dateStr: string): Date | null => {
+        if (!dateStr) return null;
+        const match = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if (match) {
+          const [, day, month, year] = match;
+          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        }
+        return null;
+      };
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const validCategories = ["C1", "C2", "C3"];
 
       for (const row of rows) {
         const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("cédula"))];
@@ -1813,27 +1827,31 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
             cedulaData = cached.data;
             if (!cached.valid && cached.error) errors.push(cached.error);
           } else {
-            const tercero = await storage.getTerceroByIdentificacion("CC", cedulaKey);
-            if (tercero && tercero.vencimientoLicencia) {
-              const today = new Date();
-              const [d, m, y] = tercero.vencimientoLicencia.split("/").map(Number);
-              const expDate = new Date(y, m - 1, d);
-              const isValid = expDate >= today;
-              if (isValid) {
+            const conductor = await storage.getRndcConductorByCedula(cedulaKey);
+            if (conductor && conductor.venceLicencia) {
+              const licenseDate = parseDateDDMMYYYY(conductor.venceLicencia);
+              const hasValidCategory = validCategories.includes((conductor.categoriaLicencia || "").toUpperCase());
+              const isNotExpired = licenseDate && licenseDate >= today;
+              
+              if (hasValidCategory && isNotExpired) {
                 cedulaValid = true;
-                cedulaData = { venceLicencia: tercero.vencimientoLicencia, nombre: tercero.nombre };
+                cedulaData = { venceLicencia: conductor.venceLicencia, nombre: conductor.nombre || undefined };
                 cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+                console.log(`[DESPACHOS-C-INT] Cédula ${cedulaKey} válida. Licencia ${conductor.categoriaLicencia} hasta ${conductor.venceLicencia}`);
+              } else if (!hasValidCategory) {
+                cedulaValid = false;
+                const err = `Categoría licencia inválida: ${conductor.categoriaLicencia || 'N/A'} (requiere C1/C2/C3)`;
+                errors.push(err);
+                cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
               } else {
                 cedulaValid = false;
-                const err = `Licencia vencida: ${tercero.vencimientoLicencia}`;
+                const err = `Licencia vencida: ${conductor.venceLicencia}`;
                 errors.push(err);
                 cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
               }
             } else {
-              cedulaValid = false;
-              const err = `Cédula '${row.cedula}' no encontrada en BD local`;
-              errors.push(err);
-              cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+              cedulaValid = null;
+              cedulaCache.set(cedulaKey, { valid: false, data: null, error: `No encontrada en Conductores` });
             }
           }
         }
