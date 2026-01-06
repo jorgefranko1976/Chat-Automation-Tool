@@ -1195,6 +1195,7 @@ export async function registerRoutes(
             latitud: String(row.Latitud || row.latitud || ""),
             longitud: String(row.longitud || row.Longitud || ""),
             municipio: String(row.Municipio_rndc || row.municipio || ""),
+            codMunicipioRndc: String(row.CODMUNICIPIORND || row.CODMUNICIPIORNDС || row.codMunicipioRndc || ""),
             direccion: String(row.NOMENCLATURADIRECCION || row.direccion || ""),
             flete: String(row.Flete || row.flete || ""),
           };
