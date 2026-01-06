@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square } from "lucide-react";
 import * as XLSX from "xlsx";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -43,6 +43,8 @@ export default function Despachos() {
   const [cedulasProgress, setCedulasProgress] = useState({ current: 0, total: 0, processing: false, currentItem: "" });
   const [currentDespachoId, setCurrentDespachoId] = useState<string | null>(null);
   const [showSavedDespachos, setShowSavedDespachos] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [sortOrder, setSortOrder] = useState<"default" | "success_first" | "errors_first">("default");
 
   const { data: savedDespachosData, refetch: refetchDespachos } = useQuery({
     queryKey: ["/api/despachos"],
@@ -430,6 +432,51 @@ export default function Despachos() {
     return Math.round((done / withCedula.length) * 100);
   };
 
+  const isRowSuccess = (row: DespachoRow) => {
+    return row.errors.length === 0 && 
+           row.granjaValid === true && 
+           row.plantaValid === true && 
+           row.placaValid === true && 
+           row.cedulaValid === true;
+  };
+
+  const sortedRows = [...rows].map((row, idx) => ({ row, originalIndex: idx })).sort((a, b) => {
+    if (sortOrder === "default") return 0;
+    const aSuccess = isRowSuccess(a.row);
+    const bSuccess = isRowSuccess(b.row);
+    if (sortOrder === "success_first") {
+      if (aSuccess && !bSuccess) return -1;
+      if (!aSuccess && bSuccess) return 1;
+    } else if (sortOrder === "errors_first") {
+      if (aSuccess && !bSuccess) return 1;
+      if (!aSuccess && bSuccess) return -1;
+    }
+    return 0;
+  });
+
+  const successfulRowsCount = rows.filter(isRowSuccess).length;
+
+  const toggleRowSelection = (originalIndex: number) => {
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(originalIndex)) {
+      newSelected.delete(originalIndex);
+    } else {
+      newSelected.add(originalIndex);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const selectAllSuccessful = () => {
+    const successIndices = rows.map((row, idx) => ({ row, idx }))
+      .filter(({ row }) => isRowSuccess(row))
+      .map(({ idx }) => idx);
+    setSelectedRows(new Set(successIndices));
+  };
+
+  const clearSelection = () => {
+    setSelectedRows(new Set());
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -757,14 +804,66 @@ export default function Despachos() {
 
           {rows.length > 0 && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">Resultados de Validación</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {selectedRows.size} seleccionadas | {successfulRowsCount} exitosas de {rows.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllSuccessful}
+                    data-testid="button-select-successful"
+                  >
+                    <CheckSquare className="h-4 w-4 mr-1" />
+                    Seleccionar Exitosas
+                  </Button>
+                  {selectedRows.size > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearSelection}
+                      data-testid="button-clear-selection"
+                    >
+                      Limpiar
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (sortOrder === "default") setSortOrder("success_first");
+                      else if (sortOrder === "success_first") setSortOrder("errors_first");
+                      else setSortOrder("default");
+                    }}
+                    data-testid="button-sort"
+                  >
+                    <ArrowUpDown className="h-4 w-4 mr-1" />
+                    {sortOrder === "default" ? "Ordenar" : sortOrder === "success_first" ? "Exitosas ↑" : "Errores ↑"}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
+                        <th className="text-center p-3 font-medium w-10">
+                          <input
+                            type="checkbox"
+                            checked={selectedRows.size === rows.length && rows.length > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRows(new Set(rows.map((_, i) => i)));
+                              } else {
+                                setSelectedRows(new Set());
+                              }
+                            }}
+                            className="h-4 w-4"
+                            data-testid="checkbox-select-all"
+                          />
+                        </th>
                         <th className="text-left p-3 font-medium">#</th>
                         <th className="text-left p-3 font-medium">Granja</th>
                         <th className="text-left p-3 font-medium">Sede</th>
@@ -791,16 +890,28 @@ export default function Despachos() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((row, idx) => (
-                        <tr key={idx} className={`border-t ${row.errors.length > 0 ? "bg-red-50" : ""}`}>
-                          <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                      {sortedRows.map(({ row, originalIndex }) => (
+                        <tr 
+                          key={originalIndex} 
+                          className={`border-t ${row.errors.length > 0 ? "bg-red-50" : ""} ${selectedRows.has(originalIndex) ? "bg-blue-50" : ""}`}
+                        >
+                          <td className="p-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.has(originalIndex)}
+                              onChange={() => toggleRowSelection(originalIndex)}
+                              className="h-4 w-4"
+                              data-testid={`checkbox-row-${originalIndex}`}
+                            />
+                          </td>
+                          <td className="p-3 text-muted-foreground">{originalIndex + 1}</td>
                           <td className="p-1">
                             <input
                               type="text"
                               value={row.granja}
-                              onChange={(e) => updateRow(idx, "granja", e.target.value)}
+                              onChange={(e) => updateRow(originalIndex, "granja", e.target.value)}
                               className="w-full px-2 py-1 text-sm border rounded bg-background"
-                              data-testid={`input-granja-${idx}`}
+                              data-testid={`input-granja-${originalIndex}`}
                             />
                           </td>
                           <td className="p-3 text-xs">{row.granjaData?.sede || "-"}</td>
@@ -821,9 +932,9 @@ export default function Despachos() {
                             <input
                               type="text"
                               value={row.planta}
-                              onChange={(e) => updateRow(idx, "planta", e.target.value)}
+                              onChange={(e) => updateRow(originalIndex, "planta", e.target.value)}
                               className="w-full px-2 py-1 text-sm border rounded bg-background"
-                              data-testid={`input-planta-${idx}`}
+                              data-testid={`input-planta-${originalIndex}`}
                             />
                           </td>
                           <td className="p-3 text-xs">{row.plantaData?.sede || "-"}</td>
@@ -844,9 +955,9 @@ export default function Despachos() {
                             <input
                               type="text"
                               value={row.placa}
-                              onChange={(e) => updateRow(idx, "placa", e.target.value.toUpperCase())}
+                              onChange={(e) => updateRow(originalIndex, "placa", e.target.value.toUpperCase())}
                               className="w-20 px-2 py-1 text-sm border rounded bg-background font-mono"
-                              data-testid={`input-placa-${idx}`}
+                              data-testid={`input-placa-${originalIndex}`}
                             />
                           </td>
                           <td className="p-3 text-xs">{row.placaData?.propietarioId || "-"}</td>
@@ -858,9 +969,9 @@ export default function Despachos() {
                             <input
                               type="text"
                               value={row.cedula}
-                              onChange={(e) => updateRow(idx, "cedula", e.target.value)}
+                              onChange={(e) => updateRow(originalIndex, "cedula", e.target.value)}
                               className="w-28 px-2 py-1 text-sm border rounded bg-background"
-                              data-testid={`input-cedula-${idx}`}
+                              data-testid={`input-cedula-${originalIndex}`}
                             />
                           </td>
                           <td className="p-3 text-xs">{row.cedulaData?.venceLicencia || "-"}</td>
@@ -869,9 +980,9 @@ export default function Despachos() {
                             <input
                               type="text"
                               value={row.toneladas}
-                              onChange={(e) => updateRow(idx, "toneladas", e.target.value)}
+                              onChange={(e) => updateRow(originalIndex, "toneladas", e.target.value)}
                               className="w-16 px-2 py-1 text-sm border rounded bg-background"
-                              data-testid={`input-toneladas-${idx}`}
+                              data-testid={`input-toneladas-${originalIndex}`}
                             />
                           </td>
                           <td className="p-3 text-xs">{row.granjaData?.flete || "-"}</td>
