@@ -1147,6 +1147,58 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/terceros/bulk-import", requireAuth, async (req, res) => {
+    try {
+      const { rows } = req.body as { rows: any[] };
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ success: false, message: "No hay datos para importar" });
+      }
+
+      const results = { created: 0, updated: 0, errors: [] as string[] };
+
+      for (const row of rows) {
+        try {
+          const terceroData = {
+            tipoTercero: "GRANJA",
+            tipoIdentificacion: "NIT",
+            numeroIdentificacion: String(row.Granja || row.granja || ""),
+            nombre: String(row.Nombre_Sede || row.nombreSede || row.nombre || ""),
+            codigoGranja: String(row.Granja || row.granja || ""),
+            sede: String(row.Cod_sede || row.codSede || row.sede || ""),
+            nombreSede: String(row.Nombre_Sede || row.nombreSede || ""),
+            latitud: String(row.Latitud || row.latitud || ""),
+            longitud: String(row.longitud || row.Longitud || ""),
+            municipio: String(row.Municipio_rndc || row.municipio || ""),
+            direccion: String(row.NOMENCLATURADIRECCION || row.direccion || ""),
+            flete: String(row.Flete || row.flete || ""),
+          };
+
+          if (!terceroData.codigoGranja || !terceroData.nombre) {
+            results.errors.push(`Fila sin datos requeridos: ${JSON.stringify(row)}`);
+            continue;
+          }
+
+          const { isNew } = await storage.upsertTerceroByCodigoGranja(terceroData);
+          if (isNew) {
+            results.created++;
+          } else {
+            results.updated++;
+          }
+        } catch (err) {
+          results.errors.push(`Error en fila: ${JSON.stringify(row)}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Importación completada: ${results.created} creados, ${results.updated} actualizados`,
+        results,
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al importar terceros" });
+    }
+  });
+
   app.get("/api/vehiculos", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;

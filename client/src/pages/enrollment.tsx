@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin, Upload, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { Tercero, Vehiculo } from "@shared/schema";
 
@@ -94,6 +94,51 @@ function TercerosSection() {
     },
   });
 
+  const importMutation = useMutation({
+    mutationFn: async (rows: any[]) => {
+      const res = await fetch("/api/terceros/bulk-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+        credentials: "include",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/terceros"] });
+      toast({ 
+        title: "Importación completada", 
+        description: data.message || `${data.results?.created || 0} creados, ${data.results?.updated || 0} actualizados`
+      });
+    },
+    onError: () => {
+      toast({ title: "Error al importar", variant: "destructive" });
+    },
+  });
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target?.result;
+      const workbook = XLSX.read(data, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      if (jsonData.length === 0) {
+        toast({ title: "Error", description: "El archivo está vacío", variant: "destructive" });
+        return;
+      }
+
+      importMutation.mutate(jsonData);
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = "";
+  };
+
   const terceros: Tercero[] = tercerosData?.terceros || [];
   const filteredTerceros = terceros.filter((t) =>
     searchQuery
@@ -164,6 +209,29 @@ function TercerosSection() {
             <Download className="h-4 w-4 mr-2" />
             Exportar Excel
           </Button>
+          <label className="cursor-pointer">
+            <Button 
+              variant="outline" 
+              asChild 
+              disabled={importMutation.isPending}
+              data-testid="button-import-excel"
+            >
+              <span>
+                {importMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</>
+                ) : (
+                  <><Upload className="h-4 w-4 mr-2" /> Importar Excel</>
+                )}
+              </span>
+            </Button>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportExcel}
+              className="hidden"
+              disabled={importMutation.isPending}
+            />
+          </label>
           <Button onClick={() => { setEditingTercero(null); setShowForm(true); }} data-testid="button-add-tercero">
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Tercero

@@ -127,6 +127,7 @@ export interface IStorage {
   deleteTercero(id: string): Promise<void>;
   getTerceros(tipoTercero?: string, limit?: number): Promise<Tercero[]>;
   searchTerceros(query: string, tipoTercero?: string): Promise<Tercero[]>;
+  upsertTerceroByCodigoGranja(tercero: InsertTercero): Promise<{ tercero: Tercero; isNew: boolean }>;
   
   createVehiculo(vehiculo: InsertVehiculo): Promise<Vehiculo>;
   getVehiculo(id: string): Promise<Vehiculo | undefined>;
@@ -531,6 +532,18 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(terceros.tipoTercero, tipoTercero));
     }
     return db.select().from(terceros).where(and(...conditions)).orderBy(desc(terceros.createdAt)).limit(50);
+  }
+
+  async upsertTerceroByCodigoGranja(terceroData: InsertTercero): Promise<{ tercero: Tercero; isNew: boolean }> {
+    if (terceroData.codigoGranja) {
+      const existing = await this.getTerceroByCodigoGranja(terceroData.codigoGranja);
+      if (existing) {
+        const updated = await this.updateTercero(existing.id, terceroData);
+        return { tercero: updated!, isNew: false };
+      }
+    }
+    const newTercero = await this.createTercero(terceroData);
+    return { tercero: newTercero, isNew: true };
   }
 
   async createVehiculo(vehiculo: InsertVehiculo): Promise<Vehiculo> {
