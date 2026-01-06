@@ -1189,7 +1189,7 @@ export async function registerRoutes(
       toneladas: z.string(),
       fecha: z.string(),
       granjaValid: z.boolean().nullable(),
-      granjaData: z.object({ sede: z.string(), coordenadas: z.string() }).nullable(),
+      granjaData: z.object({ sede: z.string(), coordenadas: z.string(), flete: z.string() }).nullable(),
       plantaValid: z.boolean().nullable(),
       plantaData: z.object({ sede: z.string(), coordenadas: z.string() }).nullable(),
       placaValid: z.boolean().nullable(),
@@ -1212,14 +1212,14 @@ export async function registerRoutes(
       const { rows } = parsed;
       console.log(`[DESPACHOS-A] Validando datos internos de ${rows.length} filas`);
 
-      const granjaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
+      const granjaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string; flete: string } | null }>();
       const plantaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
 
       const validatedRows = [];
       for (const row of rows) {
         const errors: string[] = [...row.errors.filter(e => !e.includes("Granja") && !e.includes("Planta"))];
         let granjaValid: boolean | null = null;
-        let granjaData: { sede: string; coordenadas: string } | null = null;
+        let granjaData: { sede: string; coordenadas: string; flete: string } | null = null;
         let plantaValid: boolean | null = null;
         let plantaData: { sede: string; coordenadas: string } | null = null;
 
@@ -1239,7 +1239,7 @@ export async function registerRoutes(
             if (tercero) {
               granjaValid = true;
               const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
-              granjaData = { sede: tercero.sede || "", coordenadas: coords };
+              granjaData = { sede: tercero.sede || "", coordenadas: coords, flete: tercero.flete || "" };
             } else {
               granjaValid = false;
               errors.push(`Granja '${row.granja}' no encontrada`);

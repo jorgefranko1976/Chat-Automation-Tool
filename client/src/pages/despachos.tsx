@@ -19,7 +19,7 @@ interface DespachoRow {
   toneladas: string;
   fecha: string;
   granjaValid: boolean | null;
-  granjaData: { sede: string; coordenadas: string } | null;
+  granjaData: { sede: string; coordenadas: string; flete: string } | null;
   plantaValid: boolean | null;
   plantaData: { sede: string; coordenadas: string } | null;
   placaValid: boolean | null;
@@ -234,23 +234,30 @@ export default function Despachos() {
   });
 
   const handleExportExcel = () => {
-    const exportData = rows.map((row) => ({
-      GRANJA: row.granja,
-      GRANJA_SEDE: row.granjaData?.sede || "",
-      GRANJA_COORDENADAS: row.granjaData?.coordenadas || "",
-      PLANTA: row.planta,
-      PLANTA_SEDE: row.plantaData?.sede || "",
-      PLANTA_COORDENADAS: row.plantaData?.coordenadas || "",
-      PLACA: row.placa,
-      NUMIDPROPIETARIO: row.placaData?.propietarioId || "",
-      FECHAVENCIMIENTOSOAT: row.placaData?.venceSoat || "",
-      PESOVEHICULOVACIO: row.placaData?.pesoVacio || "",
-      CEDULA: row.cedula,
-      FECHAVENCIMIENTOLICENCIA: row.cedulaData?.venceLicencia || "",
-      TONELADAS: row.toneladas,
-      FECHA: row.fecha,
-      ERRORES: row.errors.join("; "),
-    }));
+    const exportData = rows.map((row) => {
+      const ton = parseFloat(row.toneladas.replace(",", ".")) || 0;
+      const flete = parseFloat((row.granjaData?.flete || "").replace(/[^\d.-]/g, "")) || 0;
+      const valorFlete = ton * flete;
+      return {
+        GRANJA: row.granja,
+        GRANJA_SEDE: row.granjaData?.sede || "",
+        GRANJA_COORDENADAS: row.granjaData?.coordenadas || "",
+        PLANTA: row.planta,
+        PLANTA_SEDE: row.plantaData?.sede || "",
+        PLANTA_COORDENADAS: row.plantaData?.coordenadas || "",
+        PLACA: row.placa,
+        NUMIDPROPIETARIO: row.placaData?.propietarioId || "",
+        FECHAVENCIMIENTOSOAT: row.placaData?.venceSoat || "",
+        PESOVEHICULOVACIO: row.placaData?.pesoVacio || "",
+        CEDULA: row.cedula,
+        FECHAVENCIMIENTOLICENCIA: row.cedulaData?.venceLicencia || "",
+        TONELADAS: row.toneladas,
+        FLETE: row.granjaData?.flete || "",
+        VALOR_FLETE: valorFlete > 0 ? valorFlete : "",
+        FECHA: row.fecha,
+        ERRORES: row.errors.join("; "),
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -553,6 +560,8 @@ export default function Despachos() {
                         <th className="text-left p-3 font-medium">Lic.</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Ton</th>
+                        <th className="text-left p-3 font-medium">Flete</th>
+                        <th className="text-left p-3 font-medium">Valor</th>
                         <th className="text-left p-3 font-medium">Fecha</th>
                         <th className="text-left p-3 font-medium">Errores</th>
                       </tr>
@@ -600,6 +609,12 @@ export default function Despachos() {
                           <td className="p-3 text-xs">{row.cedulaData?.venceLicencia || "-"}</td>
                           <td className="p-3 text-center">{getStatusIcon(row.cedulaValid)}</td>
                           <td className="p-3">{row.toneladas}</td>
+                          <td className="p-3 text-xs">{row.granjaData?.flete || "-"}</td>
+                          <td className="p-3 font-medium text-green-700">
+                            {row.granjaData?.flete && row.toneladas
+                              ? `$${(parseFloat(row.toneladas.replace(",", ".")) * parseFloat(row.granjaData.flete.replace(/[^\d.-]/g, ""))).toLocaleString("es-CO")}`
+                              : "-"}
+                          </td>
                           <td className="p-3">{row.fecha}</td>
                           <td className="p-3 text-red-600 text-xs max-w-xs truncate" title={row.errors.join("; ")}>
                             {row.errors.join("; ")}
