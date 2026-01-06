@@ -43,8 +43,13 @@ interface GeneratedRemesa {
   horaCargue: string;
   fechaDescargue: string;
   horaDescargue: string;
+  sedeRemitente?: string;
+  sedeDestinatario?: string;
   xmlRequest: string;
-  status: "pending" | "success" | "error";
+  status: "pending" | "processing" | "success" | "error";
+  responseCode?: string;
+  responseMessage?: string;
+  idRemesa?: string;
 }
 
 export default function Despachos() {
@@ -62,6 +67,8 @@ export default function Despachos() {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [sortOrder, setSortOrder] = useState<"default" | "success_first" | "errors_first">("default");
   const [generatedRemesas, setGeneratedRemesas] = useState<GeneratedRemesa[]>([]);
+  const [isSendingRemesas, setIsSendingRemesas] = useState(false);
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
 
   const { data: savedDespachosData, refetch: refetchDespachos } = useQuery({
     queryKey: ["/api/despachos"],
@@ -568,6 +575,8 @@ export default function Despachos() {
         horaCargue: row.horaCargue || "08:00",
         fechaDescargue: row.fecha,
         horaDescargue: row.horaDescargue || "13:00",
+        sedeRemitente: row.plantaData?.sede,
+        sedeDestinatario: row.granjaData?.sede,
         xmlRequest: xml,
         status: "pending",
       });
@@ -601,10 +610,108 @@ export default function Despachos() {
 
   const getRemesaStatusBadge = (status: string) => {
     switch (status) {
-      case "success": return <Badge className="bg-green-500">Listo</Badge>;
+      case "success": return <Badge className="bg-green-500">Exitoso</Badge>;
       case "error": return <Badge variant="destructive">Error</Badge>;
-      default: return <Badge variant="secondary">Listo</Badge>;
+      case "processing": return <Badge className="bg-yellow-500">Procesando</Badge>;
+      default: return <Badge variant="secondary">Pendiente</Badge>;
     }
+  };
+
+  const handleSendRemesas = async () => {
+    if (generatedRemesas.length === 0) return;
+
+    setIsSendingRemesas(true);
+
+    try {
+      const wsUrl = settings.wsEnvironment === "production" 
+        ? settings.wsUrlProd 
+        : settings.wsUrlTest;
+
+      const submissions = generatedRemesas.map(r => ({
+        consecutivoRemesa: String(r.consecutivo),
+        numNitEmpresa: settings.companyNit,
+        numPlaca: r.placa,
+        cantidadCargada: r.cantidadCargada,
+        fechaCargue: r.fechaCargue,
+        horaCargue: r.horaCargue,
+        fechaDescargue: r.fechaDescargue,
+        horaDescargue: r.horaDescargue,
+        sedeRemitente: r.sedeRemitente || "",
+        sedeDestinatario: r.sedeDestinatario || "",
+        xmlRequest: r.xmlRequest,
+      }));
+
+      const response = await apiRequest("POST", "/api/rndc/remesa-batch", {
+        submissions,
+        wsUrl,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setCurrentBatchId(result.batchId);
+        toast({ title: "Enviando", description: result.message });
+        
+        // Start polling for results
+        pollRemesaResults(result.batchId);
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+        setIsSendingRemesas(false);
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error al enviar remesas", variant: "destructive" });
+      setIsSendingRemesas(false);
+    }
+  };
+
+  const pollRemesaResults = async (batchId: string) => {
+    const poll = async () => {
+      try {
+        const response = await apiRequest("GET", `/api/rndc/remesa/${batchId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          const updatedRemesas = generatedRemesas.map(r => {
+            const serverResult = result.submissions.find(
+              (s: any) => s.consecutivoRemesa === String(r.consecutivo)
+            );
+            if (serverResult) {
+              return {
+                ...r,
+                status: serverResult.status as "pending" | "processing" | "success" | "error",
+                responseCode: serverResult.responseCode,
+                responseMessage: serverResult.responseMessage,
+                idRemesa: serverResult.idRemesa,
+              };
+            }
+            return r;
+          });
+
+          setGeneratedRemesas(updatedRemesas);
+
+          const allProcessed = result.submissions.every(
+            (s: any) => s.status === "success" || s.status === "error"
+          );
+
+          if (allProcessed) {
+            setIsSendingRemesas(false);
+            const successCount = result.submissions.filter((s: any) => s.status === "success").length;
+            const errorCount = result.submissions.filter((s: any) => s.status === "error").length;
+            toast({
+              title: "Proceso completado",
+              description: `${successCount} exitosos, ${errorCount} errores`,
+            });
+          } else {
+            setTimeout(poll, 2000);
+          }
+        }
+      } catch (error) {
+        setIsSendingRemesas(false);
+        toast({ title: "Error", description: "Error al obtener resultados", variant: "destructive" });
+      }
+    };
+
+    poll();
   };
 
   return (
@@ -1166,9 +1273,15 @@ export default function Despachos() {
                   </Button>
                   <Button
                     className="bg-green-600 hover:bg-green-700"
+                    onClick={handleSendRemesas}
+                    disabled={isSendingRemesas}
                     data-testid="button-send-remesas"
                   >
-                    Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" />
+                    {isSendingRemesas ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</>
+                    ) : (
+                      <>Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" /></>
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
@@ -1191,6 +1304,8 @@ export default function Despachos() {
                         <TableHead>Fecha Cargue</TableHead>
                         <TableHead>Fecha Descargue</TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead>ID Remesa</TableHead>
+                        <TableHead>Respuesta</TableHead>
                         <TableHead>XML</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1203,6 +1318,10 @@ export default function Despachos() {
                           <TableCell>{remesa.fechaCargue} {remesa.horaCargue}</TableCell>
                           <TableCell>{remesa.fechaDescargue} {remesa.horaDescargue}</TableCell>
                           <TableCell>{getRemesaStatusBadge(remesa.status)}</TableCell>
+                          <TableCell className="font-mono">{remesa.idRemesa || "-"}</TableCell>
+                          <TableCell className="max-w-[200px] truncate text-xs" title={remesa.responseMessage}>
+                            {remesa.responseMessage || "-"}
+                          </TableCell>
                           <TableCell>
                             <Dialog>
                               <DialogTrigger asChild>

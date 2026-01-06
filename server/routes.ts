@@ -77,6 +77,23 @@ const cumplidoManifiestoBatchSchema = z.object({
   wsUrl: z.string().url().optional(),
 });
 
+const remesaBatchSchema = z.object({
+  submissions: z.array(z.object({
+    consecutivoRemesa: z.string(),
+    numNitEmpresa: z.string(),
+    numPlaca: z.string(),
+    cantidadCargada: z.string(),
+    fechaCargue: z.string(),
+    horaCargue: z.string(),
+    fechaDescargue: z.string(),
+    horaDescargue: z.string(),
+    sedeRemitente: z.string().optional(),
+    sedeDestinatario: z.string().optional(),
+    xmlRequest: z.string(),
+  })),
+  wsUrl: z.string().url().optional(),
+});
+
 const rndcQuerySchema = z.object({
   queryType: z.string(),
   queryName: z.string(),
@@ -974,6 +991,62 @@ export async function registerRoutes(
       res.json({ success: true, submissions });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener cumplidos manifiesto" });
+    }
+  });
+
+  app.post("/api/rndc/remesa-batch", async (req, res) => {
+    try {
+      const parsed = remesaBatchSchema.parse(req.body);
+      const { submissions, wsUrl } = parsed;
+
+      const batch = await storage.createRndcBatch({
+        type: "remesa",
+        totalRecords: submissions.length,
+        successCount: 0,
+        errorCount: 0,
+        pendingCount: submissions.length,
+        status: "processing",
+      });
+
+      const createdSubmissions = await Promise.all(
+        submissions.map(sub =>
+          storage.createRemesaSubmission({
+            batchId: batch.id,
+            consecutivoRemesa: sub.consecutivoRemesa,
+            numNitEmpresa: sub.numNitEmpresa,
+            numPlaca: sub.numPlaca,
+            cantidadCargada: sub.cantidadCargada,
+            fechaCargue: sub.fechaCargue,
+            horaCargue: sub.horaCargue,
+            fechaDescargue: sub.fechaDescargue,
+            horaDescargue: sub.horaDescargue,
+            sedeRemitente: sub.sedeRemitente || null,
+            sedeDestinatario: sub.sedeDestinatario || null,
+            xmlRequest: sub.xmlRequest,
+            status: "pending",
+          })
+        )
+      );
+
+      processRemesaAsync(batch.id, createdSubmissions.map(s => s.id), wsUrl);
+
+      res.json({
+        success: true,
+        batchId: batch.id,
+        message: `Lote creado con ${submissions.length} remesas. Procesando...`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al crear lote de remesas";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.get("/api/rndc/remesa/:batchId", async (req, res) => {
+    try {
+      const submissions = await storage.getRemesaSubmissionsByBatch(req.params.batchId);
+      res.json({ success: true, submissions });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener remesas" });
     }
   });
 
@@ -2082,6 +2155,86 @@ async function processCumplidoManifiestoAsync(batchId: string, submissionIds: st
       });
     } catch {
       console.error(`Failed to mark batch ${batchId} as completed`);
+    }
+  }
+}
+
+async function processRemesaAsync(batchId: string, submissionIds: string[], wsUrl?: string) {
+  let successCount = 0;
+  let errorCount = 0;
+
+  try {
+    for (const submissionId of submissionIds) {
+      try {
+        const submission = await storage.getRemesaSubmission(submissionId);
+        if (!submission) {
+          errorCount++;
+          continue;
+        }
+
+        await storage.updateRemesaSubmission(submissionId, { status: "processing" });
+
+        const response = await sendXmlToRndc(submission.xmlRequest, wsUrl);
+
+        let idRemesa: string | null = null;
+        if (response.success && response.rawXml) {
+          const idMatch = response.rawXml.match(/<IDREMESA>([^<]+)<\/IDREMESA>/i);
+          if (idMatch) {
+            idRemesa = idMatch[1];
+          }
+        }
+
+        await storage.updateRemesaSubmission(submissionId, {
+          status: response.success ? "success" : "error",
+          xmlResponse: response.rawXml,
+          responseCode: response.code,
+          responseMessage: response.message,
+          idRemesa: idRemesa,
+          processedAt: new Date(),
+        });
+
+        if (response.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        errorCount++;
+        try {
+          await storage.updateRemesaSubmission(submissionId, {
+            status: "error",
+            responseMessage: error instanceof Error ? error.message : "Error desconocido",
+            processedAt: new Date(),
+          });
+        } catch {
+          console.error(`Failed to update remesa ${submissionId} status`);
+        }
+      }
+
+      const pendingCount = submissionIds.length - successCount - errorCount;
+      try {
+        await storage.updateRndcBatch(batchId, {
+          successCount,
+          errorCount,
+          pendingCount,
+        });
+      } catch {
+        console.error(`Failed to update remesa batch ${batchId} progress`);
+      }
+    }
+  } finally {
+    try {
+      await storage.updateRndcBatch(batchId, {
+        status: "completed",
+        completedAt: new Date(),
+        successCount,
+        errorCount,
+        pendingCount: 0,
+      });
+    } catch {
+      console.error(`Failed to mark remesa batch ${batchId} as completed`);
     }
   }
 }

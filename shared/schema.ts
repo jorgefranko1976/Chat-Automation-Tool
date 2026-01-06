@@ -153,6 +153,38 @@ export const insertCumplidoManifiestoSubmissionSchema = createInsertSchema(cumpl
 export type InsertCumplidoManifiestoSubmission = z.infer<typeof insertCumplidoManifiestoSubmissionSchema>;
 export type CumplidoManifiestoSubmission = typeof cumplidoManifiestoSubmissions.$inferSelect;
 
+export const remesaSubmissions = pgTable("remesa_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchId: varchar("batch_id").notNull(),
+  consecutivoRemesa: varchar("consecutivo_remesa").notNull(),
+  numNitEmpresa: varchar("num_nit_empresa").notNull(),
+  numPlaca: varchar("num_placa").notNull(),
+  cantidadCargada: varchar("cantidad_cargada").notNull(),
+  fechaCargue: varchar("fecha_cargue").notNull(),
+  horaCargue: varchar("hora_cargue").notNull(),
+  fechaDescargue: varchar("fecha_descargue").notNull(),
+  horaDescargue: varchar("hora_descargue").notNull(),
+  sedeRemitente: varchar("sede_remitente"),
+  sedeDestinatario: varchar("sede_destinatario"),
+  xmlRequest: text("xml_request").notNull(),
+  xmlResponse: text("xml_response"),
+  status: varchar("status").notNull().default("pending"),
+  responseCode: varchar("response_code"),
+  responseMessage: text("response_message"),
+  idRemesa: varchar("id_remesa"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertRemesaSubmissionSchema = createInsertSchema(remesaSubmissions).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+});
+
+export type InsertRemesaSubmission = z.infer<typeof insertRemesaSubmissionSchema>;
+export type RemesaSubmission = typeof remesaSubmissions.$inferSelect;
+
 export const monitoringQueries = pgTable("monitoring_queries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   queryType: varchar("query_type").notNull(),

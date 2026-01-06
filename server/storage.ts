@@ -6,6 +6,7 @@ import {
   rndcBatches,
   cumplidoRemesaSubmissions,
   cumplidoManifiestoSubmissions,
+  remesaSubmissions,
   monitoringQueries,
   rndcManifests,
   rndcControlPoints,
@@ -25,6 +26,8 @@ import {
   type InsertCumplidoRemesaSubmission,
   type CumplidoManifiestoSubmission,
   type InsertCumplidoManifiestoSubmission,
+  type RemesaSubmission,
+  type InsertRemesaSubmission,
   type MonitoringQuery,
   type InsertMonitoringQuery,
   type RndcManifest,
@@ -84,6 +87,11 @@ export interface IStorage {
   getCumplidoManifiestoSubmission(id: string): Promise<CumplidoManifiestoSubmission | undefined>;
   updateCumplidoManifiestoSubmission(id: string, updates: Partial<CumplidoManifiestoSubmission>): Promise<CumplidoManifiestoSubmission | undefined>;
   getCumplidoManifiestoSubmissionsByBatch(batchId: string): Promise<CumplidoManifiestoSubmission[]>;
+  
+  createRemesaSubmission(submission: InsertRemesaSubmission): Promise<RemesaSubmission>;
+  getRemesaSubmission(id: string): Promise<RemesaSubmission | undefined>;
+  updateRemesaSubmission(id: string, updates: Partial<RemesaSubmission>): Promise<RemesaSubmission | undefined>;
+  getRemesaSubmissionsByBatch(batchId: string): Promise<RemesaSubmission[]>;
   
   getRndcBatchesByType(type: string, limit?: number): Promise<RndcBatch[]>;
   
@@ -295,6 +303,25 @@ export class DatabaseStorage implements IStorage {
 
   async getCumplidoManifiestoSubmissionsByBatch(batchId: string): Promise<CumplidoManifiestoSubmission[]> {
     return db.select().from(cumplidoManifiestoSubmissions).where(eq(cumplidoManifiestoSubmissions.batchId, batchId)).orderBy(desc(cumplidoManifiestoSubmissions.createdAt));
+  }
+
+  async createRemesaSubmission(submission: InsertRemesaSubmission): Promise<RemesaSubmission> {
+    const [newSubmission] = await db.insert(remesaSubmissions).values(submission).returning();
+    return newSubmission;
+  }
+
+  async getRemesaSubmission(id: string): Promise<RemesaSubmission | undefined> {
+    const [submission] = await db.select().from(remesaSubmissions).where(eq(remesaSubmissions.id, id));
+    return submission;
+  }
+
+  async updateRemesaSubmission(id: string, updates: Partial<RemesaSubmission>): Promise<RemesaSubmission | undefined> {
+    const [submission] = await db.update(remesaSubmissions).set(updates).where(eq(remesaSubmissions.id, id)).returning();
+    return submission;
+  }
+
+  async getRemesaSubmissionsByBatch(batchId: string): Promise<RemesaSubmission[]> {
+    return db.select().from(remesaSubmissions).where(eq(remesaSubmissions.batchId, batchId)).orderBy(desc(remesaSubmissions.createdAt));
   }
 
   async getRndcBatchesByType(type: string, limit = 50): Promise<RndcBatch[]> {
