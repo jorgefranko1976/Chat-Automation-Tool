@@ -182,7 +182,7 @@ function parseDocumentsFromXml(xmlString: string): TerceroDocument[] {
 }
 
 function XmlDirectoSection() {
-  const { settings } = useSettings();
+  const { settings, getActiveWsUrl } = useSettings();
   const [xmlInput, setXmlInput] = useState("");
   const [xmlResponse, setXmlResponse] = useState("");
   const [isQuerying, setIsQuerying] = useState(false);
@@ -225,7 +225,8 @@ INGRESOID,FECHAING,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO
     setResponseInfo(null);
 
     try {
-      const response = await apiRequest("POST", "/api/rndc/query-raw", { xmlRequest: xmlInput });
+      const wsUrl = getActiveWsUrl();
+      const response = await apiRequest("POST", "/api/rndc/query-raw", { xmlRequest: xmlInput, wsUrl });
       const data = await response.json();
 
       setResponseInfo({
@@ -292,6 +293,9 @@ INGRESOID,FECHAING,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO
           <CardDescription>
             Escriba o pegue el XML completo para enviar al RNDC
           </CardDescription>
+          <div className="mt-2 p-2 bg-muted/50 rounded text-xs font-mono truncate" title={getActiveWsUrl()}>
+            <span className="text-muted-foreground">URL:</span> {getActiveWsUrl()}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

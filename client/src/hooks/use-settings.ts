@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS: RndcSettings = {
   companyNit: "",
   companyName: "",
   numIdGps: "",
-  wsUrlProd: "http://rndcws.mintransporte.gov.co:8080/soap/IBPMServices",
+  wsUrlProd: "http://rndcws2.mintransporte.gov.co:8080/ws/soap/IBPMServices",
   wsUrlTest: "http://plc.mintransporte.gov.co:8080/soap/IBPMServices",
   wsEnvironment: "testing",
   consecutivo: 1,
