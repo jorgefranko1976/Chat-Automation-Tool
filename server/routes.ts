@@ -1611,7 +1611,8 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
                     if (!Array.isArray(docs)) docs = [docs];
                     
                     const validCategories = ["C1", "C2", "C3"];
-                    const now = new Date();
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
                     
                     const parseDateDDMMYYYY = (dateStr: string): Date | null => {
                       if (!dateStr) return null;
@@ -1629,7 +1630,7 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
                       const fechaStr = String(d.fechavencimientolicencia || d.FECHAVENCIMIENTOLICENCIA || "");
                       const fecha = parseDateDDMMYYYY(fechaStr);
                       const isValidCat = validCategories.includes(cat.toUpperCase());
-                      const isNotExpired = fecha && fecha > now;
+                      const isNotExpired = fecha && fecha >= today;
                       console.log(`[RNDC-C] Cédula ${cedulaKey} doc[${i}]: cat=${cat}, fecha=${fechaStr}, validCat=${isValidCat}, noVencida=${isNotExpired}`);
                     });
                     
@@ -1641,7 +1642,7 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
                       .filter((d: any) => {
                         const fechaStr = String(d.fechavencimientolicencia || d.FECHAVENCIMIENTOLICENCIA || "");
                         const fecha = parseDateDDMMYYYY(fechaStr);
-                        return fecha && fecha > now;
+                        return fecha && fecha >= today;
                       })
                       .sort((a: any, b: any) => {
                         const fechaA = parseDateDDMMYYYY(String(a.fechavencimientolicencia || a.FECHAVENCIMIENTOLICENCIA || ""));
