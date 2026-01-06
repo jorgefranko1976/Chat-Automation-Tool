@@ -40,6 +40,30 @@ export default function Despachos() {
   const [placasProgress, setPlacasProgress] = useState({ current: 0, total: 0, processing: false, currentItem: "" });
   const [cedulasProgress, setCedulasProgress] = useState({ current: 0, total: 0, processing: false, currentItem: "" });
 
+  const updateRow = (idx: number, field: keyof DespachoRow, value: string) => {
+    setRows(prev => prev.map((row, i) => {
+      if (i !== idx) return row;
+      const updated = { ...row, [field]: value };
+      if (field === "granja") {
+        updated.granjaValid = null;
+        updated.granjaData = null;
+      }
+      if (field === "planta") {
+        updated.plantaValid = null;
+        updated.plantaData = null;
+      }
+      if (field === "placa") {
+        updated.placaValid = null;
+        updated.placaData = null;
+      }
+      if (field === "cedula") {
+        updated.cedulaValid = null;
+        updated.cedulaData = null;
+      }
+      return updated;
+    }));
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -570,7 +594,15 @@ export default function Despachos() {
                       {rows.map((row, idx) => (
                         <tr key={idx} className={`border-t ${row.errors.length > 0 ? "bg-red-50" : ""}`}>
                           <td className="p-3 text-muted-foreground">{idx + 1}</td>
-                          <td className="p-3">{row.granja}</td>
+                          <td className="p-1">
+                            <input
+                              type="text"
+                              value={row.granja}
+                              onChange={(e) => updateRow(idx, "granja", e.target.value)}
+                              className="w-full px-2 py-1 text-sm border rounded bg-background"
+                              data-testid={`input-granja-${idx}`}
+                            />
+                          </td>
                           <td className="p-3 text-xs">{row.granjaData?.sede || "-"}</td>
                           <td className="p-3 text-xs font-mono">
                             {row.granjaData?.coordenadas ? (
@@ -585,7 +617,15 @@ export default function Despachos() {
                             ) : "-"}
                           </td>
                           <td className="p-3 text-center">{getStatusIcon(row.granjaValid)}</td>
-                          <td className="p-3">{row.planta}</td>
+                          <td className="p-1">
+                            <input
+                              type="text"
+                              value={row.planta}
+                              onChange={(e) => updateRow(idx, "planta", e.target.value)}
+                              className="w-full px-2 py-1 text-sm border rounded bg-background"
+                              data-testid={`input-planta-${idx}`}
+                            />
+                          </td>
                           <td className="p-3 text-xs">{row.plantaData?.sede || "-"}</td>
                           <td className="p-3 text-xs font-mono">
                             {row.plantaData?.coordenadas ? (
@@ -600,15 +640,39 @@ export default function Despachos() {
                             ) : "-"}
                           </td>
                           <td className="p-3 text-center">{getStatusIcon(row.plantaValid)}</td>
-                          <td className="p-3 font-mono">{row.placa}</td>
+                          <td className="p-1">
+                            <input
+                              type="text"
+                              value={row.placa}
+                              onChange={(e) => updateRow(idx, "placa", e.target.value.toUpperCase())}
+                              className="w-20 px-2 py-1 text-sm border rounded bg-background font-mono"
+                              data-testid={`input-placa-${idx}`}
+                            />
+                          </td>
                           <td className="p-3 text-xs">{row.placaData?.propietarioId || "-"}</td>
                           <td className="p-3 text-xs">{row.placaData?.venceSoat || "-"}</td>
                           <td className="p-3 text-xs">{row.placaData?.pesoVacio || "-"}</td>
                           <td className="p-3 text-center">{getStatusIcon(row.placaValid)}</td>
-                          <td className="p-3">{row.cedula}</td>
+                          <td className="p-1">
+                            <input
+                              type="text"
+                              value={row.cedula}
+                              onChange={(e) => updateRow(idx, "cedula", e.target.value)}
+                              className="w-28 px-2 py-1 text-sm border rounded bg-background"
+                              data-testid={`input-cedula-${idx}`}
+                            />
+                          </td>
                           <td className="p-3 text-xs">{row.cedulaData?.venceLicencia || "-"}</td>
                           <td className="p-3 text-center">{getStatusIcon(row.cedulaValid)}</td>
-                          <td className="p-3">{row.toneladas}</td>
+                          <td className="p-1">
+                            <input
+                              type="text"
+                              value={row.toneladas}
+                              onChange={(e) => updateRow(idx, "toneladas", e.target.value)}
+                              className="w-16 px-2 py-1 text-sm border rounded bg-background"
+                              data-testid={`input-toneladas-${idx}`}
+                            />
+                          </td>
                           <td className="p-3 text-xs">{row.granjaData?.flete || "-"}</td>
                           <td className="p-3 font-medium text-green-700">
                             {row.granjaData?.flete && row.toneladas
