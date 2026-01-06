@@ -1623,6 +1623,16 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
                       return null;
                     };
                     
+                    // Log all records for debugging
+                    docs.forEach((d: any, i: number) => {
+                      const cat = String(d.codcategorialicenciaconduccion || d.CODCATEGORIALICENCIACONDUCCION || "");
+                      const fechaStr = String(d.fechavencimientolicencia || d.FECHAVENCIMIENTOLICENCIA || "");
+                      const fecha = parseDateDDMMYYYY(fechaStr);
+                      const isValidCat = validCategories.includes(cat.toUpperCase());
+                      const isNotExpired = fecha && fecha > now;
+                      console.log(`[RNDC-C] Cédula ${cedulaKey} doc[${i}]: cat=${cat}, fecha=${fechaStr}, validCat=${isValidCat}, noVencida=${isNotExpired}`);
+                    });
+                    
                     const validDocs = docs
                       .filter((d: any) => {
                         const cat = String(d.codcategorialicenciaconduccion || d.CODCATEGORIALICENCIACONDUCCION || "").toUpperCase();
