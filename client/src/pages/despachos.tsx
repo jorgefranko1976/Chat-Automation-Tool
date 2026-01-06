@@ -373,7 +373,6 @@ export default function Despachos() {
         PLACA: row.placa,
         NUMIDPROPIETARIO: row.placaData?.propietarioId || "",
         FECHAVENCIMIENTOSOAT: row.placaData?.venceSoat || "",
-        PESOVEHICULOVACIO: row.placaData?.pesoVacio || "",
         CEDULA: row.cedula,
         FECHAVENCIMIENTOLICENCIA: row.cedulaData?.venceLicencia || "",
         TONELADAS: row.toneladas,
