@@ -25,7 +25,9 @@ interface DespachoRow {
   placaValid: boolean | null;
   placaData: { propietarioId: string; venceSoat: string; pesoVacio: string } | null;
   cedulaValid: boolean | null;
-  cedulaData: { venceLicencia: string } | null;
+  cedulaData: { venceLicencia: string; nombre?: string } | null;
+  horaCargue?: string;
+  horaDescargue?: string;
   errors: string[];
 }
 
@@ -282,6 +284,26 @@ export default function Despachos() {
     },
   });
 
+  const validateCedulasInternalMutation = useMutation({
+    mutationFn: async ({ data, onlyMissing }: { data: DespachoRow[], onlyMissing: boolean }) => {
+      const response = await apiRequest("POST", "/api/despachos/validate-cedulas-internal", { rows: data, onlyMissing });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setRows(data.rows);
+      setStepCComplete(true);
+      const errorCount = data.rows.filter((r: DespachoRow) => r.cedulaValid === false).length;
+      toast({
+        title: "Validación interna completada",
+        description: errorCount > 0 ? `${errorCount} cédulas no encontradas en caché` : "Todas las cédulas validadas",
+        variant: errorCount > 0 ? "default" : "default",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const validateCedulasMutation = useMutation({
     mutationFn: async ({ data, onlyMissing }: { data: DespachoRow[], onlyMissing: boolean }) => {
       const credentials = settings.usernameRndc && settings.passwordRndc && settings.companyNit ? {
@@ -355,6 +377,8 @@ export default function Despachos() {
         TONELADAS: row.toneladas,
         FLETE: row.granjaData?.flete || "",
         VALOR_FLETE: valorFlete > 0 ? valorFlete : "",
+        HORACITAPACTADACARGUE: row.horaCargue || "",
+        HORACITAPACTADADESCARGUEREMESA: row.horaDescargue || "",
         FECHA: row.fecha,
         ERRORES: row.errors.join("; "),
       };
@@ -570,7 +594,7 @@ export default function Despachos() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <User className="h-5 w-5 text-purple-600" />
-                      <span className="font-semibold">C) Cédulas RNDC</span>
+                      <span className="font-semibold">C) Cédulas</span>
                       <span className={`ml-auto text-xs font-bold ${getProgressC() === 100 ? 'text-green-600' : 'text-purple-600'}`}>
                         {cedulasProgress.processing 
                           ? `${cedulasProgress.current}/${cedulasProgress.total}` 
@@ -580,7 +604,7 @@ export default function Despachos() {
                     <p className="text-xs text-muted-foreground mb-2">
                       {cedulasProgress.processing && cedulasProgress.currentItem 
                         ? `Consultando: ${cedulasProgress.currentItem}` 
-                        : "Consulta FECHAVENCIMIENTOLICENCIA"}
+                        : "Valida licencia de conducción"}
                     </p>
                     <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
                       <div 
@@ -595,28 +619,47 @@ export default function Despachos() {
                         {rows.filter(r => r.cedulaValid === false && r.cedula).length} fallidas, {rows.filter(r => r.cedulaValid === null && r.cedula).length} pendientes
                       </p>
                     )}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => validateCedulasMutation.mutate({ data: rows, onlyMissing: false })}
-                        disabled={rows.length === 0 || !hasCredentials || validateCedulasMutation.isPending}
-                        className="flex-1"
-                        variant={stepBComplete ? "default" : "outline"}
-                        size="sm"
-                        data-testid="button-validate-cedulas"
-                      >
-                        {validateCedulasMutation.isPending ? (
-                          <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
-                        ) : stepCComplete ? "Todo" : "Consultar"}
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => validateCedulasInternalMutation.mutate({ data: rows, onlyMissing: false })}
+                          disabled={rows.length === 0 || validateCedulasInternalMutation.isPending || validateCedulasMutation.isPending}
+                          className="flex-1"
+                          variant="outline"
+                          size="sm"
+                          data-testid="button-validate-cedulas-internal"
+                        >
+                          {validateCedulasInternalMutation.isPending ? (
+                            <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
+                          ) : (
+                            <><Database className="mr-1 h-3 w-3" />Interna</>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={() => validateCedulasMutation.mutate({ data: rows, onlyMissing: false })}
+                          disabled={rows.length === 0 || !hasCredentials || validateCedulasMutation.isPending || validateCedulasInternalMutation.isPending}
+                          className="flex-1"
+                          variant={stepBComplete ? "default" : "outline"}
+                          size="sm"
+                          data-testid="button-validate-cedulas"
+                        >
+                          {validateCedulasMutation.isPending ? (
+                            <><Loader2 className="mr-1 h-3 w-3 animate-spin" />...</>
+                          ) : (
+                            <><RefreshCw className="mr-1 h-3 w-3" />RNDC</>
+                          )}
+                        </Button>
+                      </div>
                       {stepCComplete && rows.filter(r => (r.cedulaValid === null || r.cedulaValid === false) && r.cedula).length > 0 && (
                         <Button
                           onClick={() => validateCedulasMutation.mutate({ data: rows, onlyMissing: true })}
                           disabled={!hasCredentials || validateCedulasMutation.isPending}
                           variant="outline"
                           size="sm"
+                          className="w-full"
                           data-testid="button-validate-cedulas-missing"
                         >
-                          Reintentar
+                          Reintentar fallidas/pendientes
                         </Button>
                       )}
                     </div>

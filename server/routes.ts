@@ -1195,7 +1195,9 @@ export async function registerRoutes(
       placaValid: z.boolean().nullable(),
       placaData: z.object({ propietarioId: z.string(), venceSoat: z.string(), pesoVacio: z.string() }).nullable(),
       cedulaValid: z.boolean().nullable(),
-      cedulaData: z.object({ venceLicencia: z.string() }).nullable(),
+      cedulaData: z.object({ venceLicencia: z.string(), nombre: z.string().optional() }).nullable(),
+      horaCargue: z.string().optional(),
+      horaDescargue: z.string().optional(),
       errors: z.array(z.string()),
     })),
     credentials: z.object({
@@ -1279,8 +1281,18 @@ export async function registerRoutes(
         });
       }
 
+      const horasCargue = ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00"];
+      const finalRows = validatedRows.map((row, idx) => {
+        const groupIndex = Math.floor(idx / 10) % horasCargue.length;
+        const horaCargue = horasCargue[groupIndex];
+        const [h, m] = horaCargue.split(":").map(Number);
+        const horaDescargueNum = h + 7;
+        const horaDescargue = `${String(horaDescargueNum).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        return { ...row, horaCargue, horaDescargue };
+      });
+
       console.log(`[DESPACHOS-A] Completado. Granjas únicas: ${granjaCache.size}, Plantas únicas: ${plantaCache.size}`);
-      res.json({ success: true, rows: validatedRows });
+      res.json({ success: true, rows: finalRows });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error en validación interna";
       res.status(400).json({ success: false, message });
@@ -1527,6 +1539,72 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
       })();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error consultando placas";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.post("/api/despachos/validate-cedulas-internal", requireAuth, async (req, res) => {
+    try {
+      const parsed = despachosRowsSchema.parse(req.body);
+      const { rows, onlyMissing } = parsed;
+
+      console.log(`[DESPACHOS-C-INT] Validando ${rows.length} cédulas contra BD local`);
+      
+      const sanitizeCedula = (c: string) => String(c).replace(/[\s.,]/g, "");
+      const cedulaCache = new Map<string, { valid: boolean; data: { venceLicencia: string; nombre?: string } | null; error?: string }>();
+      const validatedRows = [];
+
+      for (const row of rows) {
+        const errors: string[] = [...row.errors.filter(e => !e.toLowerCase().includes("cédula"))];
+        let cedulaValid: boolean | null = row.cedulaValid;
+        let cedulaData = row.cedulaData;
+
+        if (onlyMissing && row.cedulaValid === true) {
+          validatedRows.push({ ...row, errors });
+          continue;
+        }
+
+        if (row.cedula) {
+          const cedulaKey = sanitizeCedula(row.cedula);
+          
+          if (cedulaCache.has(cedulaKey)) {
+            const cached = cedulaCache.get(cedulaKey)!;
+            cedulaValid = cached.valid;
+            cedulaData = cached.data;
+            if (!cached.valid && cached.error) errors.push(cached.error);
+          } else {
+            const tercero = await storage.getTerceroByIdentificacion("CC", cedulaKey);
+            if (tercero && tercero.vencimientoLicencia) {
+              const today = new Date();
+              const [d, m, y] = tercero.vencimientoLicencia.split("/").map(Number);
+              const expDate = new Date(y, m - 1, d);
+              const isValid = expDate >= today;
+              if (isValid) {
+                cedulaValid = true;
+                cedulaData = { venceLicencia: tercero.vencimientoLicencia, nombre: tercero.nombre };
+                cedulaCache.set(cedulaKey, { valid: true, data: cedulaData });
+              } else {
+                cedulaValid = false;
+                const err = `Licencia vencida: ${tercero.vencimientoLicencia}`;
+                errors.push(err);
+                cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+              }
+            } else {
+              cedulaValid = false;
+              const err = `Cédula '${row.cedula}' no encontrada en BD local`;
+              errors.push(err);
+              cedulaCache.set(cedulaKey, { valid: false, data: null, error: err });
+            }
+          }
+        }
+
+        validatedRows.push({ ...row, cedulaValid, cedulaData, errors });
+      }
+
+      console.log(`[DESPACHOS-C-INT] Completado. Cédulas consultadas: ${cedulaCache.size}`);
+      res.json({ success: true, rows: validatedRows });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en validación interna";
       res.status(400).json({ success: false, message });
     }
   });
