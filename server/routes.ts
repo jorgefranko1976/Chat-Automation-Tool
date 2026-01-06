@@ -631,6 +631,32 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/rndc/query-raw", requireAuth, async (req, res) => {
+    try {
+      const { xmlRequest } = req.body;
+      
+      if (!xmlRequest || typeof xmlRequest !== "string") {
+        return res.status(400).json({ success: false, message: "Se requiere xmlRequest" });
+      }
+
+      console.log("[RNDC Raw Query] Enviando consulta XML directa...");
+      const response = await sendXmlToRndc(xmlRequest);
+      
+      console.log("[RNDC Raw Query] Respuesta recibida. success:", response.success, "code:", response.code);
+      
+      res.json({
+        success: response.success,
+        code: response.code,
+        message: response.message,
+        rawXml: response.rawXml,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error en consulta directa";
+      console.log("[RNDC Raw Query] Error:", message);
+      res.status(400).json({ success: false, message });
+    }
+  });
+
   const monitoringQuerySchema = z.object({
     queryType: z.enum(["NUEVOS", "TODOS", "SPECIFIC"]),
     numIdGps: z.string(),

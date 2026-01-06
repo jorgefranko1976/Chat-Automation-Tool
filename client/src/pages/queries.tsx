@@ -181,6 +181,200 @@ function parseDocumentsFromXml(xmlString: string): TerceroDocument[] {
   return documents;
 }
 
+function XmlDirectoSection() {
+  const { settings } = useSettings();
+  const [xmlInput, setXmlInput] = useState("");
+  const [xmlResponse, setXmlResponse] = useState("");
+  const [isQuerying, setIsQuerying] = useState(false);
+  const [responseInfo, setResponseInfo] = useState<{ success: boolean; code: string; message: string } | null>(null);
+
+  const generateTemplate = () => {
+    const template = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>${settings.usernameRndc || "USUARIO@EMPRESA"}</username>
+  <password>${settings.passwordRndc || "CONTRASEÑA"}</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>11</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD,REGIMENSIMPLE
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>${settings.companyNit || "NIT_EMPRESA"}</NUMNITEMPRESATRANSPORTE>
+  <NUMIDTERCERO>CEDULA_TERCERO</NUMIDTERCERO>
+ </documento>
+</root>`;
+    setXmlInput(template);
+  };
+
+  const handleQuery = async () => {
+    if (!xmlInput.trim()) {
+      toast({
+        title: "Error",
+        description: "Ingrese el XML de consulta",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsQuerying(true);
+    setXmlResponse("");
+    setResponseInfo(null);
+
+    try {
+      const response = await apiRequest("POST", "/api/rndc/query-raw", { xmlRequest: xmlInput });
+      const data = await response.json();
+
+      setResponseInfo({
+        success: data.success,
+        code: data.code || "",
+        message: data.message || "",
+      });
+
+      if (data.rawXml) {
+        setXmlResponse(data.rawXml);
+      }
+
+      toast({
+        title: data.success ? "Consulta exitosa" : "Error en consulta",
+        description: data.message || (data.success ? "Respuesta recibida" : "Error desconocido"),
+        variant: data.success ? "default" : "destructive",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al ejecutar consulta",
+        variant: "destructive",
+      });
+    } finally {
+      setIsQuerying(false);
+    }
+  };
+
+  const formatXml = (xml: string): string => {
+    try {
+      let formatted = "";
+      let indent = 0;
+      const lines = xml.replace(/>\s*</g, ">\n<").split("\n");
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        
+        if (trimmed.startsWith("</")) {
+          indent = Math.max(0, indent - 1);
+        }
+        
+        formatted += "  ".repeat(indent) + trimmed + "\n";
+        
+        if (trimmed.startsWith("<") && !trimmed.startsWith("</") && !trimmed.startsWith("<?") && !trimmed.endsWith("/>") && !trimmed.includes("</")) {
+          indent++;
+        }
+      }
+      
+      return formatted.trim();
+    } catch {
+      return xml;
+    }
+  };
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileCode className="h-5 w-5" />
+            Consulta XML Directa
+          </CardTitle>
+          <CardDescription>
+            Escriba o pegue el XML completo para enviar al RNDC
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>XML de Consulta</Label>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={generateTemplate}
+                data-testid="button-generate-template"
+              >
+                <FileCode className="mr-1 h-3 w-3" /> Generar Plantilla
+              </Button>
+            </div>
+            <textarea
+              value={xmlInput}
+              onChange={(e) => setXmlInput(e.target.value)}
+              className="w-full h-72 p-3 font-mono text-xs border rounded-md bg-muted/30 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Pegue aquí el XML de consulta o use 'Generar Plantilla' para empezar..."
+              data-testid="textarea-xml-input"
+            />
+          </div>
+          <Button 
+            onClick={handleQuery} 
+            disabled={isQuerying || !xmlInput.trim()} 
+            className="w-full"
+            data-testid="button-send-xml-query"
+          >
+            {isQuerying ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Consultando...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Enviar Consulta al RNDC
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            Respuesta RNDC
+          </CardTitle>
+          {responseInfo && (
+            <CardDescription className="flex items-center gap-2">
+              {responseInfo.success ? (
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              ) : (
+                <XCircle className="h-4 w-4 text-red-500" />
+              )}
+              <span className={responseInfo.success ? "text-green-600" : "text-red-600"}>
+                {responseInfo.code && `[${responseInfo.code}] `}{responseInfo.message}
+              </span>
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent>
+          {xmlResponse ? (
+            <ScrollArea className="h-[400px] rounded border bg-muted/30">
+              <pre className="p-4 text-xs font-mono whitespace-pre-wrap break-all">
+                {formatXml(xmlResponse)}
+              </pre>
+            </ScrollArea>
+          ) : (
+            <div className="h-[400px] flex items-center justify-center text-muted-foreground border rounded-md bg-muted/10">
+              <div className="text-center">
+                <FileCode className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>La respuesta del RNDC aparecerá aquí</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function Queries() {
   const { settings, getActiveWsUrl } = useSettings();
   const [queryType, setQueryType] = useState("terceros");
@@ -1041,6 +1235,9 @@ ${TERCEROS_VARIABLES}
             <TabsTrigger value="consultar" data-testid="tab-consultar">
               <Search className="mr-2 h-4 w-4" /> Consultar
             </TabsTrigger>
+            <TabsTrigger value="xml-directo" data-testid="tab-xml-directo">
+              <FileCode className="mr-2 h-4 w-4" /> XML Directo
+            </TabsTrigger>
             <TabsTrigger value="masiva" data-testid="tab-masiva">
               <FileSpreadsheet className="mr-2 h-4 w-4" /> Consulta Masiva
             </TabsTrigger>
@@ -1219,6 +1416,10 @@ ${TERCEROS_VARIABLES}
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="xml-directo" className="space-y-6">
+            <XmlDirectoSection />
           </TabsContent>
 
           <TabsContent value="masiva" className="space-y-6">
