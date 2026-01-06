@@ -1711,6 +1711,81 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
     }
   });
 
+  app.get("/api/despachos", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const despachos = await storage.getDespachos(limit);
+      res.json({ success: true, despachos });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener despachos" });
+    }
+  });
+
+  app.get("/api/despachos/:id", requireAuth, async (req, res) => {
+    try {
+      const despacho = await storage.getDespacho(req.params.id);
+      if (!despacho) {
+        return res.status(404).json({ success: false, message: "Despacho no encontrado" });
+      }
+      res.json({ success: true, despacho });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener despacho" });
+    }
+  });
+
+  app.post("/api/despachos", requireAuth, async (req, res) => {
+    try {
+      const { nombre, fecha, rows } = req.body;
+      if (!nombre || !fecha || !rows) {
+        return res.status(400).json({ success: false, message: "Datos incompletos" });
+      }
+      const validRows = rows.filter((r: any) => !r.errors?.length).length;
+      const errorRows = rows.filter((r: any) => r.errors?.length > 0).length;
+      const despacho = await storage.createDespacho({
+        nombre,
+        fecha,
+        totalRows: rows.length,
+        validRows,
+        errorRows,
+        rows,
+        status: "draft",
+      });
+      res.json({ success: true, despacho });
+    } catch (error) {
+      console.error("Error guardando despacho:", error);
+      res.status(500).json({ success: false, message: "Error al guardar despacho" });
+    }
+  });
+
+  app.put("/api/despachos/:id", requireAuth, async (req, res) => {
+    try {
+      const { rows, status } = req.body;
+      const updates: any = {};
+      if (rows) {
+        updates.rows = rows;
+        updates.validRows = rows.filter((r: any) => !r.errors?.length).length;
+        updates.errorRows = rows.filter((r: any) => r.errors?.length > 0).length;
+      }
+      if (status) updates.status = status;
+      const despacho = await storage.updateDespacho(req.params.id, updates);
+      if (!despacho) {
+        return res.status(404).json({ success: false, message: "Despacho no encontrado" });
+      }
+      res.json({ success: true, despacho });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al actualizar despacho" });
+    }
+  });
+
+  app.delete("/api/despachos/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteDespacho(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al eliminar despacho" });
+    }
+  });
+
   return httpServer;
 }
 

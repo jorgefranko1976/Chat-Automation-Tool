@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -335,3 +335,25 @@ export const insertRndcVehiculoSchema = createInsertSchema(rndcVehiculos).omit({
 
 export type InsertRndcVehiculo = z.infer<typeof insertRndcVehiculoSchema>;
 export type RndcVehiculo = typeof rndcVehiculos.$inferSelect;
+
+export const despachos = pgTable("despachos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nombre: varchar("nombre").notNull(),
+  fecha: varchar("fecha").notNull(),
+  totalRows: integer("total_rows").notNull(),
+  validRows: integer("valid_rows").default(0),
+  errorRows: integer("error_rows").default(0),
+  rows: jsonb("rows").notNull(),
+  status: varchar("status").notNull().default("draft"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDespachoSchema = createInsertSchema(despachos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDespacho = z.infer<typeof insertDespachoSchema>;
+export type Despacho = typeof despachos.$inferSelect;

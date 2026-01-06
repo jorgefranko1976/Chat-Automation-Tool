@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface DespachoRow {
   granja: string;
@@ -39,6 +39,83 @@ export default function Despachos() {
   const [stepCComplete, setStepCComplete] = useState(false);
   const [placasProgress, setPlacasProgress] = useState({ current: 0, total: 0, processing: false, currentItem: "" });
   const [cedulasProgress, setCedulasProgress] = useState({ current: 0, total: 0, processing: false, currentItem: "" });
+  const [currentDespachoId, setCurrentDespachoId] = useState<string | null>(null);
+  const [showSavedDespachos, setShowSavedDespachos] = useState(false);
+
+  const { data: savedDespachosData, refetch: refetchDespachos } = useQuery({
+    queryKey: ["/api/despachos"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/despachos");
+      return res.json();
+    },
+  });
+
+  const savedDespachos = savedDespachosData?.despachos || [];
+
+  const saveDespachoMutation = useMutation({
+    mutationFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const nombre = `Despacho ${today}`;
+      const response = await apiRequest("POST", "/api/despachos", {
+        nombre,
+        fecha: today,
+        rows,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setCurrentDespachoId(data.despacho.id);
+      refetchDespachos();
+      toast({ title: "Guardado", description: "Despacho guardado correctamente" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "No se pudo guardar el despacho", variant: "destructive" });
+    },
+  });
+
+  const updateDespachoMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentDespachoId) throw new Error("No hay despacho seleccionado");
+      const response = await apiRequest("PUT", `/api/despachos/${currentDespachoId}`, { rows });
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchDespachos();
+      toast({ title: "Actualizado", description: "Despacho actualizado correctamente" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "No se pudo actualizar el despacho", variant: "destructive" });
+    },
+  });
+
+  const deleteDespachoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/despachos/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchDespachos();
+      toast({ title: "Eliminado", description: "Despacho eliminado correctamente" });
+    },
+  });
+
+  const loadDespacho = async (id: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/despachos/${id}`);
+      const data = await res.json();
+      if (data.success && data.despacho) {
+        setRows(data.despacho.rows as DespachoRow[]);
+        setCurrentDespachoId(data.despacho.id);
+        setStepAComplete(true);
+        setStepBComplete(true);
+        setStepCComplete(true);
+        setShowSavedDespachos(false);
+        toast({ title: "Cargado", description: `Despacho "${data.despacho.nombre}" cargado` });
+      }
+    } catch {
+      toast({ title: "Error", description: "No se pudo cargar el despacho", variant: "destructive" });
+    }
+  };
 
   const updateRow = (idx: number, field: keyof DespachoRow, value: string) => {
     setRows(prev => prev.map((row, i) => {
@@ -548,10 +625,88 @@ export default function Despachos() {
               </div>
 
               {(stepAComplete || stepBComplete || stepCComplete) && (
-                <Button variant="outline" onClick={handleExportExcel} data-testid="button-export">
-                  <Download className="mr-2 h-4 w-4" />
-                  Exportar Excel Enriquecido
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={handleExportExcel} data-testid="button-export">
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar Excel
+                  </Button>
+                  {currentDespachoId ? (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => updateDespachoMutation.mutate()}
+                      disabled={updateDespachoMutation.isPending}
+                      data-testid="button-update-despacho"
+                    >
+                      {updateDespachoMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+                      ) : (
+                        <><Save className="mr-2 h-4 w-4" />Actualizar</>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => saveDespachoMutation.mutate()}
+                      disabled={saveDespachoMutation.isPending}
+                      data-testid="button-save-despacho"
+                    >
+                      {saveDespachoMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+                      ) : (
+                        <><Save className="mr-2 h-4 w-4" />Guardar</>
+                      )}
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowSavedDespachos(!showSavedDespachos)}
+                    data-testid="button-show-saved"
+                  >
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    {showSavedDespachos ? "Ocultar" : "Cargar Guardados"}
+                  </Button>
+                </div>
+              )}
+
+              {showSavedDespachos && savedDespachos.length > 0 && (
+                <Card className="border-dashed">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm">Despachos Guardados</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y max-h-48 overflow-y-auto">
+                      {savedDespachos.map((d: any) => (
+                        <div key={d.id} className="flex items-center justify-between px-4 py-2 hover:bg-muted/50">
+                          <div className="flex-1">
+                            <span className="font-medium text-sm">{d.nombre}</span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              ({d.totalRows} filas, {d.validRows} OK, {d.errorRows} errores)
+                            </span>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => loadDespacho(d.id)}
+                              data-testid={`button-load-${d.id}`}
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => deleteDespachoMutation.mutate(d.id)}
+                              data-testid={`button-delete-${d.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </CardContent>
           </Card>

@@ -13,6 +13,7 @@ import {
   terceros,
   vehiculos,
   rndcVehiculos,
+  despachos,
   type User,
   type InsertUser,
   type UpdateUserProfile,
@@ -38,6 +39,8 @@ import {
   type InsertVehiculo,
   type RndcVehiculo,
   type InsertRndcVehiculo,
+  type Despacho,
+  type InsertDespacho,
 } from "@shared/schema";
 
 export interface DashboardStats {
@@ -127,6 +130,12 @@ export interface IStorage {
   getRndcVehiculoByPlaca(placa: string): Promise<RndcVehiculo | undefined>;
   getRndcVehiculosByPlacas(placas: string[]): Promise<RndcVehiculo[]>;
   upsertRndcVehiculo(vehiculo: InsertRndcVehiculo): Promise<RndcVehiculo>;
+  
+  createDespacho(despacho: InsertDespacho): Promise<Despacho>;
+  getDespacho(id: string): Promise<Despacho | undefined>;
+  updateDespacho(id: string, updates: Partial<Despacho>): Promise<Despacho | undefined>;
+  deleteDespacho(id: string): Promise<void>;
+  getDespachos(limit?: number): Promise<Despacho[]>;
 }
 
 export interface ManifestSearchFilters {
@@ -558,6 +567,29 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return result;
+  }
+
+  async createDespacho(despacho: InsertDespacho): Promise<Despacho> {
+    const [newDespacho] = await db.insert(despachos).values(despacho).returning();
+    return newDespacho;
+  }
+
+  async getDespacho(id: string): Promise<Despacho | undefined> {
+    const [despacho] = await db.select().from(despachos).where(eq(despachos.id, id));
+    return despacho;
+  }
+
+  async updateDespacho(id: string, updates: Partial<Despacho>): Promise<Despacho | undefined> {
+    const [despacho] = await db.update(despachos).set({ ...updates, updatedAt: new Date() }).where(eq(despachos.id, id)).returning();
+    return despacho;
+  }
+
+  async deleteDespacho(id: string): Promise<void> {
+    await db.delete(despachos).where(eq(despachos.id, id));
+  }
+
+  async getDespachos(limit = 50): Promise<Despacho[]> {
+    return db.select().from(despachos).orderBy(desc(despachos.createdAt)).limit(limit);
   }
 }
 
