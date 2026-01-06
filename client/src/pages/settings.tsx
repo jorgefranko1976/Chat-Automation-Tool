@@ -413,6 +413,19 @@ export default function Settings() {
                     Número consecutivo para generar remesas y manifiestos. Se incrementará automáticamente.
                   </p>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="numIdGps">ID GPS (NUMIDGPS)</Label>
+                  <Input 
+                    id="numIdGps"
+                    value={formData.numIdGps}
+                    onChange={(e) => handleChange("numIdGps", e.target.value)}
+                    placeholder="Número identificador del GPS"
+                    data-testid="input-numidgps"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Identificador del dispositivo GPS para las remesas.
+                  </p>
+                </div>
                 <Button onClick={handleSave} className="w-full sm:w-auto" data-testid="button-save-company">
                   <Save className="mr-2 h-4 w-4" /> Guardar Configuración
                 </Button>

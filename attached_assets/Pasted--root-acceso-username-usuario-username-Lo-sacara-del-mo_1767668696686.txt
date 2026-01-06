@@ -1,0 +1,38 @@
+ <root>
+          <acceso>
+            <username>${usuario}</username>//// Lo sacara del modulo Configuracion UsuarioRNDC ////
+            <password>${password}</password>///// Lo sacara del Moudulo Configuracion PasswordRNDC ////
+          </acceso>
+          <solicitud>
+            <tipo>1</tipo>
+            <procesoid>3</procesoid>
+          </solicitud>
+          <variables>
+            <NUMNITEMPRESATRANSPORTE>${nit_empresa}</NUMNITEMPRESATRANSPORTE>//// Sacarlo del modulo CONFIGURACION NIT Empresa/////
+            <CONSECUTIVOREMESA>${consecutivo}</CONSECUTIVOREMESA>//// debera sacarlo del modulo configuracion Nota: para remesa y manifiesto es el mismo numero /////
+            <CODOPERACIONTRANSPORTE>G</CODOPERACIONTRANSPORTE>//// campo fijo ////
+            <CODNATURALEZACARGA>1</CODNATURALEZACARGA>///// campo fijo ////
+            <CANTIDADCARGADA>${toneladas}</CANTIDADCARGADA>//// lo tomarara del capo Toneladas del excel robusto////
+            <UNIDADMEDIDACAPACIDAD>1</UNIDADMEDIDACAPACIDAD>//// campo fijo ////
+            <CODTIPOEMPAQUE>0</CODTIPOEMPAQUE>//// campo fijo ////
+            <MERCANCIAREMESA>002309</MERCANCIAREMESA>
+            <DESCRIPCIONCORTAPRODUCTO>ALIMENTO PARA AVES DE CORRAL</DESCRIPCIONCORTAPRODUCTO>//// campo fijo ////
+            <CODTIPOIDREMITENTE>N</CODTIPOIDREMITENTE>//// campo fijo ////
+            <NUMIDREMITENTE>8600588314</NUMIDREMITENTE>//// campo fijo ////
+            <CODSEDEREMITENTE>${codigo_sede_origen}</CODSEDEREMITENTE>//// lo tomarara del campo Sede (planta)  del excel robusto////
+            <CODTIPOIDDESTINATARIO>N</CODTIPOIDDESTINATARIO>//// campo fijo ////
+            <NUMIDDESTINATARIO>8600588314</NUMIDDESTINATARIO>//// campo fijo ////
+            <CODSEDEDESTINATARIO>${codigo_sede_destino}</CODSEDEDESTINATARIO>//// lo tomarara del campo Sede (granja)  del excel robusto////
+            <DUENOPOLIZA>N</DUENOPOLIZA>//// campo fijo ////
+            <HORASPACTOCARGA>2</HORASPACTOCARGA>//// campo fijo ////
+            <HORASPACTODESCARGUE>2</HORASPACTODESCARGUE>//// campo fijo ////
+            <CODTIPOIDPROPIETARIO>N</CODTIPOIDPROPIETARIO>//// campo fijo ////
+            <NUMIDPROPIETARIO>${nit_empresa}</NUMIDPROPIETARIO>/// Sacarlo del modulo CONFIGURACION NIT Empresa/////
+            <CODSEDEPROPIETARIO>01</CODSEDEPROPIETARIO>//// campo fijo ////
+            <FECHACITAPACTADACARGUE>${fecha_cargue}</FECHACITAPACTADACARGUE>//// lo tomarara del campo Fecha del excel robusto////
+            <HORACITAPACTADACARGUE>08:00</HORACITAPACTADACARGUE>
+            <FECHACITAPACTADADESCARGUE>${fecha_descargue}</FECHACITAPACTADADESCARGUE>//// lo tomarara del campo Fecha del excel robusto////
+            <HORACITAPACTADADESCARGUEREMESA>13:00</HORACITAPACTADADESCARGUEREMESA>
+			<NUMIDGPS>5675756</NUMIDGPS>//// Sacarlo del modulo CONFIGURACION NIT Empresa/////
+          </variables>
+        </root>

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode } from "lucide-react";
 import * as XLSX from "xlsx";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -33,7 +33,7 @@ interface DespachoRow {
 
 export default function Despachos() {
   const { toast } = useToast();
-  const { settings } = useSettings();
+  const { settings, saveSettings } = useSettings();
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<DespachoRow[]>([]);
   const [stepAComplete, setStepAComplete] = useState(false);
@@ -481,6 +481,90 @@ export default function Despachos() {
     setSelectedRows(new Set());
   };
 
+  const generateRemesasXml = () => {
+    if (selectedRows.size === 0) {
+      toast({ title: "Error", description: "Seleccione al menos una fila para generar Remesas", variant: "destructive" });
+      return;
+    }
+
+    if (!settings.usernameRndc || !settings.passwordRndc || !settings.companyNit) {
+      toast({ title: "Error", description: "Configure credenciales RNDC en Configuración", variant: "destructive" });
+      return;
+    }
+
+    if (!settings.numIdGps) {
+      toast({ title: "Error", description: "Configure el ID GPS en Configuración > Datos de la Empresa", variant: "destructive" });
+      return;
+    }
+
+    let currentConsecutivo = settings.consecutivo;
+    const xmls: string[] = [];
+    
+    const selectedRowsArray = Array.from(selectedRows).map(idx => rows[idx]).filter(r => r);
+
+    for (const row of selectedRowsArray) {
+      const xml = `<?xml version="1.0" encoding="ISO-8859-1"?>
+<root>
+  <acceso>
+    <username>${settings.usernameRndc}</username>
+    <password>${settings.passwordRndc}</password>
+  </acceso>
+  <solicitud>
+    <tipo>1</tipo>
+    <procesoid>3</procesoid>
+  </solicitud>
+  <variables>
+    <NUMNITEMPRESATRANSPORTE>${settings.companyNit}</NUMNITEMPRESATRANSPORTE>
+    <CONSECUTIVOREMESA>${currentConsecutivo}</CONSECUTIVOREMESA>
+    <CODOPERACIONTRANSPORTE>G</CODOPERACIONTRANSPORTE>
+    <CODNATURALEZACARGA>1</CODNATURALEZACARGA>
+    <CANTIDADCARGADA>${row.toneladas}</CANTIDADCARGADA>
+    <UNIDADMEDIDACAPACIDAD>1</UNIDADMEDIDACAPACIDAD>
+    <CODTIPOEMPAQUE>0</CODTIPOEMPAQUE>
+    <MERCANCIAREMESA>002309</MERCANCIAREMESA>
+    <DESCRIPCIONCORTAPRODUCTO>ALIMENTO PARA AVES DE CORRAL</DESCRIPCIONCORTAPRODUCTO>
+    <CODTIPOIDREMITENTE>N</CODTIPOIDREMITENTE>
+    <NUMIDREMITENTE>8600588314</NUMIDREMITENTE>
+    <CODSEDEREMITENTE>${row.plantaData?.sede || ""}</CODSEDEREMITENTE>
+    <CODTIPOIDDESTINATARIO>N</CODTIPOIDDESTINATARIO>
+    <NUMIDDESTINATARIO>8600588314</NUMIDDESTINATARIO>
+    <CODSEDEDESTINATARIO>${row.granjaData?.sede || ""}</CODSEDEDESTINATARIO>
+    <DUENOPOLIZA>N</DUENOPOLIZA>
+    <HORASPACTOCARGA>2</HORASPACTOCARGA>
+    <HORASPACTODESCARGUE>2</HORASPACTODESCARGUE>
+    <CODTIPOIDPROPIETARIO>N</CODTIPOIDPROPIETARIO>
+    <NUMIDPROPIETARIO>${settings.companyNit}</NUMIDPROPIETARIO>
+    <CODSEDEPROPIETARIO>01</CODSEDEPROPIETARIO>
+    <FECHACITAPACTADACARGUE>${row.fecha}</FECHACITAPACTADACARGUE>
+    <HORACITAPACTADACARGUE>${row.horaCargue || "08:00"}</HORACITAPACTADACARGUE>
+    <FECHACITAPACTADADESCARGUE>${row.fecha}</FECHACITAPACTADADESCARGUE>
+    <HORACITAPACTADADESCARGUEREMESA>${row.horaDescargue || "13:00"}</HORACITAPACTADADESCARGUEREMESA>
+    <NUMIDGPS>${settings.numIdGps}</NUMIDGPS>
+  </variables>
+</root>`;
+      xmls.push(xml);
+      currentConsecutivo++;
+    }
+
+    // Guardar el nuevo consecutivo
+    saveSettings({ ...settings, consecutivo: currentConsecutivo });
+
+    // Descargar como archivo
+    const allXml = xmls.join("\n\n<!-- ==================== SIGUIENTE REMESA ==================== -->\n\n");
+    const blob = new Blob([allXml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `remesas_${new Date().toISOString().split("T")[0]}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({ 
+      title: "Remesas generadas", 
+      description: `${xmls.length} remesas XML generadas. Consecutivo actualizado a ${currentConsecutivo}` 
+    });
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -724,6 +808,15 @@ export default function Despachos() {
                   <Button variant="outline" onClick={handleExportExcel} data-testid="button-export">
                     <Download className="mr-2 h-4 w-4" />
                     Exportar Excel
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    onClick={generateRemesasXml}
+                    disabled={selectedRows.size === 0}
+                    data-testid="button-generate-remesas"
+                  >
+                    <FileCode className="mr-2 h-4 w-4" />
+                    Generar Remesas XML ({selectedRows.size})
                   </Button>
                   {currentDespachoId ? (
                     <Button 
