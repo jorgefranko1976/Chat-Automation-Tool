@@ -305,7 +305,7 @@ export async function registerRoutes(
   app.post("/api/rndc/ping", async (req, res) => {
     try {
       const { wsUrl } = req.body;
-      const targetUrl = wsUrl || "https://rndc.mintransporte.gov.co/MenuPrincipal/tablogin/loginWebService.asmx";
+      const targetUrl = wsUrl || "http://rndcws2.mintransporte.gov.co:8080/ws";
       
       const startTime = Date.now();
       const controller = new AbortController();

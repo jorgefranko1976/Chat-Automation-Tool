@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 
-const DEFAULT_RNDC_URL = "http://plc.mintransporte.gov.co:8080/soap/IBPMServices";
+const DEFAULT_RNDC_URL = "http://rndcws2.mintransporte.gov.co:8080/ws/soap/IBPMServices";
 
 function unescapeHtmlEntities(str: string): string {
   if (!str) return str;
