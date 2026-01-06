@@ -1050,6 +1050,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/rndc/remesas/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const submissions = await storage.getAllRemesaSubmissions(limit);
+      res.json({ success: true, submissions });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener historial de remesas" });
+    }
+  });
+
   app.get("/api/rndc/cumplidos/history", async (req, res) => {
     try {
       const type = req.query.type as string;

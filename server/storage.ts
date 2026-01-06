@@ -92,6 +92,7 @@ export interface IStorage {
   getRemesaSubmission(id: string): Promise<RemesaSubmission | undefined>;
   updateRemesaSubmission(id: string, updates: Partial<RemesaSubmission>): Promise<RemesaSubmission | undefined>;
   getRemesaSubmissionsByBatch(batchId: string): Promise<RemesaSubmission[]>;
+  getAllRemesaSubmissions(limit?: number): Promise<RemesaSubmission[]>;
   
   getRndcBatchesByType(type: string, limit?: number): Promise<RndcBatch[]>;
   
@@ -322,6 +323,10 @@ export class DatabaseStorage implements IStorage {
 
   async getRemesaSubmissionsByBatch(batchId: string): Promise<RemesaSubmission[]> {
     return db.select().from(remesaSubmissions).where(eq(remesaSubmissions.batchId, batchId)).orderBy(desc(remesaSubmissions.createdAt));
+  }
+
+  async getAllRemesaSubmissions(limit = 100): Promise<RemesaSubmission[]> {
+    return db.select().from(remesaSubmissions).orderBy(desc(remesaSubmissions.createdAt)).limit(limit);
   }
 
   async getRndcBatchesByType(type: string, limit = 50): Promise<RndcBatch[]> {

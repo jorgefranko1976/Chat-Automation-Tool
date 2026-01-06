@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -69,6 +69,18 @@ export default function Despachos() {
   const [generatedRemesas, setGeneratedRemesas] = useState<GeneratedRemesa[]>([]);
   const [isSendingRemesas, setIsSendingRemesas] = useState(false);
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  const [showRemesasHistory, setShowRemesasHistory] = useState(false);
+
+  const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
+    queryKey: ["/api/rndc/remesas/history"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/rndc/remesas/history?limit=100");
+      return res.json();
+    },
+    enabled: showRemesasHistory,
+  });
+
+  const remesasHistory = remesasHistoryData?.submissions || [];
 
   const { data: savedDespachosData, refetch: refetchDespachos } = useQuery({
     queryKey: ["/api/despachos"],
@@ -1349,6 +1361,104 @@ export default function Despachos() {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <History className="h-5 w-5" /> Historial de Remesas
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">Transacciones enviadas al RNDC</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={showRemesasHistory ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setShowRemesasHistory(!showRemesasHistory);
+                    if (!showRemesasHistory) refetchRemesasHistory();
+                  }}
+                  data-testid="button-toggle-history"
+                >
+                  {showRemesasHistory ? "Ocultar" : "Ver Historial"}
+                </Button>
+                {showRemesasHistory && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchRemesasHistory()}
+                    data-testid="button-refresh-history"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            {showRemesasHistory && (
+              <CardContent>
+                {remesasHistory.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No hay remesas enviadas aún</p>
+                ) : (
+                  <div className="max-h-[400px] overflow-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Consecutivo</TableHead>
+                          <TableHead>Placa</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Fecha Cargue</TableHead>
+                          <TableHead>Fecha Descargue</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>ID Remesa</TableHead>
+                          <TableHead>Respuesta</TableHead>
+                          <TableHead>XML</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {remesasHistory.map((remesa: any, i: number) => (
+                          <TableRow key={remesa.id || i} data-testid={`row-history-${i}`}>
+                            <TableCell className="text-xs">
+                              {remesa.createdAt ? new Date(remesa.createdAt).toLocaleString("es-CO") : "-"}
+                            </TableCell>
+                            <TableCell className="font-mono">{remesa.consecutivoRemesa}</TableCell>
+                            <TableCell>{remesa.numPlaca}</TableCell>
+                            <TableCell className="font-mono">{remesa.cantidadCargada}</TableCell>
+                            <TableCell>{remesa.fechaCargue} {remesa.horaCargue}</TableCell>
+                            <TableCell>{remesa.fechaDescargue} {remesa.horaDescargue}</TableCell>
+                            <TableCell>{getRemesaStatusBadge(remesa.status)}</TableCell>
+                            <TableCell className="font-mono">{remesa.idRemesa || "-"}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-xs" title={remesa.responseMessage}>
+                              {remesa.responseMessage || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" data-testid={`button-view-history-xml-${i}`}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl max-h-[80vh]">
+                                  <DialogHeader>
+                                    <DialogTitle>XML Remesa - {remesa.consecutivoRemesa}</DialogTitle>
+                                  </DialogHeader>
+                                  <ScrollArea className="h-[60vh]">
+                                    <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono">
+                                      {remesa.xmlRequest}
+                                    </pre>
+                                  </ScrollArea>
+                                </DialogContent>
+                              </Dialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
         </div>
       </main>
     </div>
