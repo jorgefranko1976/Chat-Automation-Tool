@@ -883,6 +883,8 @@ export default function Despachos() {
                         <th className="text-left p-3 font-medium">Ton</th>
                         <th className="text-left p-3 font-medium">Flete</th>
                         <th className="text-left p-3 font-medium">Valor</th>
+                        <th className="text-left p-3 font-medium">H.Carg</th>
+                        <th className="text-left p-3 font-medium">H.Desc</th>
                         <th className="text-left p-3 font-medium">Fecha</th>
                         <th className="text-left p-3 font-medium">Errores</th>
                       </tr>
@@ -988,6 +990,8 @@ export default function Despachos() {
                               ? Math.round(parseFloat(row.toneladas.replace(",", ".")) * parseFloat(row.granjaData.flete.replace(/[^\d.-]/g, "")))
                               : "-"}
                           </td>
+                          <td className="p-3 text-xs">{row.horaCargue || "-"}</td>
+                          <td className="p-3 text-xs">{row.horaDescargue || "-"}</td>
                           <td className="p-3">{row.fecha}</td>
                           <td className="p-3 text-red-600 text-xs max-w-xs truncate" title={row.errors.join("; ")}>
                             {row.errors.join("; ")}
