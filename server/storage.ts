@@ -149,6 +149,7 @@ export interface IStorage {
   upsertRndcConductor(conductor: InsertRndcConductor): Promise<RndcConductor>;
   getRndcConductores(limit?: number): Promise<RndcConductor[]>;
   searchRndcConductores(query: string): Promise<RndcConductor[]>;
+  updateRndcConductor(id: string, updates: Partial<RndcConductor>): Promise<void>;
   deleteRndcConductor(id: string): Promise<void>;
   
   createDespacho(despacho: InsertDespacho): Promise<Despacho>;
@@ -671,6 +672,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRndcConductor(id: string): Promise<void> {
     await db.delete(rndcConductores).where(eq(rndcConductores.id, id));
+  }
+
+  async updateRndcConductor(id: string, updates: Partial<RndcConductor>): Promise<void> {
+    await db.update(rndcConductores).set(updates).where(eq(rndcConductores.id, id));
   }
 
   async createDespacho(despacho: InsertDespacho): Promise<Despacho> {

@@ -1257,6 +1257,22 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/conductores/:id", requireAuth, async (req, res) => {
+    try {
+      const { nombre, telefono, categoriaLicencia, venceLicencia, placa } = req.body;
+      await storage.updateRndcConductor(req.params.id, {
+        nombre: nombre || null,
+        telefono: telefono || null,
+        categoriaLicencia: categoriaLicencia || null,
+        venceLicencia: venceLicencia || null,
+        placa: placa || null,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al actualizar conductor" });
+    }
+  });
+
   app.post("/api/conductores/bulk-import", requireAuth, async (req, res) => {
     try {
       const { rows } = req.body as { rows: any[] };

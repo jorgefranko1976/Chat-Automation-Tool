@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin, Upload, Loader2, UserCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin, Upload, Loader2, UserCheck, MoreHorizontal } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { Tercero, Vehiculo, RndcConductor } from "@shared/schema";
 
@@ -744,6 +745,9 @@ function ConductoresSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isImporting, setIsImporting] = useState(false);
+  const [viewingConductor, setViewingConductor] = useState<RndcConductor | null>(null);
+  const [editingConductor, setEditingConductor] = useState<RndcConductor | null>(null);
+  const [editForm, setEditForm] = useState({ nombre: "", telefono: "", categoriaLicencia: "", venceLicencia: "", placa: "" });
   const itemsPerPage = 15;
 
   const { data: conductoresData, isLoading } = useQuery({
@@ -788,6 +792,37 @@ function ConductoresSection() {
       setIsImporting(false);
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof editForm }) => {
+      const res = await fetch(`/api/conductores/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conductores"] });
+      toast({ title: "Conductor actualizado" });
+      setEditingConductor(null);
+    },
+    onError: () => {
+      toast({ title: "Error al actualizar", variant: "destructive" });
+    },
+  });
+
+  const openEdit = (conductor: RndcConductor) => {
+    setEditForm({
+      nombre: conductor.nombre || "",
+      telefono: conductor.telefono || "",
+      categoriaLicencia: conductor.categoriaLicencia || "",
+      venceLicencia: conductor.venceLicencia || "",
+      placa: conductor.placa || "",
+    });
+    setEditingConductor(conductor);
+  };
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -889,14 +924,24 @@ function ConductoresSection() {
                       <td className="p-3">{conductor.telefono || "-"}</td>
                       <td className="p-3 font-mono">{conductor.placa || "-"}</td>
                       <td className="p-3">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMutation.mutate(conductor.id)}
-                          data-testid={`button-delete-conductor-${conductor.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`button-actions-conductor-${conductor.id}`}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setViewingConductor(conductor)} data-testid={`menu-view-conductor-${conductor.id}`}>
+                              <Eye className="h-4 w-4 mr-2" /> Ver
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(conductor)} data-testid={`menu-edit-conductor-${conductor.id}`}>
+                              <Pencil className="h-4 w-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => deleteMutation.mutate(conductor.id)} className="text-destructive" data-testid={`menu-delete-conductor-${conductor.id}`}>
+                              <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))}
@@ -942,6 +987,97 @@ function ConductoresSection() {
           </>
         )}
       </CardContent>
+
+      <Dialog open={!!viewingConductor} onOpenChange={() => setViewingConductor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalle del Conductor</DialogTitle>
+            <DialogDescription>Información registrada del conductor</DialogDescription>
+          </DialogHeader>
+          {viewingConductor && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="text-muted-foreground">Cédula</Label>
+                  <p className="font-mono">{viewingConductor.cedula}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Nombre</Label>
+                  <p>{viewingConductor.nombre || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Categoría Licencia</Label>
+                  <p>{viewingConductor.categoriaLicencia || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Vence Licencia</Label>
+                  <p>{viewingConductor.venceLicencia || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Teléfono</Label>
+                  <p>{viewingConductor.telefono || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Placa</Label>
+                  <p className="font-mono">{viewingConductor.placa || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Ingreso ID</Label>
+                  <p className="font-mono text-xs">{viewingConductor.ingresoId || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Última Sincronización</Label>
+                  <p className="text-xs">{viewingConductor.lastSyncedAt ? new Date(viewingConductor.lastSyncedAt).toLocaleString() : "-"}</p>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setViewingConductor(null)}>Cerrar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingConductor} onOpenChange={() => setEditingConductor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Conductor</DialogTitle>
+            <DialogDescription>Modifique los datos del conductor {editingConductor?.cedula}</DialogDescription>
+          </DialogHeader>
+          {editingConductor && (
+            <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ id: editingConductor.id, data: editForm }); }} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label>Nombre</Label>
+                  <Input value={editForm.nombre} onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })} data-testid="input-edit-nombre" />
+                </div>
+                <div>
+                  <Label>Categoría Licencia</Label>
+                  <Input value={editForm.categoriaLicencia} onChange={(e) => setEditForm({ ...editForm, categoriaLicencia: e.target.value })} placeholder="C1, C2, C3..." data-testid="input-edit-categoria" />
+                </div>
+                <div>
+                  <Label>Vence Licencia</Label>
+                  <Input type="date" value={editForm.venceLicencia} onChange={(e) => setEditForm({ ...editForm, venceLicencia: e.target.value })} data-testid="input-edit-vence" />
+                </div>
+                <div>
+                  <Label>Teléfono</Label>
+                  <Input value={editForm.telefono} onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })} data-testid="input-edit-telefono" />
+                </div>
+                <div>
+                  <Label>Placa</Label>
+                  <Input value={editForm.placa} onChange={(e) => setEditForm({ ...editForm, placa: e.target.value.toUpperCase() })} placeholder="ABC123" data-testid="input-edit-placa" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditingConductor(null)}>Cancelar</Button>
+                <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-conductor">
+                  {updateMutation.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
