@@ -793,12 +793,34 @@ function ConductoresSection() {
     },
   });
 
+  const convertDateToISO = (dateStr: string): string => {
+    if (!dateStr) return "";
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    }
+    return dateStr;
+  };
+
+  const convertDateToDMY = (isoDate: string): string => {
+    if (!isoDate) return "";
+    const parts = isoDate.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return isoDate;
+  };
+
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof editForm }) => {
+      const payload = {
+        ...data,
+        venceLicencia: convertDateToDMY(data.venceLicencia),
+      };
       const res = await fetch(`/api/conductores/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
         credentials: "include",
       });
       return res.json();
@@ -818,7 +840,7 @@ function ConductoresSection() {
       nombre: conductor.nombre || "",
       telefono: conductor.telefono || "",
       categoriaLicencia: conductor.categoriaLicencia || "",
-      venceLicencia: conductor.venceLicencia || "",
+      venceLicencia: convertDateToISO(conductor.venceLicencia || ""),
       placa: conductor.placa || "",
     });
     setEditingConductor(conductor);
