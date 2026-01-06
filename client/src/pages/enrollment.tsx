@@ -259,6 +259,7 @@ function TercerosSection() {
                   <th className="text-left p-3 font-medium">Granja</th>
                   <th className="text-left p-3 font-medium">Nombre Sede</th>
                   <th className="text-left p-3 font-medium">Nombre</th>
+                  <th className="text-left p-3 font-medium">Cód. Mun.</th>
                   <th className="text-left p-3 font-medium">Flete</th>
                   <th className="text-left p-3 font-medium">Coordenadas</th>
                   <th className="text-left p-3 font-medium">Acciones</th>
@@ -266,9 +267,9 @@ function TercerosSection() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Cargando...</td></tr>
+                  <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">Cargando...</td></tr>
                 ) : paginatedTerceros.length === 0 ? (
-                  <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">No hay terceros registrados</td></tr>
+                  <tr><td colSpan={8} className="p-4 text-center text-muted-foreground">No hay terceros registrados</td></tr>
                 ) : (
                   paginatedTerceros.map((tercero) => (
                     <tr key={tercero.id} className="border-t" data-testid={`row-tercero-${tercero.id}`}>
@@ -285,6 +286,7 @@ function TercerosSection() {
                       <td className="p-3">{tercero.codigoGranja || "-"}</td>
                       <td className="p-3">{tercero.nombreSede || "-"}</td>
                       <td className="p-3">{tercero.nombre} {tercero.primerApellido} {tercero.segundoApellido || ""}</td>
+                      <td className="p-3 font-mono text-xs">{tercero.codMunicipioRndc || "-"}</td>
                       <td className="p-3">{tercero.flete ? Math.round(Number(tercero.flete)).toLocaleString() : "-"}</td>
                       <td className="p-3">
                         {tercero.latitud && tercero.longitud ? (
