@@ -14,6 +14,7 @@ export interface RndcSettings {
   wsUrlProd: string;
   wsUrlTest: string;
   wsEnvironment: WsEnvironment;
+  consecutivo: number;
 }
 
 const DEFAULT_SETTINGS: RndcSettings = {
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: RndcSettings = {
   wsUrlProd: "http://rndcws.mintransporte.gov.co:8080/soap/IBPMServices",
   wsUrlTest: "http://plc.mintransporte.gov.co:8080/soap/IBPMServices",
   wsEnvironment: "testing",
+  consecutivo: 1,
 };
 
 export function useSettings() {

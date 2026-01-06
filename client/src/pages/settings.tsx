@@ -139,7 +139,7 @@ export default function Settings() {
     setFormData(settings);
   }, [settings]);
 
-  const handleChange = (field: keyof RndcSettings, value: string) => {
+  const handleChange = (field: keyof RndcSettings, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -397,6 +397,21 @@ export default function Settings() {
                     placeholder="NIT sin dígito de verificación"
                     data-testid="input-company-nit"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="consecutivo">Consecutivo Remesas/Manifiestos</Label>
+                  <Input 
+                    id="consecutivo"
+                    type="number"
+                    min="1"
+                    value={formData.consecutivo}
+                    onChange={(e) => handleChange("consecutivo", parseInt(e.target.value) || 1)}
+                    placeholder="Número desde donde inicia el consecutivo"
+                    data-testid="input-consecutivo"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Número consecutivo para generar remesas y manifiestos. Se incrementará automáticamente.
+                  </p>
                 </div>
                 <Button onClick={handleSave} className="w-full sm:w-auto" data-testid="button-save-company">
                   <Save className="mr-2 h-4 w-4" /> Guardar Configuración
