@@ -172,6 +172,7 @@ function TercerosSection() {
       Latitud: t.latitud || "",
       Longitud: t.longitud || "",
       Municipio: t.municipio || "",
+      CodMunicipioRNDC: t.codMunicipioRndc || "",
       Direccion: t.direccion || "",
       Celular: t.celular || "",
       Email: t.email || "",
@@ -397,6 +398,7 @@ function TerceroViewDialog({ open, onOpenChange, tercero }: { open: boolean; onO
           <div><span className="font-medium">Sede:</span> {tercero.sede || "-"}</div>
           <div><span className="font-medium">Nombre Sede:</span> {tercero.nombreSede || "-"}</div>
           <div><span className="font-medium">Municipio:</span> {tercero.municipio || "-"}</div>
+          <div><span className="font-medium">Cód. Municipio RNDC:</span> {tercero.codMunicipioRndc || "-"}</div>
           <div><span className="font-medium">Dirección:</span> {tercero.direccion || "-"}</div>
           <div><span className="font-medium">País:</span> {tercero.pais || "-"}</div>
           <div><span className="font-medium">Latitud:</span> {tercero.latitud || "-"}</div>
@@ -434,6 +436,7 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
     pais: tercero?.pais || "COLOMBIA",
     codPais: tercero?.codPais || "169",
     municipio: tercero?.municipio || "",
+    codMunicipioRndc: tercero?.codMunicipioRndc || "",
     latitud: tercero?.latitud || "",
     longitud: tercero?.longitud || "",
     email: tercero?.email || "",
@@ -655,12 +658,21 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
                 data-testid="input-cod-pais"
               />
             </div>
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2">
               <Label>Municipio</Label>
               <Input
                 value={formData.municipio}
                 onChange={(e) => updateField("municipio", e.target.value)}
                 data-testid="input-municipio"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Cód. Municipio RNDC</Label>
+              <Input
+                value={formData.codMunicipioRndc}
+                onChange={(e) => updateField("codMunicipioRndc", e.target.value)}
+                placeholder="Ej: 25286"
+                data-testid="input-cod-municipio-rndc"
               />
             </div>
             <div className="space-y-2">

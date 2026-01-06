@@ -292,6 +292,7 @@ export const terceros = pgTable("terceros", {
   pais: varchar("pais").default("COLOMBIA"),
   codPais: varchar("cod_pais").default("169"),
   municipio: varchar("municipio"),
+  codMunicipioRndc: varchar("cod_municipio_rndc"),
   latitud: varchar("latitud"),
   longitud: varchar("longitud"),
   email: varchar("email"),
