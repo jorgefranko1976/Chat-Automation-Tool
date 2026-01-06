@@ -612,7 +612,7 @@ export default function Despachos() {
                           <td className="p-3 text-xs">{row.granjaData?.flete || "-"}</td>
                           <td className="p-3 font-medium text-green-700">
                             {row.granjaData?.flete && row.toneladas
-                              ? `$${(parseFloat(row.toneladas.replace(",", ".")) * parseFloat(row.granjaData.flete.replace(/[^\d.-]/g, ""))).toLocaleString("es-CO")}`
+                              ? Math.round(parseFloat(row.toneladas.replace(",", ".")) * parseFloat(row.granjaData.flete.replace(/[^\d.-]/g, "")))
                               : "-"}
                           </td>
                           <td className="p-3">{row.fecha}</td>
