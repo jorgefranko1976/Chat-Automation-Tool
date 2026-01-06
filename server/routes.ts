@@ -1596,6 +1596,7 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
 </root>`;
               
               try {
+                console.log(`[RNDC-C] Cédula ${cedulaKey} XML enviado:\n${xmlCedula}`);
                 const response = await sendXmlToRndc(xmlCedula);
                 console.log(`[RNDC-C] Cédula ${cedulaKey}: success=${response.success}, code=${response.code}`);
                 if (response.success) {
