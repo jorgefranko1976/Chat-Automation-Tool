@@ -147,6 +147,9 @@ export interface IStorage {
   getRndcConductorByCedula(cedula: string): Promise<RndcConductor | undefined>;
   getRndcConductoresByCedulas(cedulas: string[]): Promise<RndcConductor[]>;
   upsertRndcConductor(conductor: InsertRndcConductor): Promise<RndcConductor>;
+  getRndcConductores(limit?: number): Promise<RndcConductor[]>;
+  searchRndcConductores(query: string): Promise<RndcConductor[]>;
+  deleteRndcConductor(id: string): Promise<void>;
   
   createDespacho(despacho: InsertDespacho): Promise<Despacho>;
   getDespacho(id: string): Promise<Despacho | undefined>;
@@ -643,12 +646,31 @@ export class DatabaseStorage implements IStorage {
           categoriaLicencia: conductor.categoriaLicencia,
           venceLicencia: conductor.venceLicencia,
           ingresoId: conductor.ingresoId,
+          direccion: conductor.direccion,
+          telefono: conductor.telefono,
+          placa: conductor.placa,
+          observaciones: conductor.observaciones,
           rawXml: conductor.rawXml,
           lastSyncedAt: new Date(),
         }
       })
       .returning();
     return result;
+  }
+
+  async getRndcConductores(limit = 500): Promise<RndcConductor[]> {
+    return db.select().from(rndcConductores).orderBy(desc(rndcConductores.createdAt)).limit(limit);
+  }
+
+  async searchRndcConductores(query: string): Promise<RndcConductor[]> {
+    const searchPattern = `%${query}%`;
+    return db.select().from(rndcConductores).where(
+      sql`(${rndcConductores.cedula} ILIKE ${searchPattern} OR ${rndcConductores.nombre} ILIKE ${searchPattern})`
+    ).orderBy(desc(rndcConductores.createdAt)).limit(100);
+  }
+
+  async deleteRndcConductor(id: string): Promise<void> {
+    await db.delete(rndcConductores).where(eq(rndcConductores.id, id));
   }
 
   async createDespacho(despacho: InsertDespacho): Promise<Despacho> {

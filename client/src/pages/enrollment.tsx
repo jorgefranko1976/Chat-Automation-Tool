@@ -9,9 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin, Upload, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin, Upload, Loader2, UserCheck } from "lucide-react";
 import * as XLSX from "xlsx";
-import type { Tercero, Vehiculo } from "@shared/schema";
+import type { Tercero, Vehiculo, RndcConductor } from "@shared/schema";
 
 const TIPOS_TERCERO = [
   { value: "GRANJA", label: "Granja" },
@@ -38,10 +38,14 @@ export default function EnrollmentPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-xl grid-cols-3">
             <TabsTrigger value="terceros" className="flex items-center gap-2" data-testid="tab-terceros">
               <Users className="h-4 w-4" />
               Terceros
+            </TabsTrigger>
+            <TabsTrigger value="conductores" className="flex items-center gap-2" data-testid="tab-conductores">
+              <UserCheck className="h-4 w-4" />
+              Conductores
             </TabsTrigger>
             <TabsTrigger value="vehiculos" className="flex items-center gap-2" data-testid="tab-vehiculos">
               <Car className="h-4 w-4" />
@@ -51,6 +55,10 @@ export default function EnrollmentPage() {
 
           <TabsContent value="terceros" className="mt-6">
             <TercerosSection />
+          </TabsContent>
+
+          <TabsContent value="conductores" className="mt-6">
+            <ConductoresSection />
           </TabsContent>
 
           <TabsContent value="vehiculos" className="mt-6">
@@ -727,6 +735,214 @@ function TerceroFormDialog({ open, onOpenChange, tercero }: { open: boolean; onO
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ConductoresSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isImporting, setIsImporting] = useState(false);
+  const itemsPerPage = 15;
+
+  const { data: conductoresData, isLoading } = useQuery({
+    queryKey: ["/api/conductores"],
+    queryFn: async () => {
+      const res = await fetch("/api/conductores");
+      return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/conductores/${id}`, { method: "DELETE" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conductores"] });
+      toast({ title: "Conductor eliminado" });
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (rows: any[]) => {
+      const res = await fetch("/api/conductores/bulk-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+        credentials: "include",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conductores"] });
+      toast({
+        title: "Importación completada",
+        description: data.message || `${data.results?.created || 0} creados, ${data.results?.updated || 0} actualizados`,
+      });
+      setIsImporting(false);
+    },
+    onError: () => {
+      toast({ title: "Error al importar", variant: "destructive" });
+      setIsImporting(false);
+    },
+  });
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target?.result;
+      const workbook = XLSX.read(data, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      importMutation.mutate(jsonData);
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = "";
+  };
+
+  const conductores: RndcConductor[] = conductoresData?.conductores || [];
+  const filteredConductores = conductores.filter((c) =>
+    searchQuery
+      ? c.cedula.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.nombre?.toLowerCase().includes(searchQuery.toLowerCase())
+      : true
+  );
+
+  const totalPages = Math.ceil(filteredConductores.length / itemsPerPage);
+  const paginatedConductores = filteredConductores.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <UserCheck className="h-5 w-5" />
+            Conductores ({filteredConductores.length})
+          </CardTitle>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por cédula o nombre..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="pl-10 w-64"
+              data-testid="input-search-conductores"
+            />
+          </div>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleImportExcel}
+            className="hidden"
+            id="import-conductores-excel"
+          />
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById("import-conductores-excel")?.click()}
+            disabled={isImporting}
+            data-testid="button-import-conductores"
+          >
+            {isImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+            Importar Excel
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : (
+          <>
+            <div className="rounded-md border overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Cédula</th>
+                    <th className="text-left p-3 font-medium">Nombre</th>
+                    <th className="text-left p-3 font-medium">Vence Licencia</th>
+                    <th className="text-left p-3 font-medium">Categoría</th>
+                    <th className="text-left p-3 font-medium">Teléfono</th>
+                    <th className="text-left p-3 font-medium">Placa</th>
+                    <th className="text-left p-3 font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedConductores.map((conductor) => (
+                    <tr key={conductor.id} className="border-t hover:bg-muted/30" data-testid={`row-conductor-${conductor.id}`}>
+                      <td className="p-3 font-mono">{conductor.cedula}</td>
+                      <td className="p-3">{conductor.nombre || "-"}</td>
+                      <td className="p-3">{conductor.venceLicencia || "-"}</td>
+                      <td className="p-3">{conductor.categoriaLicencia || "-"}</td>
+                      <td className="p-3">{conductor.telefono || "-"}</td>
+                      <td className="p-3 font-mono">{conductor.placa || "-"}</td>
+                      <td className="p-3">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteMutation.mutate(conductor.id)}
+                          data-testid={`button-delete-conductor-${conductor.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {paginatedConductores.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                        No hay conductores registrados
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredConductores.length)} de {filteredConductores.length}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

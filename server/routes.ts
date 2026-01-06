@@ -1199,6 +1199,105 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/conductores", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 500;
+      const conductores = await storage.getRndcConductores(limit);
+      res.json({ success: true, conductores });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener conductores" });
+    }
+  });
+
+  app.get("/api/conductores/search", requireAuth, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ success: false, message: "Parámetro de búsqueda requerido" });
+      }
+      const conductores = await storage.searchRndcConductores(query);
+      res.json({ success: true, conductores });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar conductores" });
+    }
+  });
+
+  app.delete("/api/conductores/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteRndcConductor(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al eliminar conductor" });
+    }
+  });
+
+  app.post("/api/conductores/bulk-import", requireAuth, async (req, res) => {
+    try {
+      const { rows } = req.body as { rows: any[] };
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ success: false, message: "No hay datos para importar" });
+      }
+
+      const results = { created: 0, updated: 0, errors: [] as string[] };
+      
+      const excelDateToString = (excelDate: number | string): string => {
+        if (typeof excelDate === "number") {
+          const date = new Date((excelDate - 25569) * 86400 * 1000);
+          const day = String(date.getDate()).padStart(2, "0");
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+        }
+        return String(excelDate || "");
+      };
+
+      for (const row of rows) {
+        try {
+          const cedula = String(row.CC || row.cc || row.cedula || "").replace(/[\s.,]/g, "");
+          const nombre = String(row.NOMBRE || row.nombre || "").trim();
+          const venceLicencia = excelDateToString(row["VENCIMIENTO LICENCIA"] || row.vencimientoLicencia || "");
+          const direccion = String(row.DIRECCION || row.direccion || "").trim();
+          const telefono = String(row.TELEFONO || row.telefono || "").trim();
+          const placa = String(row.PLACA || row.placa || "").toUpperCase().trim();
+          const observaciones = String(row.OBSERVACIONES || row.observaciones || "").trim();
+
+          if (!cedula || !nombre) {
+            results.errors.push(`Fila sin cédula o nombre: ${JSON.stringify(row)}`);
+            continue;
+          }
+
+          const existing = await storage.getRndcConductorByCedula(cedula);
+          await storage.upsertRndcConductor({
+            cedula,
+            nombre,
+            venceLicencia: venceLicencia || undefined,
+            direccion: direccion || undefined,
+            telefono: telefono || undefined,
+            placa: placa || undefined,
+            observaciones: observaciones || undefined,
+            lastSyncedAt: new Date(),
+          });
+
+          if (existing) {
+            results.updated++;
+          } else {
+            results.created++;
+          }
+        } catch (err) {
+          results.errors.push(`Error en fila: ${JSON.stringify(row)}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Importación completada: ${results.created} creados, ${results.updated} actualizados`,
+        results,
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al importar conductores" });
+    }
+  });
+
   app.get("/api/vehiculos", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 100;
