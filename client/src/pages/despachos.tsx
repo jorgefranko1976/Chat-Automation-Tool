@@ -23,7 +23,7 @@ interface DespachoRow {
   plantaValid: boolean | null;
   plantaData: { sede: string; coordenadas: string } | null;
   placaValid: boolean | null;
-  placaData: { propietarioId: string; venceSoat: string; pesoVacio: string } | null;
+  placaData: { propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null;
   cedulaValid: boolean | null;
   cedulaData: { venceLicencia: string; nombre?: string } | null;
   horaCargue?: string;
@@ -379,6 +379,7 @@ export default function Despachos() {
         VALOR_FLETE: valorFlete > 0 ? valorFlete : "",
         HORACITAPACTADACARGUE: row.horaCargue || "",
         HORACITAPACTADADESCARGUEREMESA: row.horaDescargue || "",
+        CAPACIDAD: row.placaData?.capacidad || "",
         FECHA: row.fecha,
         ERRORES: row.errors.join("; "),
       };

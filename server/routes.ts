@@ -1193,7 +1193,7 @@ export async function registerRoutes(
       plantaValid: z.boolean().nullable(),
       plantaData: z.object({ sede: z.string(), coordenadas: z.string() }).nullable(),
       placaValid: z.boolean().nullable(),
-      placaData: z.object({ propietarioId: z.string(), venceSoat: z.string(), pesoVacio: z.string() }).nullable(),
+      placaData: z.object({ propietarioId: z.string(), venceSoat: z.string(), pesoVacio: z.string(), capacidad: z.string().optional() }).nullable(),
       cedulaValid: z.boolean().nullable(),
       cedulaData: z.object({ venceLicencia: z.string(), nombre: z.string().optional() }).nullable(),
       horaCargue: z.string().optional(),
@@ -1340,7 +1340,7 @@ export async function registerRoutes(
 
       console.log(`[DESPACHOS-B-INT] Validando ${rows.length} placas contra BD local`);
       
-      const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; source: string; error?: string }>();
+      const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null; source: string; error?: string }>();
       const validatedRows = [];
 
       for (const row of rows) {
@@ -1362,6 +1362,9 @@ export async function registerRoutes(
             placaData = cached.data;
             if (!cached.valid && cached.error) errors.push(cached.error);
           } else {
+            const localVehiculo = await storage.getVehiculoByPlaca(placaKey);
+            const capacidad = localVehiculo?.toneladas || "";
+            
             const rndcCached = await storage.getRndcVehiculoByPlaca(placaKey);
             if (rndcCached) {
               placaValid = true;
@@ -1369,24 +1372,23 @@ export async function registerRoutes(
                 propietarioId: rndcCached.propietarioNumeroId || "",
                 venceSoat: rndcCached.venceSoat || "",
                 pesoVacio: rndcCached.pesoVacio || "",
+                capacidad,
               };
               placaCache.set(placaKey, { valid: true, data: placaData, source: "rndc_cache" });
+            } else if (localVehiculo) {
+              placaValid = true;
+              placaData = {
+                propietarioId: localVehiculo.propietarioNumeroId || "",
+                venceSoat: localVehiculo.venceSoat || "",
+                pesoVacio: "",
+                capacidad,
+              };
+              placaCache.set(placaKey, { valid: true, data: placaData, source: "vehiculos" });
             } else {
-              const localVehiculo = await storage.getVehiculoByPlaca(placaKey);
-              if (localVehiculo) {
-                placaValid = true;
-                placaData = {
-                  propietarioId: localVehiculo.propietarioNumeroId || "",
-                  venceSoat: localVehiculo.venceSoat || "",
-                  pesoVacio: "",
-                };
-                placaCache.set(placaKey, { valid: true, data: placaData, source: "vehiculos" });
-              } else {
-                placaValid = false;
-                const err = `Placa '${row.placa}' no encontrada en BD local`;
-                errors.push(err);
-                placaCache.set(placaKey, { valid: false, data: null, source: "none", error: err });
-              }
+              placaValid = false;
+              const err = `Placa '${row.placa}' no encontrada en BD local`;
+              errors.push(err);
+              placaCache.set(placaKey, { valid: false, data: null, source: "none", error: err });
             }
           }
         }
@@ -1423,7 +1425,7 @@ export async function registerRoutes(
       (async () => {
         const { XMLParser } = await import("fast-xml-parser");
         const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
-        const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string } | null; error?: string }>();
+        const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null; error?: string }>();
         let progress = 0;
 
         const validatedRows = [];
@@ -1446,6 +1448,9 @@ export async function registerRoutes(
               placaData = cached.data;
               if (!cached.valid && cached.error) errors.push(cached.error);
             } else {
+              const localVehiculo = await storage.getVehiculoByPlaca(placaKey);
+              const capacidad = localVehiculo?.toneladas || "";
+              
               const xmlPlaca = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
@@ -1482,6 +1487,7 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
                       propietarioId: propId,
                       venceSoat: soat,
                       pesoVacio: peso,
+                      capacidad,
                     };
                     placaCache.set(placaKey, { valid: true, data: placaData });
                     
