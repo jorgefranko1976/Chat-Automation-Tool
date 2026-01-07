@@ -1115,333 +1115,158 @@ export default function Despachos() {
         return;
       }
 
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
-      const pageWidth = 216;
-      const pageHeight = 279;
-      const margin = 10;
-      const leftCol = 12;
-      const midCol = pageWidth / 2;
-      const rightCol = 160;
-      let y = 10;
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+      const pageWidth = 279;
+      const pageHeight = 216;
 
-      const drawLine = (yPos: number) => {
-        pdf.setDrawColor(0);
-        pdf.setLineWidth(0.3);
-        pdf.line(margin, yPos, pageWidth - margin, yPos);
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
       };
 
-      const drawSectionHeader = (text: string, yPos: number) => {
-        pdf.setFillColor(220, 220, 220);
-        pdf.rect(margin, yPos - 3, pageWidth - margin * 2, 5, "F");
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(7);
-        pdf.text(text, midCol, yPos, { align: "center" });
-        return yPos + 4;
-      };
+      const [templateP1, templateP2, qrImg] = await Promise.all([
+        loadImage("/manifiesto_template_p1.jpg"),
+        loadImage("/manifiesto_template_p2.png"),
+        loadImage(qrResult.qrDataUrl),
+      ]);
 
-      const labelValue = (label: string, value: string, x: number, yPos: number, labelWidth = 25) => {
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(6);
-        pdf.text(label, x, yPos);
-        pdf.setFont("helvetica", "normal");
-        pdf.text(value || "-", x + labelWidth, yPos);
-      };
-
-      pdf.setFontSize(6);
-      pdf.setFont("helvetica", "italic");
-      const disclaimer = "La impresion en soporte cartular (papel) de este acto administrativo producido por medios electronicos en cumplimiento de la ley 527 de 1999 (Articulos 6 al 13) y de la ley 962 de 2005 (Articulo 6), es una reproduccion del documento original que se encuentra en formato electronico en la Base de Datos del RNDC en el Ministerio de Transporte, cuya representacion digital goza de autenticidad, integridad y no repudio";
-      const disclaimerLines = pdf.splitTextToSize(disclaimer, 55);
-      pdf.text(disclaimerLines, rightCol, y + 3);
-
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(11);
-      pdf.text("MANIFIESTO ELECTRONICO DE CARGA", midCol, y + 5, { align: "center" });
-      
-      pdf.setFontSize(9);
-      pdf.text(settings.companyName || "TRANSPETROMIRA S.A.S", midCol, y + 11, { align: "center" });
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(7);
-      pdf.text(`Nit: ${settings.companyNit}`, midCol, y + 15, { align: "center" });
-      if (settings.companyAddress) pdf.text(settings.companyAddress, midCol, y + 19, { align: "center" });
-      if (settings.companyPhone) pdf.text(`Tel: ${settings.companyPhone} - ${settings.companyCity || ""}`, midCol, y + 23, { align: "center" });
-
-      const qrImg = new Image();
-      qrImg.src = qrResult.qrDataUrl;
-      await new Promise((resolve) => { qrImg.onload = resolve; });
-      pdf.addImage(qrImg, "PNG", leftCol, y, 28, 28);
-
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(7);
-      pdf.text(`Manifiesto: ${manifiesto.consecutivo}`, rightCol, y + 28);
-      pdf.text(`Autorizacion: ${details.INGRESOID}`, rightCol, y + 32);
-
-      y = 45;
-      drawLine(y);
-      y += 1;
-
-      pdf.setFillColor(240, 240, 240);
-      pdf.rect(margin, y, pageWidth - margin * 2, 10, "F");
-      y += 3;
-      
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(6);
-      pdf.text("FECHA EXPEDICION", leftCol, y);
-      pdf.text("FECHA/HORA RADICACION", 50, y);
-      pdf.text("TIPO MANIFIESTO", 95, y);
-      pdf.text("ORIGEN DEL VIAJE", 130, y);
-      pdf.text("DESTINO DEL VIAJE", 170, y);
-      y += 4;
-      
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(6);
-      pdf.text(details.FECHAEXPEDICIONMANIFIESTO || "", leftCol, y);
-      pdf.text(details.FECHAEXPEDICIONMANIFIESTO || "", 50, y);
-      pdf.text("General", 95, y);
-      pdf.text(origName.substring(0, 18), 130, y);
-      pdf.text(destName.substring(0, 18), 170, y);
-      y += 5;
-
-      y = drawSectionHeader("INFORMACION DEL VEHICULO Y CONDUCTORES", y);
-      y += 2;
+      pdf.addImage(templateP1, "JPEG", 0, 0, pageWidth, pageHeight);
 
       const titularNombre = buildNombreTitular();
-      const titularTelefono = titular?.NUMTELEFONOCONTACTO || "-";
-      const titularDireccion = titular?.NOMENCLATURADIRECCION || "-";
-      const titularCiudad = titular?.CODMUNICIPIORNDC || settings.companyCity || "-";
-      
-      labelValue("TITULAR MANIFIESTO:", titularNombre, leftCol, y, 32);
-      labelValue("DOCUMENTO:", `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`, 85, y, 22);
-      labelValue("TELEFONO:", titularTelefono, 140, y, 18);
-      y += 4;
-      labelValue("DIRECCION:", titularDireccion, leftCol, y, 20);
-      labelValue("CIUDAD:", titularCiudad, 120, y, 15);
-      y += 5;
-
-      drawLine(y);
-      y += 3;
-
-      const marcaVehiculo = vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "-";
-      const pesoVacio = vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "-";
+      const titularTelefono = titular?.NUMTELEFONOCONTACTO || "";
+      const titularDireccion = titular?.NOMENCLATURADIRECCION || "";
+      const titularCiudad = titular?.CODMUNICIPIORNDC || settings.companyCity || "";
+      const marcaVehiculo = vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "";
+      const pesoVacio = vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "";
+      const pesoVacioRemolque = "";
       const configVehiculo = vehiculoExtra?.CODCONFIGURACION || (details.NUMPLACAREMOLQUE ? "3S2" : "C2");
-      const aseguradoraSoat = vehiculo?.NUMNITASEGURADORASOAT || "-";
-      const polizaSoat = vehiculo?.NUMSEGUROSOAT || "-";
-      const venceSoat = vehiculo?.FECHAVENCIMIENTOSOAT || vehiculoExtra?.FECHAVENCE_SOAT || associatedRow?.placaData?.venceSoat || "-";
-      
-      labelValue("PLACA:", details.NUMPLACA || "", leftCol, y, 12);
-      labelValue("MARCA:", marcaVehiculo, 40, y, 12);
-      labelValue("PL. SEMIREMOLQUE:", details.NUMPLACAREMOLQUE || "-", 70, y, 30);
-      labelValue("CONFIG:", configVehiculo, 115, y, 14);
-      labelValue("PESO VACIO:", pesoVacio, 145, y, 22);
-      y += 4;
-      labelValue("ASEGURADORA SOAT:", aseguradoraSoat, leftCol, y, 32);
-      labelValue("No. POLIZA:", polizaSoat, 70, y, 20);
-      labelValue("VENCE SOAT:", venceSoat, 120, y, 22);
-      y += 5;
-
-      drawLine(y);
-      y += 3;
-
+      const aseguradoraSoat = vehiculo?.NUMNITASEGURADORASOAT || "";
+      const polizaSoat = vehiculo?.NUMSEGUROSOAT || "";
+      const venceSoat = vehiculo?.FECHAVENCIMIENTOSOAT || vehiculoExtra?.FECHAVENCE_SOAT || associatedRow?.placaData?.venceSoat || "";
       const conductorNombre = buildNombreConductor();
-      const conductorTelefono = conductor?.NUMTELEFONOCONTACTO || "-";
-      const conductorDireccion = conductor?.NOMENCLATURADIRECCION || "-";
-      const conductorLicencia = conductor?.NUMLICENCIACONDUCCION || "-";
-      const conductorVenceLic = conductor?.FECHAVENCIMIENTOLICENCIA || associatedRow?.cedulaData?.venceLicencia || "-";
-      
-      labelValue("CONDUCTOR:", conductorNombre, leftCol, y, 22);
-      labelValue("DOCUMENTO:", `CC: ${manifiesto.cedula}`, 85, y, 22);
-      labelValue("No. LICENCIA:", conductorLicencia, 145, y, 22);
-      y += 4;
-      labelValue("DIRECCION:", conductorDireccion, leftCol, y, 20);
-      labelValue("TELEFONO:", conductorTelefono, 85, y, 18);
-      labelValue("VENCE LIC:", conductorVenceLic, 145, y, 20);
-      y += 5;
-
-      drawLine(y);
-      y += 3;
-
+      const conductorTelefono = conductor?.NUMTELEFONOCONTACTO || "";
+      const conductorDireccion = conductor?.NOMENCLATURADIRECCION || "";
+      const conductorLicencia = conductor?.NUMLICENCIACONDUCCION || "";
+      const conductorVenceLic = conductor?.FECHAVENCIMIENTOLICENCIA || associatedRow?.cedulaData?.venceLicencia || "";
+      const conductorCiudad = conductor?.CODMUNICIPIORNDC || "";
       const tenedorId = vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular;
       const tenedorTipo = vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular;
-      
-      labelValue("POSEEDOR/TENEDOR:", tenedorId, leftCol, y, 32);
-      labelValue("DOCUMENTO:", `${tenedorTipo}: ${tenedorId}`, 85, y, 22);
-      labelValue("CIUDAD:", titularCiudad, 160, y, 14);
-      y += 4;
-      labelValue("DIRECCION:", titularDireccion, leftCol, y, 20);
-      labelValue("TELEFONO:", titularTelefono, 120, y, 18);
-      y += 5;
-
-      y = drawSectionHeader("INFORMACION DE LA MERCANCIA TRANSPORTADA", y);
-      y += 3;
-
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(5);
-      pdf.text("Nro Remesa", leftCol, y);
-      pdf.text("Und Med", 30, y);
-      pdf.text("Cantidad", 48, y);
-      pdf.text("Naturaleza", 65, y);
-      pdf.text("Empaque", 85, y);
-      pdf.text("Producto", 105, y);
-      pdf.text("Remitente / Cargue", 135, y);
-      pdf.text("Destinatario / Descargue", 170, y);
-      y += 4;
-
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(5);
-      const cantidadKg = associatedRemesa?.cantidadCargada || associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : "0";
-      pdf.text(String(manifiesto.consecutivoRemesa), leftCol, y);
-      pdf.text("Kilogramos", 30, y);
-      pdf.text(cantidadKg, 48, y);
-      pdf.text("Carga Normal", 65, y);
-      pdf.text("Gral. Fracc.", 85, y);
-      pdf.text(cargoDesc.substring(0, 20), 105, y);
-      pdf.text(associatedRow?.granja?.substring(0, 18) || "-", 135, y);
-      pdf.text(associatedRow?.planta?.substring(0, 18) || "-", 170, y);
-      y += 6;
-
-      drawLine(y);
-      y += 2;
-
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(margin, y, 70, 35, "F");
-      pdf.rect(margin + 75, y, pageWidth - margin * 2 - 75, 35, "F");
-      
-      y += 4;
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(7);
-      pdf.text("PRECIO DEL VIAJE", leftCol + 15, y);
-      pdf.text("PAGO DEL SALDO", midCol + 25, y);
-      y += 5;
-
-      pdf.setFontSize(6);
-      labelValue("VALOR TOTAL VIAJE:", `$${parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0").toLocaleString()}`, leftCol, y, 30);
-      labelValue("LUGAR DE PAGO:", settings.companyCity || "BOGOTA D.C.", midCol, y, 28);
-      y += 4;
-      
+      const cantidadKg = associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : "");
       const retencionFuente = Math.round(manifiesto.valorFlete * 0.01);
-      labelValue("RETENCION FUENTE:", `$${retencionFuente.toLocaleString()}`, leftCol, y, 30);
-      labelValue("FECHA:", manifiesto.fechaPagoSaldo || "", midCol, y, 14);
-      y += 4;
-
-      labelValue("RETENCION ICA:", `$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`, leftCol, y, 30);
-      labelValue("CARGUE PAGADO POR:", "DESTINATARIO", midCol, y, 32);
-      y += 4;
-
       const valorNeto = manifiesto.valorFlete - retencionFuente;
-      labelValue("VALOR NETO:", `$${valorNeto.toLocaleString()}`, leftCol, y, 30);
-      labelValue("DESCARGUE PAGADO POR:", "DESTINATARIO", midCol, y, 36);
-      y += 4;
+      const anticipo = parseInt(details.VALORANTICIPOMANIFIESTO || "0");
+      const saldo = valorNeto - anticipo;
 
-      labelValue("ANTICIPO:", `$${parseInt(details.VALORANTICIPOMANIFIESTO || "0").toLocaleString()}`, leftCol, y, 30);
-      y += 4;
-      
-      const saldo = valorNeto - parseInt(details.VALORANTICIPOMANIFIESTO || "0");
-      labelValue("SALDO A PAGAR:", `$${saldo.toLocaleString()}`, leftCol, y, 30);
-      y += 6;
-
-      pdf.setFontSize(5);
-      const valorEnLetras = `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`;
-      labelValue("VALOR EN LETRAS:", valorEnLetras, leftCol, y, 28);
-      y += 6;
-
-      drawLine(y);
-      y += 3;
-
-      pdf.setFontSize(5);
       pdf.setFont("helvetica", "normal");
-      pdf.text("Si es victima de algun fraude o conoce de alguna irregularidad en el Registro Nacional de Despachos de Carga RNDC denuncielo a la Superintendencia", leftCol, y);
-      y += 3;
-      pdf.text("de Puertos y Transporte, en la linea gratuita nacional 018000 915615 y a traves del correo electronico: atencionciudadano@supertransporte.gov.co", leftCol, y);
-      y += 6;
-
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(6);
-      pdf.text("Firma y Huella TITULAR MANIFIESTO o ACEPTACION DIGITAL", leftCol + 20, y);
-      pdf.text("Firma y Huella del CONDUCTOR o ACEPTACION DIGITAL", midCol + 25, y);
-      y += 12;
-      pdf.line(leftCol, y, leftCol + 65, y);
-      pdf.line(midCol + 5, y, midCol + 70, y);
-
-      pdf.addPage();
-      y = 15;
-
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(10);
-      pdf.text("MANIFIESTO ELECTRONICO DE CARGA", midCol, y, { align: "center" });
-      pdf.setFontSize(6);
-      pdf.text("Hoja 2", pageWidth - 20, y);
-      y += 5;
-      pdf.setFontSize(8);
-      pdf.text(settings.companyName || "TRANSPETROMIRA S.A.S", midCol, y, { align: "center" });
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(6);
-      pdf.text(`Nit: ${settings.companyNit}`, midCol, y + 4, { align: "center" });
-      if (settings.companyAddress) pdf.text(settings.companyAddress, midCol, y + 7, { align: "center" });
-      if (settings.companyPhone) pdf.text(`Tel: ${settings.companyPhone}`, midCol, y + 10, { align: "center" });
-
-      pdf.setFont("helvetica", "bold");
-      pdf.text(`Manifiesto: ${manifiesto.consecutivo}`, rightCol, y);
-      pdf.text(`Autorizacion: ${details.INGRESOID}`, rightCol, y + 4);
-
-      pdf.setFont("helvetica", "italic");
-      pdf.setFontSize(5);
-      const disclaimer2 = "Si es victima de algun fraude o conoce de alguna irregularidad en el Registro Nacional de Despachos de Carga RNDC denuncielo a la Superintendencia de Puertos y Transporte, en la linea gratuita nacional 018000 915615 y a traves del correo electronico: atencionciudadano@supertransporte.gov.co";
-      const disclaimer2Lines = pdf.splitTextToSize(disclaimer2, 50);
-      pdf.text(disclaimer2Lines, rightCol, y + 12);
-
-      y += 30;
-      pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7);
-      pdf.text("Anexo: Tiempos y Plazos para cargue y descargue Literal 12 Art 8 Decreto 2092 de 2011", midCol, y, { align: "center" });
-      y += 5;
+      pdf.setTextColor(0, 0, 0);
 
-      labelValue("Placa Vehiculo:", details.NUMPLACA || "", leftCol, y, 25);
-      labelValue("Nombre del Conductor:", conductorNombre, 60, y, 35);
-      labelValue("CC:", manifiesto.cedula, 150, y, 8);
-      y += 6;
+      pdf.text(String(manifiesto.consecutivo), 238, 29);
+      pdf.text(details.INGRESOID || "", 238, 36);
 
-      drawLine(y);
-      y += 3;
+      pdf.text(details.FECHAEXPEDICIONMANIFIESTO || "", 20, 52);
+      pdf.text(details.FECHAEXPEDICIONMANIFIESTO || "", 60, 52);
+      pdf.text("General", 107, 52);
+      pdf.text(origName.substring(0, 25), 145, 52);
+      pdf.text(destName.substring(0, 25), 202, 52);
 
-      pdf.setFillColor(200, 200, 200);
-      pdf.rect(margin, y - 1, pageWidth - margin * 2, 8, "F");
-      
-      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6);
+      pdf.text(titularNombre.substring(0, 35), 20, 66);
+      pdf.text(`${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`, 90, 66);
+      pdf.text(titularDireccion.substring(0, 35), 140, 66);
+      pdf.text(titularTelefono, 202, 66);
+      pdf.text(titularCiudad.substring(0, 18), 252, 66);
+
+      pdf.text(details.NUMPLACA || "", 20, 77);
+      pdf.text(marcaVehiculo.substring(0, 12), 50, 77);
+      pdf.text(details.NUMPLACAREMOLQUE || "", 82, 77);
+      pdf.text("", 115, 77);
+      pdf.text(configVehiculo, 130, 77);
+      pdf.text(pesoVacio, 152, 77);
+      pdf.text(pesoVacioRemolque, 175, 77);
+      pdf.text(aseguradoraSoat.substring(0, 18), 195, 77);
+      pdf.text(polizaSoat.substring(0, 12), 237, 77);
+      pdf.text(venceSoat, 259, 77);
+
+      pdf.text(conductorNombre.substring(0, 30), 20, 87);
+      pdf.text(`CC: ${manifiesto.cedula}`, 80, 87);
+      pdf.text(conductorDireccion.substring(0, 35), 130, 87);
+      pdf.text(conductorTelefono, 195, 87);
+      pdf.text(conductorLicencia, 225, 87);
+      pdf.text(conductorCiudad.substring(0, 18), 255, 87);
+
+      pdf.text("", 20, 97);
+      pdf.text("", 80, 97);
+      pdf.text("", 130, 97);
+      pdf.text("", 195, 97);
+      pdf.text("", 225, 97);
+      pdf.text("", 255, 97);
+
+      pdf.text(`${tenedorTipo}: ${tenedorId}`, 20, 107);
+      pdf.text(`${tenedorTipo}: ${tenedorId}`, 80, 107);
+      pdf.text(titularDireccion.substring(0, 30), 130, 107);
+      pdf.text(titularTelefono, 205, 107);
+      pdf.text(titularCiudad.substring(0, 15), 255, 107);
+
       pdf.setFontSize(5);
-      pdf.text("Numero de", leftCol, y + 1);
-      pdf.text("Remesa", leftCol, y + 4);
-      pdf.text("Hrs Pactadas", 30, y + 1);
-      pdf.text("Cargue  Desc.", 30, y + 4);
-      pdf.text("Llegada Cargue", 55, y + 1);
-      pdf.text("Fecha    Hora", 55, y + 4);
-      pdf.text("Salida Cargue", 80, y + 1);
-      pdf.text("Fecha    Hora", 80, y + 4);
-      pdf.text("Firma", 105, y + 2);
-      pdf.text("Remit.", 105, y + 5);
-      pdf.text("Firma", 118, y + 2);
-      pdf.text("Cond.", 118, y + 5);
-      pdf.text("Llegada Descargue", 130, y + 1);
-      pdf.text("Fecha      Hora", 130, y + 4);
-      pdf.text("Salida Descargue", 158, y + 1);
-      pdf.text("Fecha      Hora", 158, y + 4);
-      pdf.text("Firma", 185, y + 2);
-      pdf.text("Dest.", 185, y + 5);
-      pdf.text("Firma", 198, y + 2);
-      pdf.text("Cond.", 198, y + 5);
-      y += 9;
+      pdf.text(String(manifiesto.consecutivoRemesa), 15, 126);
+      pdf.text("Kilogramos", 37, 126);
+      pdf.text(cantidadKg, 57, 126);
+      pdf.text("Carga Normal", 75, 126);
+      pdf.text("Paquetes.", 101, 126);
+      pdf.text("002309", 118, 126);
+      pdf.text("ALIMENTOPARAAVESDECORRAL", 101, 131);
+      pdf.text(associatedRow?.granja?.substring(0, 25) || "", 155, 126);
+      pdf.text(associatedRow?.planta?.substring(0, 25) || "", 205, 126);
+      pdf.text("No existe poliza", 255, 126);
+
+      pdf.setFontSize(6);
+      const valorTotal = parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0");
+      pdf.text(`$${valorTotal.toLocaleString()}`, 53, 150);
+      pdf.text(`$${retencionFuente.toLocaleString()}`, 53, 157);
+      pdf.text(`$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`, 53, 163);
+      pdf.text(`$${valorNeto.toLocaleString()}`, 53, 170);
+      pdf.text(`$${anticipo.toLocaleString()}`, 53, 177);
+      pdf.text(`$${saldo.toLocaleString()}`, 53, 183);
+
+      pdf.text(settings.companyCity || "BOGOTA D.C.", 143, 150);
+      pdf.text(manifiesto.fechaPagoSaldo || "", 170, 150);
+      pdf.text("DESTINATARIO", 162, 160);
+      pdf.text("DESTINATARIO", 162, 170);
+
+      const valorEnLetras = `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`;
+      pdf.setFontSize(5);
+      pdf.text(valorEnLetras, 53, 191);
+
+      pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
+
+      pdf.addPage("letter", "landscape");
+      pdf.addImage(templateP2, "PNG", 0, 0, pageWidth, pageHeight);
 
       pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      pdf.text(String(manifiesto.consecutivo), 238, 45);
+      pdf.text(details.INGRESOID || "", 238, 52);
+
       pdf.setFontSize(6);
-      pdf.text(String(manifiesto.consecutivoRemesa), leftCol, y);
-      pdf.text("0.00   2.00", 32, y);
-      pdf.text(associatedRemesa?.fechaCargue || "-", 55, y);
-      pdf.text(associatedRemesa?.horaCargue || "-", 68, y);
-      pdf.text("-", 80, y);
-      pdf.text("-", 93, y);
-      pdf.text(associatedRemesa?.fechaDescargue || "-", 132, y);
-      pdf.text(associatedRemesa?.horaDescargue || "-", 148, y);
-      pdf.text("-", 160, y);
-      pdf.text("-", 173, y);
-      y += 20;
+      pdf.text(details.NUMPLACA || "", 42, 70);
+      pdf.text(conductorNombre.substring(0, 40), 110, 70);
+      pdf.text(manifiesto.cedula, 240, 70);
+
+      pdf.setFontSize(5);
+      pdf.text(String(manifiesto.consecutivoRemesa), 17, 90);
+      pdf.text("0.00", 52, 90);
+      pdf.text("2.00", 67, 90);
+      pdf.text(associatedRemesa?.fechaCargue || "", 88, 90);
+      pdf.text(associatedRemesa?.horaCargue || "", 105, 90);
+      pdf.text("", 125, 90);
+      pdf.text("", 140, 90);
+      pdf.text(associatedRemesa?.fechaDescargue || "", 198, 90);
+      pdf.text(associatedRemesa?.horaDescargue || "", 218, 90);
 
       pdf.save(`Manifiesto_${manifiesto.consecutivo}_${details.INGRESOID}.pdf`);
       toast({ title: "PDF Generado", description: `Manifiesto ${manifiesto.consecutivo} descargado` });
