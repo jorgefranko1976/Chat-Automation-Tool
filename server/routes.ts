@@ -1466,9 +1466,9 @@ export async function registerRoutes(
       toneladas: z.string(),
       fecha: z.string(),
       granjaValid: z.boolean().nullable(),
-      granjaData: z.object({ sede: z.string(), coordenadas: z.string(), flete: z.string() }).nullable(),
+      granjaData: z.object({ sede: z.string(), codMunicipio: z.string(), flete: z.string() }).nullable(),
       plantaValid: z.boolean().nullable(),
-      plantaData: z.object({ sede: z.string(), coordenadas: z.string() }).nullable(),
+      plantaData: z.object({ sede: z.string(), codMunicipio: z.string() }).nullable(),
       placaValid: z.boolean().nullable(),
       placaData: z.object({ propietarioId: z.string(), venceSoat: z.string(), pesoVacio: z.string(), capacidad: z.string().optional() }).nullable(),
       cedulaValid: z.boolean().nullable(),
@@ -1491,16 +1491,16 @@ export async function registerRoutes(
       const { rows } = parsed;
       console.log(`[DESPACHOS-A] Validando datos internos de ${rows.length} filas`);
 
-      const granjaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string; flete: string } | null }>();
-      const plantaCache = new Map<string, { valid: boolean; data: { sede: string; coordenadas: string } | null }>();
+      const granjaCache = new Map<string, { valid: boolean; data: { sede: string; codMunicipio: string; flete: string } | null }>();
+      const plantaCache = new Map<string, { valid: boolean; data: { sede: string; codMunicipio: string } | null }>();
 
       const validatedRows = [];
       for (const row of rows) {
         const errors: string[] = [...row.errors.filter(e => !e.includes("Granja") && !e.includes("Planta"))];
         let granjaValid: boolean | null = null;
-        let granjaData: { sede: string; coordenadas: string; flete: string } | null = null;
+        let granjaData: { sede: string; codMunicipio: string; flete: string } | null = null;
         let plantaValid: boolean | null = null;
-        let plantaData: { sede: string; coordenadas: string } | null = null;
+        let plantaData: { sede: string; codMunicipio: string } | null = null;
 
         if (row.granja) {
           const granjaKey = row.granja.toLowerCase().trim();
@@ -1517,8 +1517,7 @@ export async function registerRoutes(
             }
             if (tercero) {
               granjaValid = true;
-              const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
-              granjaData = { sede: tercero.sede || "", coordenadas: coords, flete: tercero.flete || "" };
+              granjaData = { sede: tercero.sede || "", codMunicipio: tercero.codMunicipioRndc || "", flete: tercero.flete || "" };
             } else {
               granjaValid = false;
               errors.push(`Granja '${row.granja}' no encontrada`);
@@ -1538,8 +1537,7 @@ export async function registerRoutes(
             const tercero = await storage.getTerceroByNombreSede(row.planta);
             if (tercero) {
               plantaValid = true;
-              const coords = tercero.latitud && tercero.longitud ? `${tercero.latitud},${tercero.longitud}` : "";
-              plantaData = { sede: tercero.sede || "", coordenadas: coords };
+              plantaData = { sede: tercero.sede || "", codMunicipio: tercero.codMunicipioRndc || "" };
             } else {
               plantaValid = false;
               errors.push(`Planta '${row.planta}' no encontrada`);

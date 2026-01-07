@@ -23,9 +23,9 @@ interface DespachoRow {
   toneladas: string;
   fecha: string;
   granjaValid: boolean | null;
-  granjaData: { sede: string; coordenadas: string; flete: string } | null;
+  granjaData: { sede: string; codMunicipio: string; flete: string } | null;
   plantaValid: boolean | null;
-  plantaData: { sede: string; coordenadas: string } | null;
+  plantaData: { sede: string; codMunicipio: string } | null;
   placaValid: boolean | null;
   placaData: { propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null;
   cedulaValid: boolean | null;
@@ -407,10 +407,10 @@ export default function Despachos() {
       return {
         GRANJA: row.granja,
         GRANJA_SEDE: row.granjaData?.sede || "",
-        GRANJA_COORDENADAS: row.granjaData?.coordenadas || "",
+        GRANJA_COD_MUNICIPIO: row.granjaData?.codMunicipio || "",
         PLANTA: row.planta,
         PLANTA_SEDE: row.plantaData?.sede || "",
-        PLANTA_COORDENADAS: row.plantaData?.coordenadas || "",
+        PLANTA_COD_MUNICIPIO: row.plantaData?.codMunicipio || "",
         PLACA: row.placa,
         NUMIDPROPIETARIO: row.placaData?.propietarioId || "",
         FECHAVENCIMIENTOSOAT: row.placaData?.venceSoat || "",
@@ -1125,11 +1125,11 @@ export default function Despachos() {
                         <th className="text-left p-3 font-medium">#</th>
                         <th className="text-left p-3 font-medium">Granja</th>
                         <th className="text-left p-3 font-medium">Sede</th>
-                        <th className="text-left p-3 font-medium">Coord.</th>
+                        <th className="text-left p-3 font-medium">Cód Mun</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Planta</th>
                         <th className="text-left p-3 font-medium">Sede</th>
-                        <th className="text-left p-3 font-medium">Coord.</th>
+                        <th className="text-left p-3 font-medium">Cód Mun</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Placa</th>
                         <th className="text-left p-3 font-medium">ID Prop.</th>
@@ -1175,16 +1175,7 @@ export default function Despachos() {
                           </td>
                           <td className="p-3 text-xs">{row.granjaData?.sede || "-"}</td>
                           <td className="p-3 text-xs font-mono">
-                            {row.granjaData?.coordenadas ? (
-                              <a 
-                                href={`https://www.google.com/maps?q=${row.granjaData.coordenadas}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline"
-                              >
-                                Ver
-                              </a>
-                            ) : "-"}
+                            {row.granjaData?.codMunicipio || "-"}
                           </td>
                           <td className="p-3 text-center">{getStatusIcon(row.granjaValid)}</td>
                           <td className="p-1">
@@ -1198,16 +1189,7 @@ export default function Despachos() {
                           </td>
                           <td className="p-3 text-xs">{row.plantaData?.sede || "-"}</td>
                           <td className="p-3 text-xs font-mono">
-                            {row.plantaData?.coordenadas ? (
-                              <a 
-                                href={`https://www.google.com/maps?q=${row.plantaData.coordenadas}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline"
-                              >
-                                Ver
-                              </a>
-                            ) : "-"}
+                            {row.plantaData?.codMunicipio || "-"}
                           </td>
                           <td className="p-3 text-center">{getStatusIcon(row.plantaValid)}</td>
                           <td className="p-1">
