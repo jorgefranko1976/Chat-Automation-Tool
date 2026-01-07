@@ -1,0 +1,14 @@
+El código QR, debe mostrar 12 Datos. Cada dato lleva un nombre, los dos puntos, y luego los datos. Los nombres o etiquetas de cada dato deben ser exactos en cuanto a mayúsculas y minúsculas. Sin tildes. El orden de los datos debe ser el que a continuación se describe.
+MEC: Número de autorización del Manifiesto electrónico de Carga generado por el RNDC como aceptación de que la información está correcta.
+Fecha: Fecha de la expedición del Manifiesto de Carga con el formato de Año/Mes/Día (AAAA/MM/DD).
+Placa: Número de la placa del vehículo (Camión o Tractocamión). 6 caracteres.
+Remolque: Registrar el número de la placa del remolque o semirremolque. (Si no hay remolque no debe ir éste dato). 6 caracteres.
+Config: Configuración resultante entre el vehículo (cabezote) y el tráiler. Eje: 2, 3, 4, 2S2, 2S3, 3S3, 3S4, 2B2, 2B3, etc. 3 caracteres o 4 caracteres si es un bitren.
+Orig: Nombre del municipio y departamento del Origen del viaje (máximo 20 caracteres).
+Dest: Nombre del municipio y departamento del Destino del viaje (máximo 20 caracteres).
+Mercancia: Descripción corta del producto a transportar sin tildes (máximo 30 caracteres). Si el viaje es del tipo Viaje Vacío, solo debe aparecer el nombre del dato y sin el detalle de la mercancía.
+Conductor: Número de la cedula del conductor sin puntos ni comas.
+Empresa: Nombre de la Empresa de Transporte (máximo 30 caracteres).
+Obs: Las observaciones entregadas por el RNDC en el xml de Aceptación del Manifiesto. Un ejemplo son los manifiestos que tienen relación con las resoluciones 540 y 541 de Marzo 9 de 2018, cuyo objetivo es la reducción de la tarifa de los peajes de la ruta del Carbón de Norte de Santander (máximo120 caracteres). Si el RNDC no entrega observaciones no debe ir éste dato.
+Seguro: Registrar los 28 caracteres del código de seguridad del manifiesto, entregado por el RNDC en el xml de Aceptación del Manifiesto.
+El dato Seguro con los 28 caracteres de seguridad, se diseñó con el fin de detectar fácilmente un manifiesto mal elaborado. Es el resultado de la encriptación de varios datos del manifiesto. Las entidades de control (DITRA, PEAJES, ETC.) usarán en los celulares una aplicación (APP) que analiza los caracteres de seguridad y concluye si el Manifiesto de Carga con su código QR son INVALIDOS. Un ejemplo de la lectura del código QR en un Celular:
