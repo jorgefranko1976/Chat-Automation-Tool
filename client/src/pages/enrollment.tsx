@@ -1545,6 +1545,9 @@ function DestinosSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isImporting, setIsImporting] = useState(false);
+  const [viewingDestino, setViewingDestino] = useState<Destino | null>(null);
+  const [editingDestino, setEditingDestino] = useState<Destino | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
   const itemsPerPage = 15;
 
   const { data: destinosData, isLoading } = useQuery({
@@ -1706,15 +1709,27 @@ function DestinosSection() {
                         {destino.latitud && destino.longitud ? `${destino.latitud}, ${destino.longitud}` : "-"}
                       </td>
                       <td className="px-4 py-2 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteMutation.mutate(destino.id)}
-                          className="text-destructive hover:text-destructive"
-                          data-testid={`button-delete-destino-${destino.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" data-testid={`button-actions-destino-${destino.id}`}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setViewingDestino(destino)} data-testid={`menu-view-destino-${destino.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setEditingDestino(destino); setShowEditForm(true); }} data-testid={`menu-edit-destino-${destino.id}`}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => deleteMutation.mutate(destino.id)} className="text-destructive" data-testid={`menu-delete-destino-${destino.id}`}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))}
@@ -1760,6 +1775,265 @@ function DestinosSection() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewingDestino} onOpenChange={() => setViewingDestino(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Detalle del Destino
+            </DialogTitle>
+          </DialogHeader>
+          {viewingDestino && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nombre Sede</p>
+                  <p className="font-medium">{viewingDestino.nombreSede}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Código Sede</p>
+                  <p className="font-mono">{viewingDestino.codSede}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Tipo ID Tercero</p>
+                  <p className="font-medium">{viewingDestino.tipoIdTercero}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Num ID Tercero</p>
+                  <p className="font-mono">{viewingDestino.numIdTercero}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">Nombre Tercero</p>
+                  <p className="font-medium">{viewingDestino.nombreTercero || "-"}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">Dirección</p>
+                  <p className="font-medium">{viewingDestino.direccion || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Municipio RNDC</p>
+                  <p className="font-medium">{viewingDestino.municipioRndc}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Código Municipio RNDC</p>
+                  <p className="font-mono text-primary">{viewingDestino.codMunicipioRndc}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Latitud</p>
+                  <p className="font-mono text-sm">{viewingDestino.latitud || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Longitud</p>
+                  <p className="font-mono text-sm">{viewingDestino.longitud || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Régimen Simple</p>
+                  <p className="font-medium">{viewingDestino.regimenSimple === "S" ? "Sí" : "No"}</p>
+                </div>
+              </div>
+              {viewingDestino.latitud && viewingDestino.longitud && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => window.open(`https://www.google.com/maps?q=${viewingDestino.latitud},${viewingDestino.longitud}`, "_blank")}
+                >
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Ver en Google Maps
+                </Button>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <DestinoFormDialog
+        open={showEditForm}
+        onOpenChange={setShowEditForm}
+        destino={editingDestino}
+      />
     </div>
+  );
+}
+
+function DestinoFormDialog({ open, onOpenChange, destino }: { open: boolean; onOpenChange: (open: boolean) => void; destino: Destino | null }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    tipoIdTercero: "",
+    nombreSede: "",
+    numIdTercero: "",
+    codSede: "",
+    nombreTercero: "",
+    direccion: "",
+    municipioRndc: "",
+    codMunicipioRndc: "",
+    latitud: "",
+    longitud: "",
+    regimenSimple: "N",
+  });
+
+  useEffect(() => {
+    if (destino) {
+      setFormData({
+        tipoIdTercero: destino.tipoIdTercero || "",
+        nombreSede: destino.nombreSede || "",
+        numIdTercero: destino.numIdTercero || "",
+        codSede: destino.codSede || "",
+        nombreTercero: destino.nombreTercero || "",
+        direccion: destino.direccion || "",
+        municipioRndc: destino.municipioRndc || "",
+        codMunicipioRndc: destino.codMunicipioRndc || "",
+        latitud: destino.latitud || "",
+        longitud: destino.longitud || "",
+        regimenSimple: destino.regimenSimple || "N",
+      });
+    }
+  }, [destino]);
+
+  const mutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const res = await fetch(`/api/destinos/${destino?.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/destinos"] });
+      toast({ title: "Destino actualizado" });
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({ title: "Error al actualizar destino", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate(formData);
+  };
+
+  const updateField = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Destino</DialogTitle>
+          <DialogDescription>Modifique los datos del destino RNDC</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Tipo ID Tercero</Label>
+              <Input
+                value={formData.tipoIdTercero}
+                onChange={(e) => updateField("tipoIdTercero", e.target.value)}
+                data-testid="input-destino-tipo-id"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Num ID Tercero</Label>
+              <Input
+                value={formData.numIdTercero}
+                onChange={(e) => updateField("numIdTercero", e.target.value)}
+                data-testid="input-destino-num-id"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nombre Sede *</Label>
+              <Input
+                value={formData.nombreSede}
+                onChange={(e) => updateField("nombreSede", e.target.value)}
+                required
+                data-testid="input-destino-nombre-sede"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Código Sede</Label>
+              <Input
+                value={formData.codSede}
+                onChange={(e) => updateField("codSede", e.target.value)}
+                data-testid="input-destino-cod-sede"
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <Label>Nombre Tercero</Label>
+              <Input
+                value={formData.nombreTercero}
+                onChange={(e) => updateField("nombreTercero", e.target.value)}
+                data-testid="input-destino-nombre-tercero"
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <Label>Dirección</Label>
+              <Input
+                value={formData.direccion}
+                onChange={(e) => updateField("direccion", e.target.value)}
+                data-testid="input-destino-direccion"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Municipio RNDC</Label>
+              <Input
+                value={formData.municipioRndc}
+                onChange={(e) => updateField("municipioRndc", e.target.value)}
+                data-testid="input-destino-municipio"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Código Municipio RNDC *</Label>
+              <Input
+                value={formData.codMunicipioRndc}
+                onChange={(e) => updateField("codMunicipioRndc", e.target.value)}
+                required
+                data-testid="input-destino-cod-municipio"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Latitud</Label>
+              <Input
+                value={formData.latitud}
+                onChange={(e) => updateField("latitud", e.target.value)}
+                data-testid="input-destino-latitud"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Longitud</Label>
+              <Input
+                value={formData.longitud}
+                onChange={(e) => updateField("longitud", e.target.value)}
+                data-testid="input-destino-longitud"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Régimen Simple</Label>
+              <Select value={formData.regimenSimple} onValueChange={(v) => updateField("regimenSimple", v)}>
+                <SelectTrigger data-testid="select-destino-regimen">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="N">No</SelectItem>
+                  <SelectItem value="S">Sí</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-4 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-destino">
+              {mutation.isPending ? "Guardando..." : "Actualizar"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
