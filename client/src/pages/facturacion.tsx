@@ -47,6 +47,7 @@ interface DespachoDetalle {
   granja: string;
   planta: string;
   flete: number;
+  cantidadCargada: number;
   titular: string;
   tipoTitular: string;
   estado: string;
@@ -73,7 +74,7 @@ export default function Facturacion() {
   // Reports state
   const [resumenData, setResumenData] = useState<DespachoResumen[]>([]);
   const [detalleData, setDetalleData] = useState<DespachoDetalle[]>([]);
-  const [granjasTotales, setGranjasTotales] = useState<{ granja: string; viajes: number; flete: number }[]>([]);
+  const [granjasTotales, setGranjasTotales] = useState<{ granja: string; viajes: number; flete: number; cantidad: number }[]>([]);
   
   // Pre-factura state
   const preFacturaFileInputRef = useRef<HTMLInputElement>(null);
@@ -186,7 +187,7 @@ export default function Facturacion() {
       // Generate summary by date
       const resumenByDate: { [key: string]: DespachoResumen } = {};
       const detalles: DespachoDetalle[] = [];
-      const granjasTotalesMap: { [key: string]: { viajes: number; flete: number } } = {};
+      const granjasTotalesMap: { [key: string]: { viajes: number; flete: number; cantidad: number } } = {};
       
       for (const despacho of filteredDespachos) {
         const fecha = despacho.fecha;
@@ -230,7 +231,7 @@ export default function Facturacion() {
             
             // Add to totales
             if (!granjasTotalesMap[granja]) {
-              granjasTotalesMap[granja] = { viajes: 0, flete: 0 };
+              granjasTotalesMap[granja] = { viajes: 0, flete: 0, cantidad: 0 };
             }
             granjasTotalesMap[granja].viajes++;
             
@@ -239,7 +240,9 @@ export default function Facturacion() {
             const manifiesto = despacho.manifiestos?.find((m: any) => m.placa === row.placa && m.cedula === row.cedula);
             
             const flete = remesa?.valorFlete || 0;
+            const cantidadCargada = parseFloat(remesa?.cantidadCargada || "0") || 0;
             granjasTotalesMap[granja].flete += flete;
+            granjasTotalesMap[granja].cantidad += cantidadCargada;
             
             // Add detail row
             detalles.push({
@@ -251,6 +254,7 @@ export default function Facturacion() {
               granja,
               planta: row.planta || "",
               flete,
+              cantidadCargada,
               titular: manifiesto?.numIdTitular || "",
               tipoTitular: manifiesto?.tipoIdTitular || "",
               estado: manifiesto?.status === "success" ? "Exitoso" : (manifiesto?.status === "error" ? "Error" : "Pendiente"),
@@ -345,6 +349,9 @@ export default function Facturacion() {
   const totalViajes = excelData.reduce((sum, g) => sum + g.viajes, 0);
   const totalFleteGeneral = granjasTotales.reduce((sum, g) => sum + g.flete, 0);
   const totalViajesDespachos = granjasTotales.reduce((sum, g) => sum + g.viajes, 0);
+  const totalCantidadGeneral = granjasTotales.reduce((sum, g) => sum + g.cantidad, 0);
+  const totalToneladas = totalCantidadGeneral / 1000;
+  const totalBultos = totalCantidadGeneral / 40;
   
   const detalleDataPorFecha = useMemo(() => {
     const grouped: { [fecha: string]: DespachoDetalle[] } = {};
@@ -386,7 +393,7 @@ export default function Facturacion() {
     doc.text(`Granjas: ${granjasTotales.length}`, margin + 10, summaryY);
     doc.text(`Total Viajes: ${totalViajesDespachos}`, margin + 50, summaryY);
     doc.text(`Total Manifiestos: ${resumenData.reduce((sum, r) => sum + r.totalManifiestos, 0)}`, margin + 100, summaryY);
-    doc.text(`Total Flete: $${totalFleteGeneral.toLocaleString()}`, margin + 160, summaryY);
+    doc.text(`Total: ${totalToneladas.toFixed(2)} Ton (${Math.round(totalBultos)} bultos)`, margin + 160, summaryY);
     yPos += 25;
     
     doc.setFontSize(12);
@@ -396,7 +403,7 @@ export default function Facturacion() {
     
     doc.setFontSize(8);
     const colWidths = [10, 80, 30, 50];
-    const headers = ["#", "Granja (Centro de Costo)", "Viajes", "Total Flete"];
+    const headers = ["#", "Granja (Centro de Costo)", "Viajes", "Cantidad (Ton)"];
     doc.setFillColor(66, 139, 202);
     doc.setTextColor(255, 255, 255);
     doc.rect(margin, yPos, pageWidth - margin * 2, 6, "F");
@@ -424,7 +431,8 @@ export default function Facturacion() {
       xPos += colWidths[1];
       doc.text(String(item.viajes), xPos, yPos + 3.5);
       xPos += colWidths[2];
-      doc.text(`$${item.flete.toLocaleString()}`, xPos, yPos + 3.5);
+      const itemToneladas = item.cantidad / 1000;
+      doc.text(`${itemToneladas.toFixed(2)} Ton`, xPos, yPos + 3.5);
       yPos += 5;
     });
     
@@ -438,7 +446,7 @@ export default function Facturacion() {
     xPos += colWidths[1];
     doc.text(String(totalViajesDespachos), xPos, yPos + 4);
     xPos += colWidths[2];
-    doc.text(`$${totalFleteGeneral.toLocaleString()}`, xPos, yPos + 4);
+    doc.text(`${totalToneladas.toFixed(2)} Ton`, xPos, yPos + 4);
     yPos += 12;
     
     for (const [fecha, items] of detalleDataPorFecha) {
@@ -449,13 +457,14 @@ export default function Facturacion() {
       
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      const fechaFlete = items.reduce((sum, i) => sum + i.flete, 0);
-      doc.text(`DESPACHOS DEL ${fecha} - ${items.length} viajes - Flete: $${fechaFlete.toLocaleString()}`, margin, yPos);
+      const fechaCantidad = items.reduce((sum, i) => sum + i.cantidadCargada, 0);
+      const fechaToneladas = fechaCantidad / 1000;
+      doc.text(`DESPACHOS DEL ${fecha} - ${items.length} viajes - ${fechaToneladas.toFixed(2)} Ton (${Math.round(fechaCantidad / 40)} bultos)`, margin, yPos);
       yPos += 6;
       
       doc.setFontSize(7);
       const detColWidths = [20, 20, 40, 30, 30, 25, 30, 18, 22];
-      const detHeaders = ["Fecha", "Placa", "Conductor", "Granja", "Planta", "Flete", "Titular", "Estado", "Manifiesto"];
+      const detHeaders = ["Fecha", "Placa", "Conductor", "Granja", "Planta", "Cantidad", "Titular", "Estado", "Manifiesto"];
       doc.setFillColor(100, 100, 100);
       doc.setTextColor(255, 255, 255);
       doc.rect(margin, yPos, pageWidth - margin * 2, 5, "F");
@@ -487,7 +496,8 @@ export default function Facturacion() {
         xPos += detColWidths[3];
         doc.text(item.planta.substring(0, 18), xPos, yPos + 3);
         xPos += detColWidths[4];
-        doc.text(`$${item.flete.toLocaleString()}`, xPos, yPos + 3);
+        const itemTon = item.cantidadCargada / 1000;
+        doc.text(`${itemTon.toFixed(2)} Ton`, xPos, yPos + 3);
         xPos += detColWidths[5];
         doc.text(`${item.tipoTitular === "C" ? "CC" : "NIT"}: ${item.titular.substring(0, 12)}`, xPos, yPos + 3);
         xPos += detColWidths[6];
@@ -965,9 +975,9 @@ export default function Facturacion() {
                         </div>
                         <div>
                           <p className="text-2xl font-bold">
-                            ${totalFleteGeneral.toLocaleString()}
+                            {totalToneladas.toFixed(2)} Ton
                           </p>
-                          <p className="text-sm text-muted-foreground">Total Flete</p>
+                          <p className="text-sm text-muted-foreground">({Math.round(totalBultos)} bultos)</p>
                         </div>
                       </div>
                     </CardContent>
@@ -1048,7 +1058,7 @@ export default function Facturacion() {
                             <TableHead>#</TableHead>
                             <TableHead>Granja (Centro de Costo)</TableHead>
                             <TableHead className="text-center">Total Viajes</TableHead>
-                            <TableHead className="text-right">Total Flete</TableHead>
+                            <TableHead className="text-right">Cantidad (Ton)</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1060,7 +1070,7 @@ export default function Facturacion() {
                                 <Badge variant="secondary">{item.viajes}</Badge>
                               </TableCell>
                               <TableCell className="text-right font-mono">
-                                ${item.flete.toLocaleString()}
+                                {(item.cantidad / 1000).toFixed(2)} Ton
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1069,7 +1079,7 @@ export default function Facturacion() {
                             <TableCell>TOTAL</TableCell>
                             <TableCell className="text-center">{totalViajesDespachos}</TableCell>
                             <TableCell className="text-right font-mono">
-                              ${totalFleteGeneral.toLocaleString()}
+                              {totalToneladas.toFixed(2)} Ton
                             </TableCell>
                           </TableRow>
                         </TableBody>
@@ -1089,7 +1099,9 @@ export default function Facturacion() {
                   <CardContent>
                     <Accordion type="multiple" className="w-full space-y-2">
                       {detalleDataPorFecha.map(([fecha, items]) => {
-                        const fechaFlete = items.reduce((sum, i) => sum + i.flete, 0);
+                        const fechaCantidad = items.reduce((sum, i) => sum + i.cantidadCargada, 0);
+                        const fechaToneladas = fechaCantidad / 1000;
+                        const fechaBultos = Math.round(fechaCantidad / 40);
                         const exitosos = items.filter(i => i.estado === "Exitoso").length;
                         return (
                           <AccordionItem key={fecha} value={fecha} className="border rounded-lg px-4">
@@ -1106,7 +1118,7 @@ export default function Facturacion() {
                                   </Badge>
                                 </div>
                                 <span className="font-mono font-bold text-primary">
-                                  ${fechaFlete.toLocaleString()}
+                                  {fechaToneladas.toFixed(2)} Ton ({fechaBultos} bultos)
                                 </span>
                               </div>
                             </AccordionTrigger>
@@ -1119,7 +1131,7 @@ export default function Facturacion() {
                                       <TableHead>Conductor</TableHead>
                                       <TableHead>Granja</TableHead>
                                       <TableHead>Planta</TableHead>
-                                      <TableHead className="text-right">Flete</TableHead>
+                                      <TableHead className="text-right">Cantidad</TableHead>
                                       <TableHead>Titular</TableHead>
                                       <TableHead>Estado</TableHead>
                                       <TableHead>ID Manifiesto</TableHead>
@@ -1135,7 +1147,7 @@ export default function Facturacion() {
                                         <TableCell>{item.granja}</TableCell>
                                         <TableCell className="max-w-[100px] truncate">{item.planta}</TableCell>
                                         <TableCell className="text-right font-mono">
-                                          ${item.flete.toLocaleString()}
+                                          {(item.cantidadCargada / 1000).toFixed(2)} Ton
                                         </TableCell>
                                         <TableCell>
                                           {item.tipoTitular === "C" ? "CC: " : "NIT: "}
@@ -1158,7 +1170,7 @@ export default function Facturacion() {
                                         Subtotal {fecha}:
                                       </TableCell>
                                       <TableCell className="text-right font-mono font-bold">
-                                        ${fechaFlete.toLocaleString()}
+                                        {fechaToneladas.toFixed(2)} Ton ({fechaBultos} bultos)
                                       </TableCell>
                                       <TableCell colSpan={3}></TableCell>
                                     </TableRow>
