@@ -1974,6 +1974,7 @@ export default function Despachos() {
                           <TableHead>Fecha Cargue</TableHead>
                           <TableHead>Fecha Descargue</TableHead>
                           <TableHead>Estado</TableHead>
+                          <TableHead>Manifiesto</TableHead>
                           <TableHead>ID Remesa</TableHead>
                           <TableHead>Respuesta</TableHead>
                           <TableHead>XML</TableHead>
@@ -2005,6 +2006,19 @@ export default function Despachos() {
                             <TableCell>{remesa.fechaCargue} {remesa.horaCargue}</TableCell>
                             <TableCell>{remesa.fechaDescargue} {remesa.horaDescargue}</TableCell>
                             <TableCell>{getRemesaStatusBadge(remesa.status)}</TableCell>
+                            <TableCell>
+                              {remesa.manifiesto ? (
+                                remesa.manifiesto.status === "success" ? (
+                                  <Badge className="bg-green-600">
+                                    M-{remesa.manifiesto.responseCode}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="destructive">Error</Badge>
+                                )
+                              ) : (
+                                <span className="text-muted-foreground text-xs">-</span>
+                              )}
+                            </TableCell>
                             <TableCell className="font-mono">{remesa.idRemesa || "-"}</TableCell>
                             <TableCell className="max-w-[200px] truncate text-xs" title={remesa.responseMessage}>
                               {remesa.responseMessage || "-"}

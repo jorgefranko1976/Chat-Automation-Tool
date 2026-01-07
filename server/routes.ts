@@ -1102,9 +1102,36 @@ export async function registerRoutes(
     try {
       const limit = parseInt(req.query.limit as string) || 100;
       const submissions = await storage.getAllRemesaSubmissions(limit);
-      res.json({ success: true, submissions });
+      
+      // Get manifiestos to find associations
+      const manifiestos = await storage.getAllManifiestoSubmissions(limit);
+      const manifiestoMap = new Map<string, any>();
+      for (const m of manifiestos) {
+        // Use consecutivo as key (remesa and manifiesto share same consecutivo)
+        if (!manifiestoMap.has(m.consecutivoManifiesto) || m.status === "success") {
+          manifiestoMap.set(m.consecutivoManifiesto, m);
+        }
+      }
+      
+      // Enrich remesas with manifiesto info
+      const enrichedSubmissions = submissions.map(r => ({
+        ...r,
+        manifiesto: manifiestoMap.get(r.consecutivoRemesa) || null,
+      }));
+      
+      res.json({ success: true, submissions: enrichedSubmissions });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener historial de remesas" });
+    }
+  });
+  
+  app.get("/api/rndc/manifiestos/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const submissions = await storage.getAllManifiestoSubmissions(limit);
+      res.json({ success: true, submissions });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener historial de manifiestos" });
     }
   });
 
