@@ -75,10 +75,13 @@ export default function Facturacion() {
   
   // Pre-factura state
   const preFacturaFileInputRef = useRef<HTMLInputElement>(null);
+  const [preFacturaAllData, setPreFacturaAllData] = useState<{ sheetName: string; day: number; month: string; monthNum: number; rowCount: number }[]>([]);
   const [preFacturaItems, setPreFacturaItems] = useState<{ item: number; descripcion: string; cantidad: number }[]>([]);
   const [isLoadingPreFactura, setIsLoadingPreFactura] = useState(false);
   const [preFacturaFileName, setPreFacturaFileName] = useState("");
   const [preFacturaTotal, setPreFacturaTotal] = useState(0);
+  const [preFacturaFechaInicio, setPreFacturaFechaInicio] = useState("");
+  const [preFacturaFechaFin, setPreFacturaFechaFin] = useState("");
   
   // Process Excel file with multiple sheets
   const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -356,7 +359,7 @@ export default function Facturacion() {
       const sheetNames = workbook.SheetNames;
       
       // Parse each sheet name to extract date and count rows
-      const sheetData: { sheetName: string; day: number; month: string; rowCount: number }[] = [];
+      const sheetData: { sheetName: string; day: number; month: string; monthNum: number; rowCount: number }[] = [];
       
       const months = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", 
                       "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -373,6 +376,7 @@ export default function Facturacion() {
         // Try to extract date from sheet name (formats: "16 DICIEMBRE", "16-DIC", "2025-12-16", etc.)
         let day = 0;
         let monthName = "";
+        let monthNum = 0;
         
         // Try format: "16 DICIEMBRE" or "16 DIC"
         const dateMatch = sheetName.match(/(\d{1,2})\s*[-_]?\s*([A-Za-z]+)/i);
@@ -380,48 +384,85 @@ export default function Facturacion() {
           day = parseInt(dateMatch[1], 10);
           const monthPart = dateMatch[2].toUpperCase();
           // Find matching month
-          monthName = months.find(m => m.startsWith(monthPart.substring(0, 3))) || monthPart;
+          monthNum = months.findIndex(m => m.startsWith(monthPart.substring(0, 3))) + 1;
+          monthName = monthNum > 0 ? months[monthNum - 1] : monthPart;
         } else {
           // Try format: "2025-12-16"
           const isoMatch = sheetName.match(/(\d{4})-(\d{2})-(\d{2})/);
           if (isoMatch) {
             day = parseInt(isoMatch[3], 10);
-            monthName = months[parseInt(isoMatch[2], 10) - 1];
+            monthNum = parseInt(isoMatch[2], 10);
+            monthName = months[monthNum - 1];
           } else {
             // Use sheet name as-is for description
             day = 0;
             monthName = sheetName.toUpperCase();
+            monthNum = 0;
           }
         }
         
-        sheetData.push({ sheetName, day, month: monthName, rowCount });
+        sheetData.push({ sheetName, day, month: monthName, monthNum, rowCount });
       }
       
-      // Sort by day (if available)
-      sheetData.sort((a, b) => a.day - b.day);
+      // Sort by month then day
+      sheetData.sort((a, b) => {
+        if (a.monthNum !== b.monthNum) return a.monthNum - b.monthNum;
+        return a.day - b.day;
+      });
       
-      // Generate items
-      const items = sheetData.map((sheet, index) => ({
-        item: index + 1,
-        descripcion: sheet.day > 0 
-          ? `LOGISTICA GUIA Y MANIFIESTO TRANSPORTE DE CARGA - ${sheet.day} ${sheet.month}`
-          : `LOGISTICA GUIA Y MANIFIESTO TRANSPORTE DE CARGA - ${sheet.month}`,
-        cantidad: sheet.rowCount
-      }));
+      // Store all data for filtering
+      setPreFacturaAllData(sheetData);
       
-      const total = items.reduce((sum, item) => sum + item.cantidad, 0);
-      
-      setPreFacturaItems(items);
-      setPreFacturaTotal(total);
+      // Generate items from all data
+      applyPreFacturaFilter(sheetData, "", "");
       
       toast({ 
-        title: "Pre-factura generada", 
-        description: `${items.length} días, ${total} manifiestos totales` 
+        title: "Excel cargado", 
+        description: `${sheetData.length} días encontrados. Use los filtros de fecha si desea limitar el reporte.` 
       });
     } catch (error) {
       toast({ title: "Error", description: "Error al procesar el archivo Excel", variant: "destructive" });
     } finally {
       setIsLoadingPreFactura(false);
+    }
+  };
+  
+  // Apply date filter to pre-factura data
+  const applyPreFacturaFilter = (data: typeof preFacturaAllData, startDay: string, endDay: string) => {
+    let filteredData = [...data];
+    
+    // Parse start and end as day numbers (assumes same month for simplicity)
+    const startDayNum = startDay ? parseInt(startDay, 10) : 0;
+    const endDayNum = endDay ? parseInt(endDay, 10) : 31;
+    
+    if (startDayNum > 0 || endDayNum < 31) {
+      filteredData = data.filter(sheet => {
+        if (sheet.day === 0) return true; // Include sheets without parsed dates
+        return sheet.day >= startDayNum && sheet.day <= endDayNum;
+      });
+    }
+    
+    // Generate items
+    const items = filteredData.map((sheet, index) => ({
+      item: index + 1,
+      descripcion: sheet.day > 0 
+        ? `LOGISTICA GUIA Y MANIFIESTO TRANSPORTE DE CARGA - ${sheet.day} ${sheet.month}`
+        : `LOGISTICA GUIA Y MANIFIESTO TRANSPORTE DE CARGA - ${sheet.month}`,
+      cantidad: sheet.rowCount
+    }));
+    
+    const total = items.reduce((sum, item) => sum + item.cantidad, 0);
+    
+    setPreFacturaItems(items);
+    setPreFacturaTotal(total);
+  };
+  
+  // Handle filter change
+  const handlePreFacturaFilterChange = (start: string, end: string) => {
+    setPreFacturaFechaInicio(start);
+    setPreFacturaFechaFin(end);
+    if (preFacturaAllData.length > 0) {
+      applyPreFacturaFilter(preFacturaAllData, start, end);
     }
   };
   
@@ -949,7 +990,7 @@ export default function Facturacion() {
                   className="hidden"
                   data-testid="input-prefactura-excel"
                 />
-                <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-col sm:flex-row gap-4 items-end">
                   <Button
                     onClick={() => preFacturaFileInputRef.current?.click()}
                     disabled={isLoadingPreFactura}
@@ -970,6 +1011,58 @@ export default function Facturacion() {
                     </div>
                   )}
                 </div>
+                
+                {preFacturaAllData.length > 0 && (
+                  <div className="border-t pt-4 mt-4">
+                    <p className="text-sm text-muted-foreground mb-3">Filtrar por rango de días (opcional):</p>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-2">
+                        <Label htmlFor="preFacturaDiaInicio">Día Inicio</Label>
+                        <Input
+                          id="preFacturaDiaInicio"
+                          type="number"
+                          min="1"
+                          max="31"
+                          placeholder="1"
+                          value={preFacturaFechaInicio}
+                          onChange={(e) => handlePreFacturaFilterChange(e.target.value, preFacturaFechaFin)}
+                          data-testid="input-prefactura-dia-inicio"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="preFacturaDiaFin">Día Fin</Label>
+                        <Input
+                          id="preFacturaDiaFin"
+                          type="number"
+                          min="1"
+                          max="31"
+                          placeholder="31"
+                          value={preFacturaFechaFin}
+                          onChange={(e) => handlePreFacturaFilterChange(preFacturaFechaInicio, e.target.value)}
+                          data-testid="input-prefactura-dia-fin"
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => handlePreFacturaFilterChange("1", "15")}
+                        className="flex items-center gap-2"
+                        data-testid="button-prefactura-quincena1"
+                      >
+                        <Calendar className="h-4 w-4" />
+                        1ra Quincena
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => handlePreFacturaFilterChange("16", "31")}
+                        className="flex items-center gap-2"
+                        data-testid="button-prefactura-quincena2"
+                      >
+                        <Calendar className="h-4 w-4" />
+                        2da Quincena
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
