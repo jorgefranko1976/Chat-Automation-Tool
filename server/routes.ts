@@ -2247,12 +2247,21 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
 
   app.post("/api/despachos", requireAuth, async (req, res) => {
     try {
-      const { nombre, fecha, rows } = req.body;
+      const { nombre, fecha, rows, remesas, manifiestos } = req.body;
       if (!nombre || !fecha || !rows) {
         return res.status(400).json({ success: false, message: "Datos incompletos" });
       }
       const validRows = rows.filter((r: any) => !r.errors?.length).length;
       const errorRows = rows.filter((r: any) => r.errors?.length > 0).length;
+      
+      // Determine status based on what's included
+      let status = "draft";
+      if (remesas?.length > 0 && manifiestos?.length > 0) {
+        status = "completed";
+      } else if (remesas?.length > 0) {
+        status = "remesas_sent";
+      }
+      
       const despacho = await storage.createDespacho({
         nombre,
         fecha,
@@ -2260,7 +2269,9 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
         validRows,
         errorRows,
         rows,
-        status: "draft",
+        remesas: remesas || null,
+        manifiestos: manifiestos || null,
+        status,
       });
       res.json({ success: true, despacho });
     } catch (error) {
@@ -2271,13 +2282,15 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
 
   app.put("/api/despachos/:id", requireAuth, async (req, res) => {
     try {
-      const { rows, status } = req.body;
+      const { rows, status, remesas, manifiestos } = req.body;
       const updates: any = {};
       if (rows) {
         updates.rows = rows;
         updates.validRows = rows.filter((r: any) => !r.errors?.length).length;
         updates.errorRows = rows.filter((r: any) => r.errors?.length > 0).length;
       }
+      if (remesas !== undefined) updates.remesas = remesas;
+      if (manifiestos !== undefined) updates.manifiestos = manifiestos;
       if (status) updates.status = status;
       const despacho = await storage.updateDespacho(req.params.id, updates);
       if (!despacho) {

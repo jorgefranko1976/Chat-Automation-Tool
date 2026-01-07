@@ -434,6 +434,8 @@ export const despachos = pgTable("despachos", {
   validRows: integer("valid_rows").default(0),
   errorRows: integer("error_rows").default(0),
   rows: jsonb("rows").notNull(),
+  remesas: jsonb("remesas"),
+  manifiestos: jsonb("manifiestos"),
   status: varchar("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

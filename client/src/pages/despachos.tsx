@@ -126,18 +126,20 @@ export default function Despachos() {
   const saveDespachoMutation = useMutation({
     mutationFn: async () => {
       const today = new Date().toISOString().split("T")[0];
-      const nombre = `Despacho ${today}`;
+      const nombre = `Despacho ${today} - ${rows.length} filas`;
       const response = await apiRequest("POST", "/api/despachos", {
         nombre,
         fecha: today,
         rows,
+        remesas: generatedRemesas,
+        manifiestos: generatedManifiestos,
       });
       return response.json();
     },
     onSuccess: (data) => {
       setCurrentDespachoId(data.despacho.id);
       refetchDespachos();
-      toast({ title: "Guardado", description: "Despacho guardado correctamente" });
+      toast({ title: "Guardado", description: "Despacho completo guardado correctamente (filas, remesas y manifiestos)" });
     },
     onError: () => {
       toast({ title: "Error", description: "No se pudo guardar el despacho", variant: "destructive" });
@@ -147,12 +149,26 @@ export default function Despachos() {
   const updateDespachoMutation = useMutation({
     mutationFn: async () => {
       if (!currentDespachoId) throw new Error("No hay despacho seleccionado");
-      const response = await apiRequest("PUT", `/api/despachos/${currentDespachoId}`, { rows });
+      
+      // Determine status based on what's included
+      let status = "draft";
+      if (generatedRemesas.length > 0 && generatedManifiestos.length > 0) {
+        status = "completed";
+      } else if (generatedRemesas.length > 0) {
+        status = "remesas_sent";
+      }
+      
+      const response = await apiRequest("PUT", `/api/despachos/${currentDespachoId}`, { 
+        rows,
+        remesas: generatedRemesas,
+        manifiestos: generatedManifiestos,
+        status,
+      });
       return response.json();
     },
     onSuccess: () => {
       refetchDespachos();
-      toast({ title: "Actualizado", description: "Despacho actualizado correctamente" });
+      toast({ title: "Actualizado", description: "Despacho actualizado correctamente (incluye remesas y manifiestos)" });
     },
     onError: () => {
       toast({ title: "Error", description: "No se pudo actualizar el despacho", variant: "destructive" });
@@ -181,7 +197,27 @@ export default function Despachos() {
         setStepBComplete(true);
         setStepCComplete(true);
         setShowSavedDespachos(false);
-        toast({ title: "Cargado", description: `Despacho "${data.despacho.nombre}" cargado` });
+        
+        // Restore remesas if available
+        if (data.despacho.remesas && Array.isArray(data.despacho.remesas)) {
+          setGeneratedRemesas(data.despacho.remesas);
+        }
+        
+        // Restore manifiestos if available
+        if (data.despacho.manifiestos && Array.isArray(data.despacho.manifiestos)) {
+          setGeneratedManifiestos(data.despacho.manifiestos);
+        }
+        
+        const hasRemesas = data.despacho.remesas?.length > 0;
+        const hasManifiestos = data.despacho.manifiestos?.length > 0;
+        let statusMsg = "";
+        if (hasManifiestos && hasRemesas) {
+          statusMsg = " (incluye remesas y manifiestos)";
+        } else if (hasRemesas) {
+          statusMsg = " (incluye remesas)";
+        }
+        
+        toast({ title: "Cargado", description: `Despacho "${data.despacho.nombre}" cargado${statusMsg}` });
       }
     } catch {
       toast({ title: "Error", description: "No se pudo cargar el despacho", variant: "destructive" });
@@ -1325,7 +1361,8 @@ export default function Despachos() {
                     </Button>
                   ) : (
                     <Button 
-                      variant="outline" 
+                      variant={generatedManifiestos.length > 0 ? "default" : "outline"}
+                      className={generatedManifiestos.length > 0 ? "bg-green-600 hover:bg-green-700" : ""}
                       onClick={() => saveDespachoMutation.mutate()}
                       disabled={saveDespachoMutation.isPending}
                       data-testid="button-save-despacho"
@@ -1333,7 +1370,13 @@ export default function Despachos() {
                       {saveDespachoMutation.isPending ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
                       ) : (
-                        <><Save className="mr-2 h-4 w-4" />Guardar</>
+                        <><Save className="mr-2 h-4 w-4" />
+                        {generatedManifiestos.length > 0 
+                          ? "Guardar Despacho Completo" 
+                          : generatedRemesas.length > 0 
+                            ? "Guardar con Remesas" 
+                            : "Guardar"}
+                        </>
                       )}
                     </Button>
                   )}
@@ -1360,8 +1403,17 @@ export default function Despachos() {
                           <div className="flex-1">
                             <span className="font-medium text-sm">{d.nombre}</span>
                             <span className="text-xs text-muted-foreground ml-2">
-                              ({d.totalRows} filas, {d.validRows} OK, {d.errorRows} errores)
+                              ({d.totalRows} filas, {d.validRows} OK)
                             </span>
+                            {d.status === "completed" && (
+                              <Badge className="ml-2 bg-green-600">Completo</Badge>
+                            )}
+                            {d.status === "remesas_sent" && (
+                              <Badge className="ml-2 bg-blue-600">Remesas</Badge>
+                            )}
+                            {d.status === "draft" && (
+                              <Badge variant="outline" className="ml-2">Borrador</Badge>
+                            )}
                           </div>
                           <div className="flex gap-1">
                             <Button 
