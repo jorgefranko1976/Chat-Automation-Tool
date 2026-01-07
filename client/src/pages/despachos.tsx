@@ -591,6 +591,28 @@ export default function Despachos() {
       return;
     }
 
+    // Validate that all 3 steps are complete
+    if (!stepAComplete || !stepBComplete || !stepCComplete) {
+      toast({ 
+        title: "Validación incompleta", 
+        description: "Complete los 3 pasos de validación (A: Interno, B: Placas, C: Cédulas) antes de generar remesas", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    // Check for rows with errors
+    const selectedRowsArray = Array.from(selectedRows).map(idx => rows[idx]).filter(r => r);
+    const rowsWithErrors = selectedRowsArray.filter(r => r.errors && r.errors.length > 0);
+    if (rowsWithErrors.length > 0) {
+      toast({ 
+        title: "Filas con errores", 
+        description: `${rowsWithErrors.length} filas seleccionadas tienen errores. Corrija antes de generar remesas.`, 
+        variant: "destructive" 
+      });
+      return;
+    }
+
     if (!settings.usernameRndc || !settings.passwordRndc || !settings.companyNit) {
       toast({ title: "Error", description: "Configure credenciales RNDC en Configuración", variant: "destructive" });
       return;
@@ -603,8 +625,6 @@ export default function Despachos() {
 
     let currentConsecutivo = settings.consecutivo;
     const remesas: GeneratedRemesa[] = [];
-    
-    const selectedRowsArray = Array.from(selectedRows).map(idx => rows[idx]).filter(r => r);
 
     for (const row of selectedRowsArray) {
       const xml = `<?xml version="1.0" encoding="ISO-8859-1"?>
