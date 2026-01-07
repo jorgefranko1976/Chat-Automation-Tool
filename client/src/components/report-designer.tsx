@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, RotateCcw, GripVertical, Trash2, Plus, Eye, Download, Upload, Star } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Save, GripVertical, Trash2, Plus, Star, Type, Database } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { PdfTemplateField, PdfTemplate } from "@shared/schema";
@@ -93,6 +93,14 @@ export function ReportDesigner() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [showAddFieldDialog, setShowAddFieldDialog] = useState(false);
+  const [newFieldData, setNewFieldData] = useState({
+    label: "",
+    bindingType: "static" as "data" | "static",
+    dataKey: "",
+    defaultValue: "",
+    page: 1,
+  });
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const loadTemplates = useCallback(async () => {
@@ -127,6 +135,8 @@ export function ReportDesigner() {
       fontSize: 6,
       fontWeight: "normal" as const,
       page: f.page,
+      isCustom: false,
+      bindingType: "data" as const,
     }));
     setFields(defaultFields);
   };
@@ -241,6 +251,48 @@ export function ReportDesigner() {
     setTemplateName(template.name);
   };
 
+  const addCustomField = () => {
+    if (!newFieldData.label.trim()) {
+      toast({ title: "Error", description: "Ingrese un nombre para el campo", variant: "destructive" });
+      return;
+    }
+    if (newFieldData.bindingType === "data" && !newFieldData.dataKey.trim()) {
+      toast({ title: "Error", description: "Ingrese la clave de datos para el campo vinculado", variant: "destructive" });
+      return;
+    }
+    if (newFieldData.bindingType === "static" && !newFieldData.defaultValue.trim()) {
+      toast({ title: "Error", description: "Ingrese el texto a mostrar", variant: "destructive" });
+      return;
+    }
+    const fieldId = `custom_${Date.now()}`;
+    const newField: PdfTemplateField = {
+      id: fieldId,
+      label: newFieldData.label,
+      dataKey: newFieldData.bindingType === "data" ? newFieldData.dataKey : fieldId,
+      x: 50,
+      y: 50 + (fields.filter(f => f.page === newFieldData.page && f.isCustom).length * 10),
+      fontSize: 6,
+      fontWeight: "normal",
+      page: newFieldData.page,
+      isCustom: true,
+      bindingType: newFieldData.bindingType,
+      defaultValue: newFieldData.defaultValue,
+    };
+    setFields(prev => [...prev, newField]);
+    setShowAddFieldDialog(false);
+    setNewFieldData({ label: "", bindingType: "static", dataKey: "", defaultValue: "", page: activePage });
+    toast({ title: "Campo agregado", description: `Campo "${newFieldData.label}" creado` });
+  };
+
+  const deleteField = (fieldId: string) => {
+    const field = fields.find(f => f.id === fieldId);
+    if (field?.isCustom) {
+      setFields(prev => prev.filter(f => f.id !== fieldId));
+      if (selectedField === fieldId) setSelectedField(null);
+      toast({ title: "Campo eliminado", description: "Campo personalizado eliminado" });
+    }
+  };
+
   const pageFields = fields.filter(f => f.page === activePage);
   const selectedFieldData = fields.find(f => f.id === selectedField);
 
@@ -302,8 +354,11 @@ export function ReportDesigner() {
         </Card>
 
         <Card>
-          <CardHeader className="py-3">
+          <CardHeader className="py-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Campos Disponibles</CardTitle>
+            <Button onClick={() => { setNewFieldData(prev => ({ ...prev, page: activePage })); setShowAddFieldDialog(true); }} size="sm" variant="ghost" className="h-6 w-6 p-0">
+              <Plus className="h-4 w-4" />
+            </Button>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-64">
@@ -312,10 +367,25 @@ export function ReportDesigner() {
                   <div
                     key={f.id}
                     onClick={() => setSelectedField(f.id)}
-                    className={`p-2 rounded cursor-pointer text-xs ${selectedField === f.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                    className={`p-2 rounded cursor-pointer text-xs flex items-center justify-between ${selectedField === f.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                   >
-                    {f.label}
-                    <span className="text-muted-foreground ml-2">({f.x}, {f.y})</span>
+                    <div className="flex items-center gap-1">
+                      {f.isCustom ? (
+                        f.bindingType === "static" ? <Type className="h-3 w-3" /> : <Database className="h-3 w-3" />
+                      ) : null}
+                      <span>{f.label}</span>
+                      <span className={`ml-1 ${selectedField === f.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>({f.x}, {f.y})</span>
+                    </div>
+                    {f.isCustom && (
+                      <Button
+                        onClick={e => { e.stopPropagation(); deleteField(f.id); }}
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -430,6 +500,92 @@ export function ReportDesigner() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showAddFieldDialog} onOpenChange={setShowAddFieldDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Agregar Campo Personalizado</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nombre del Campo</Label>
+              <Input
+                value={newFieldData.label}
+                onChange={e => setNewFieldData(prev => ({ ...prev, label: e.target.value }))}
+                placeholder="Ej: Observaciones"
+                data-testid="input-custom-field-name"
+              />
+            </div>
+            <div>
+              <Label>Tipo de Campo</Label>
+              <Select
+                value={newFieldData.bindingType}
+                onValueChange={v => setNewFieldData(prev => ({ ...prev, bindingType: v as "data" | "static" }))}
+              >
+                <SelectTrigger data-testid="select-field-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="static">Texto Estático</SelectItem>
+                  <SelectItem value="data">Vinculado a Datos</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {newFieldData.bindingType === "static" 
+                  ? "El texto se mostrará tal como lo escriba" 
+                  : "El valor se tomará de los datos del manifiesto"}
+              </p>
+            </div>
+            {newFieldData.bindingType === "static" ? (
+              <div>
+                <Label>Texto a Mostrar</Label>
+                <Input
+                  value={newFieldData.defaultValue}
+                  onChange={e => setNewFieldData(prev => ({ ...prev, defaultValue: e.target.value }))}
+                  placeholder="Ej: TRANSPETROMIRA S.A.S"
+                  data-testid="input-static-value"
+                />
+              </div>
+            ) : (
+              <div>
+                <Label>Clave de Datos</Label>
+                <Input
+                  value={newFieldData.dataKey}
+                  onChange={e => setNewFieldData(prev => ({ ...prev, dataKey: e.target.value }))}
+                  placeholder="Ej: observaciones"
+                  data-testid="input-data-key"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nombre del campo en los datos del manifiesto
+                </p>
+              </div>
+            )}
+            <div>
+              <Label>Página</Label>
+              <Select
+                value={String(newFieldData.page)}
+                onValueChange={v => setNewFieldData(prev => ({ ...prev, page: parseInt(v) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Página 1</SelectItem>
+                  <SelectItem value="2">Página 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddFieldDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={addCustomField} data-testid="button-add-field">
+              <Plus className="h-4 w-4 mr-2" /> Agregar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

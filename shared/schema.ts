@@ -486,6 +486,9 @@ export const pdfTemplateFieldSchema = z.object({
   fontWeight: z.enum(["normal", "bold"]).default("normal"),
   maxWidth: z.number().optional(),
   page: z.number().default(1),
+  isCustom: z.boolean().optional().default(false),
+  bindingType: z.enum(["data", "static"]).optional().default("data"),
+  defaultValue: z.string().optional(),
 });
 
 export type PdfTemplateField = z.infer<typeof pdfTemplateFieldSchema>;
