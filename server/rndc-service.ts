@@ -174,6 +174,119 @@ export async function sendXmlToRndc(xmlRequest: string, targetUrl?: string): Pro
   }
 }
 
+export interface ManifiestoDetails {
+  INGRESOID: string;
+  FECHAING: string;
+  CODOPERACIONTRANSPORTE: string;
+  FECHAEXPEDICIONMANIFIESTO: string;
+  CODMUNICIPIOORIGENMANIFIESTO: string;
+  CODMUNICIPIODESTINOMANIFIESTO: string;
+  CODIDTITULARMANIFIESTO: string;
+  NUMIDTITULARMANIFIESTO: string;
+  NUMPLACA: string;
+  NUMPLACAREMOLQUE: string;
+  CODIDCONDUCTOR: string;
+  NUMIDCONDUCTOR: string;
+  CODIDCONDUCTOR2: string;
+  NUMIDCONDUCTOR2: string;
+  VALORFLETEPACTADOVIAJE: string;
+  RETENCIONFUENTEMANIFIESTO: string;
+  RETENCIONICAMANIFIESTOCARGA: string;
+  VALORANTICIPOMANIFIESTO: string;
+  CODMUNICIPIOPAGOSALDO: string;
+  CODRESPONSABLEPAGOCARGUE: string;
+  CODRESPONSABLEPAGODESCARGUE: string;
+  FECHAPAGOSALDOMANIFIESTO: string;
+  NITMONITOREOFLOTA: string;
+  ACEPTACIONELECTRONICA: string;
+  TIPOVALORPACTADO: string;
+  SEGURIDADQR: string;
+}
+
+export async function queryManifiestoDetails(
+  username: string,
+  password: string,
+  companyNit: string,
+  numManifiesto: string,
+  targetUrl?: string
+): Promise<{ success: boolean; details?: ManifiestoDetails; message: string; rawXml: string }> {
+  const xml = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>${username}</username>
+  <password>${password}</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>4</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,CODOPERACIONTRANSPORTE,FECHAEXPEDICIONMANIFIESTO,CODMUNICIPIOORIGENMANIFIESTO,CODMUNICIPIODESTINOMANIFIESTO,CODIDTITULARMANIFIESTO,NUMIDTITULARMANIFIESTO,NUMPLACA,NUMPLACAREMOLQUE,CODIDCONDUCTOR,NUMIDCONDUCTOR,CODIDCONDUCTOR2,NUMIDCONDUCTOR2,VALORFLETEPACTADOVIAJE,RETENCIONFUENTEMANIFIESTO,RETENCIONICAMANIFIESTOCARGA,VALORANTICIPOMANIFIESTO,CODMUNICIPIOPAGOSALDO,CODRESPONSABLEPAGOCARGUE,CODRESPONSABLEPAGODESCARGUE,FECHAPAGOSALDOMANIFIESTO,NITMONITOREOFLOTA,ACEPTACIONELECTRONICA,TIPOVALORPACTADO,SEGURIDADQR
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>${companyNit}</NUMNITEMPRESATRANSPORTE>
+  <NUMMANIFIESTOCARGA>${numManifiesto}</NUMMANIFIESTOCARGA>
+ </documento>
+</root>`;
+
+  const result = await sendXmlToRndc(xml, targetUrl);
+  
+  if (!result.success) {
+    return { success: false, message: result.message, rawXml: result.rawXml };
+  }
+
+  try {
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      removeNSPrefix: true,
+    });
+    
+    const parsed = parser.parse(result.rawXml);
+    const doc = parsed?.root?.documento;
+    
+    if (!doc) {
+      return { success: false, message: "No se encontró el documento en la respuesta", rawXml: result.rawXml };
+    }
+
+    const details: ManifiestoDetails = {
+      INGRESOID: String(doc.INGRESOID || ""),
+      FECHAING: String(doc.FECHAING || ""),
+      CODOPERACIONTRANSPORTE: String(doc.CODOPERACIONTRANSPORTE || ""),
+      FECHAEXPEDICIONMANIFIESTO: String(doc.FECHAEXPEDICIONMANIFIESTO || ""),
+      CODMUNICIPIOORIGENMANIFIESTO: String(doc.CODMUNICIPIOORIGENMANIFIESTO || ""),
+      CODMUNICIPIODESTINOMANIFIESTO: String(doc.CODMUNICIPIODESTINOMANIFIESTO || ""),
+      CODIDTITULARMANIFIESTO: String(doc.CODIDTITULARMANIFIESTO || ""),
+      NUMIDTITULARMANIFIESTO: String(doc.NUMIDTITULARMANIFIESTO || ""),
+      NUMPLACA: String(doc.NUMPLACA || ""),
+      NUMPLACAREMOLQUE: String(doc.NUMPLACAREMOLQUE || ""),
+      CODIDCONDUCTOR: String(doc.CODIDCONDUCTOR || ""),
+      NUMIDCONDUCTOR: String(doc.NUMIDCONDUCTOR || ""),
+      CODIDCONDUCTOR2: String(doc.CODIDCONDUCTOR2 || ""),
+      NUMIDCONDUCTOR2: String(doc.NUMIDCONDUCTOR2 || ""),
+      VALORFLETEPACTADOVIAJE: String(doc.VALORFLETEPACTADOVIAJE || ""),
+      RETENCIONFUENTEMANIFIESTO: String(doc.RETENCIONFUENTEMANIFIESTO || ""),
+      RETENCIONICAMANIFIESTOCARGA: String(doc.RETENCIONICAMANIFIESTOCARGA || ""),
+      VALORANTICIPOMANIFIESTO: String(doc.VALORANTICIPOMANIFIESTO || ""),
+      CODMUNICIPIOPAGOSALDO: String(doc.CODMUNICIPIOPAGOSALDO || ""),
+      CODRESPONSABLEPAGOCARGUE: String(doc.CODRESPONSABLEPAGOCARGUE || ""),
+      CODRESPONSABLEPAGODESCARGUE: String(doc.CODRESPONSABLEPAGODESCARGUE || ""),
+      FECHAPAGOSALDOMANIFIESTO: String(doc.FECHAPAGOSALDOMANIFIESTO || ""),
+      NITMONITOREOFLOTA: String(doc.NITMONITOREOFLOTA || ""),
+      ACEPTACIONELECTRONICA: String(doc.ACEPTACIONELECTRONICA || ""),
+      TIPOVALORPACTADO: String(doc.TIPOVALORPACTADO || ""),
+      SEGURIDADQR: String(doc.SEGURIDADQR || ""),
+    };
+
+    return { success: true, details, message: "Consulta exitosa", rawXml: result.rawXml };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: `Error parseando respuesta: ${error instanceof Error ? error.message : "desconocido"}`, 
+      rawXml: result.rawXml 
+    };
+  }
+}
+
 export function parseRndcResponse(xmlResponse: string): { code: string; message: string; success: boolean } {
   try {
     const parser = new XMLParser({

@@ -1,7 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { sendXmlToRndc } from "./rndc-service";
+import { sendXmlToRndc, queryManifiestoDetails } from "./rndc-service";
+import QRCode from "qrcode";
 import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema, insertTerceroSchema, insertVehiculoSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -1132,6 +1133,80 @@ export async function registerRoutes(
       res.json({ success: true, submissions });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener historial de manifiestos" });
+    }
+  });
+
+  // Query manifiesto details for PDF generation
+  app.post("/api/rndc/manifiesto-details", async (req, res) => {
+    try {
+      const { username, password, companyNit, numManifiesto, wsUrl, companyName, companyAddress, companyPhone, companyCity } = req.body;
+      
+      if (!username || !password || !companyNit || !numManifiesto) {
+        return res.status(400).json({ success: false, message: "Faltan parámetros requeridos" });
+      }
+
+      const result = await queryManifiestoDetails(username, password, companyNit, numManifiesto, wsUrl);
+      
+      if (!result.success || !result.details) {
+        return res.json({ success: false, message: result.message, rawXml: result.rawXml });
+      }
+
+      // Return details enriched with company info for PDF
+      res.json({ 
+        success: true, 
+        details: result.details,
+        companyInfo: {
+          name: companyName || "",
+          nit: companyNit,
+          address: companyAddress || "",
+          phone: companyPhone || "",
+          city: companyCity || "",
+        },
+        rawXml: result.rawXml,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al consultar manifiesto";
+      res.status(500).json({ success: false, message });
+    }
+  });
+
+  // Generate QR code data URL for manifiesto
+  app.post("/api/rndc/manifiesto-qr", async (req, res) => {
+    try {
+      const { 
+        mec, fecha, placa, remolque, config, 
+        orig, dest, mercancia, conductor, empresa, obs, seguro 
+      } = req.body;
+
+      if (!mec || !fecha || !placa || !seguro) {
+        return res.status(400).json({ success: false, message: "Faltan datos requeridos para el QR" });
+      }
+
+      // Build QR data string according to RNDC specs
+      let qrData = `MEC:${mec}\n`;
+      qrData += `Fecha:${fecha}\n`;
+      qrData += `Placa:${placa}\n`;
+      if (remolque) qrData += `Remolque:${remolque}\n`;
+      qrData += `Config:${config || "2"}\n`;
+      qrData += `Orig:${(orig || "").substring(0, 20)}\n`;
+      qrData += `Dest:${(dest || "").substring(0, 20)}\n`;
+      if (mercancia) qrData += `Mercancia:${mercancia.substring(0, 30)}\n`;
+      qrData += `Conductor:${conductor || ""}\n`;
+      qrData += `Empresa:${(empresa || "").substring(0, 30)}\n`;
+      if (obs) qrData += `Obs:${obs.substring(0, 120)}\n`;
+      qrData += `Seguro:${seguro}`;
+
+      // Generate QR as base64 data URL (high quality, 3cm at 300dpi ~ 354px)
+      const qrDataUrl = await QRCode.toDataURL(qrData, {
+        width: 354,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      });
+
+      res.json({ success: true, qrDataUrl, qrData });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al generar QR";
+      res.status(500).json({ success: false, message });
     }
   });
 

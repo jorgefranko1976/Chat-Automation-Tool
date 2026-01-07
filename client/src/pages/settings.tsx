@@ -399,6 +399,38 @@ export default function Settings() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="companyAddress">Dirección</Label>
+                  <Input 
+                    id="companyAddress"
+                    value={formData.companyAddress}
+                    onChange={(e) => handleChange("companyAddress", e.target.value)}
+                    placeholder="Dirección de la empresa"
+                    data-testid="input-company-address"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="companyPhone">Teléfono</Label>
+                    <Input 
+                      id="companyPhone"
+                      value={formData.companyPhone}
+                      onChange={(e) => handleChange("companyPhone", e.target.value)}
+                      placeholder="Teléfono de contacto"
+                      data-testid="input-company-phone"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyCity">Ciudad</Label>
+                    <Input 
+                      id="companyCity"
+                      value={formData.companyCity}
+                      onChange={(e) => handleChange("companyCity", e.target.value)}
+                      placeholder="Ciudad y departamento"
+                      data-testid="input-company-city"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="consecutivo">Consecutivo Remesas/Manifiestos</Label>
                   <Input 
                     id="consecutivo"

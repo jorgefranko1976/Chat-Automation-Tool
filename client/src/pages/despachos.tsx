@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface DespachoRow {
@@ -1001,6 +1002,214 @@ export default function Despachos() {
     }
   };
 
+  const generateManifiestoPdf = async (manifiesto: GeneratedManifiesto) => {
+    if (manifiesto.status !== "success" || !manifiesto.idManifiesto) {
+      toast({ title: "Error", description: "El manifiesto debe estar aprobado para generar PDF", variant: "destructive" });
+      return;
+    }
+
+    try {
+      toast({ title: "Generando PDF", description: "Consultando datos del manifiesto..." });
+
+      const wsUrl = settings.wsEnvironment === "production" 
+        ? settings.wsUrlProd 
+        : settings.wsUrlTest;
+
+      const detailsResponse = await apiRequest("POST", "/api/rndc/manifiesto-details", {
+        username: settings.usernameRndc,
+        password: settings.passwordRndc,
+        companyNit: settings.companyNit,
+        numManifiesto: String(manifiesto.consecutivo),
+        wsUrl,
+        companyName: settings.companyName || "TRANSPETROMIRA S.A.S",
+        companyAddress: settings.companyAddress || "",
+        companyPhone: settings.companyPhone || "",
+        companyCity: settings.companyCity || "",
+      });
+
+      const detailsResult = await detailsResponse.json();
+      
+      if (!detailsResult.success || !detailsResult.details) {
+        toast({ title: "Error", description: detailsResult.message || "No se pudieron obtener los datos", variant: "destructive" });
+        return;
+      }
+
+      const details = detailsResult.details;
+
+      // Find the associated remesa to get cargo details
+      const associatedRemesa = generatedRemesas.find(r => r.consecutivo === manifiesto.consecutivoRemesa);
+      
+      // Build municipality names from available data (truncated to 20 chars per spec)
+      const origName = manifiesto.codMunicipioOrigen || "";
+      const destName = manifiesto.codMunicipioDestino || "";
+      
+      // Get cargo description - use from settings or from remesa if available
+      const cargoDesc = associatedRemesa?.xmlRequest?.includes("DESCRIPCIONCORTAPRODUCTO")
+        ? "ALIMENTO AVES CORRAL" // Extracted from XML context
+        : "CARGA GENERAL";
+
+      const qrResponse = await apiRequest("POST", "/api/rndc/manifiesto-qr", {
+        mec: details.INGRESOID,
+        fecha: details.FECHAEXPEDICIONMANIFIESTO,
+        placa: details.NUMPLACA,
+        remolque: details.NUMPLACAREMOLQUE || undefined,
+        config: details.NUMPLACAREMOLQUE ? "3S2" : "2",
+        orig: origName.substring(0, 20),
+        dest: destName.substring(0, 20),
+        mercancia: cargoDesc.substring(0, 30),
+        conductor: details.NUMIDCONDUCTOR,
+        empresa: (settings.companyName || "TRANSPETROMIRA S.A.S").substring(0, 30),
+        obs: details.ACEPTACIONELECTRONICA === "S" ? "ACEPTACION ELECTRONICA" : "",
+        seguro: details.SEGURIDADQR,
+      });
+
+      const qrResult = await qrResponse.json();
+      if (!qrResult.success) {
+        toast({ title: "Error", description: "No se pudo generar el código QR", variant: "destructive" });
+        return;
+      }
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      pdf.text("MANIFIESTO ELECTRONICO DE CARGA", 105, 15, { align: "center" });
+      
+      pdf.setFontSize(10);
+      pdf.text(settings.companyName || "TRANSPETROMIRA S.A.S", 105, 22, { align: "center" });
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.text(`Nit: ${settings.companyNit}`, 105, 27, { align: "center" });
+      if (settings.companyAddress) pdf.text(settings.companyAddress, 105, 31, { align: "center" });
+      if (settings.companyPhone) pdf.text(`Tel: ${settings.companyPhone}`, 105, 35, { align: "center" });
+
+      const qrImg = new Image();
+      qrImg.src = qrResult.qrDataUrl;
+      await new Promise((resolve) => { qrImg.onload = resolve; });
+      pdf.addImage(qrImg, "PNG", 175, 8, 30, 30);
+
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`Manifiesto: ${manifiesto.consecutivo}`, 175, 42);
+      pdf.text(`Autorizacion: ${details.INGRESOID}`, 175, 46);
+
+      let y = 50;
+      const leftCol = 15;
+      const midCol = 105;
+
+      pdf.setDrawColor(0);
+      pdf.setLineWidth(0.3);
+      pdf.line(10, y, 200, y);
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7);
+      pdf.text("FECHA EXPEDICION", leftCol, y);
+      pdf.text("TIPO MANIFIESTO", 60, y);
+      pdf.text("ORIGEN", midCol, y);
+      pdf.text("DESTINO", 155, y);
+      y += 4;
+      
+      pdf.setFont("helvetica", "normal");
+      pdf.text(details.FECHAEXPEDICIONMANIFIESTO || "", leftCol, y);
+      pdf.text("General", 60, y);
+      pdf.text(manifiesto.codMunicipioOrigen || "", midCol, y);
+      pdf.text(manifiesto.codMunicipioDestino || "", 155, y);
+      y += 6;
+
+      pdf.line(10, y, 200, y);
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("INFORMACION DEL VEHICULO Y CONDUCTOR", midCol, y, { align: "center" });
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("PLACA:", leftCol, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(details.NUMPLACA || "", leftCol + 15, y);
+      
+      pdf.setFont("helvetica", "bold");
+      pdf.text("PLACA REMOLQUE:", 60, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(details.NUMPLACAREMOLQUE || "-", 90, y);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("CONDUCTOR:", midCol, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(details.NUMIDCONDUCTOR || "", midCol + 30, y);
+      y += 6;
+
+      pdf.line(10, y, 200, y);
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("PRECIO DEL VIAJE", leftCol + 20, y);
+      pdf.text("PAGO DEL SALDO", midCol + 30, y);
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Valor Total:", leftCol, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`$${parseInt(details.VALORFLETEPACTADOVIAJE || "0").toLocaleString()}`, leftCol + 25, y);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Fecha Pago Saldo:", midCol, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(details.FECHAPAGOSALDOMANIFIESTO || "", midCol + 35, y);
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Retencion Fuente:", leftCol, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`$${parseInt(details.RETENCIONFUENTEMANIFIESTO || "0").toLocaleString()}`, leftCol + 30, y);
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Retencion ICA:", leftCol, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`, leftCol + 28, y);
+      y += 5;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Anticipo:", leftCol, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`$${parseInt(details.VALORANTICIPOMANIFIESTO || "0").toLocaleString()}`, leftCol + 18, y);
+      y += 8;
+
+      pdf.line(10, y, 200, y);
+      y += 5;
+
+      pdf.setFontSize(6);
+      pdf.setFont("helvetica", "italic");
+      const disclaimer = "La impresion en soporte cartular (papel) de este acto administrativo producido por medios electronicos en cumplimiento de la ley 527 de 1999 (Articulos 6 al 13) y de la ley 962 de 2005 (Articulo 6), es una reproduccion del documento original que se encuentra en formato electronico en la Base de Datos del RNDC en el Ministerio de Transporte.";
+      const disclaimerLines = pdf.splitTextToSize(disclaimer, 180);
+      pdf.text(disclaimerLines, leftCol, y);
+      y += disclaimerLines.length * 3 + 5;
+
+      pdf.setFontSize(7);
+      pdf.setFont("helvetica", "normal");
+      pdf.text("Si es victima de algun fraude o conoce de alguna irregularidad en el RNDC denuncielo a la Superintendencia de Puertos y Transporte,", leftCol, y);
+      y += 3;
+      pdf.text("linea gratuita nacional 018000 915615 - correo: atencionciudadano@supertransporte.gov.co", leftCol, y);
+      y += 10;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Firma y Huella TITULAR MANIFIESTO", leftCol + 10, y);
+      pdf.text("Firma y Huella CONDUCTOR", midCol + 30, y);
+      y += 15;
+      pdf.line(leftCol, y, leftCol + 60, y);
+      pdf.line(midCol + 10, y, midCol + 70, y);
+
+      pdf.save(`Manifiesto_${manifiesto.consecutivo}_${details.INGRESOID}.pdf`);
+      toast({ title: "PDF Generado", description: `Manifiesto ${manifiesto.consecutivo} descargado` });
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({ title: "Error", description: "Error al generar el PDF", variant: "destructive" });
+    }
+  };
+
   const getRemesaStatusBadge = (status: string) => {
     switch (status) {
       case "success": return <Badge className="bg-green-500">Exitoso</Badge>;
@@ -1892,6 +2101,7 @@ export default function Despachos() {
                           <TableHead>ID Manifiesto</TableHead>
                           <TableHead>Respuesta</TableHead>
                           <TableHead>XML</TableHead>
+                          <TableHead>PDF</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1927,6 +2137,19 @@ export default function Despachos() {
                                   </ScrollArea>
                                 </DialogContent>
                               </Dialog>
+                            </TableCell>
+                            <TableCell>
+                              {manifiesto.status === "success" && manifiesto.idManifiesto && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => generateManifiestoPdf(manifiesto)}
+                                  data-testid={`button-generate-pdf-${i}`}
+                                  title="Generar PDF con QR"
+                                >
+                                  <FileText className="h-4 w-4 text-blue-600" />
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}

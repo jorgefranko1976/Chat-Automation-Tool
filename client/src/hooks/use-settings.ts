@@ -11,6 +11,9 @@ export interface RndcSettings {
   passwordRndc: string;
   companyNit: string;
   companyName: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyCity: string;
   numIdGps: string;
   wsUrlProd: string;
   wsUrlTest: string;
@@ -25,6 +28,9 @@ const DEFAULT_SETTINGS: RndcSettings = {
   passwordRndc: "",
   companyNit: "",
   companyName: "",
+  companyAddress: "",
+  companyPhone: "",
+  companyCity: "",
   numIdGps: "",
   wsUrlProd: "http://rndcws2.mintransporte.gov.co:8080/ws/soap/IBPMServices",
   wsUrlTest: "http://plc.mintransporte.gov.co:8080/soap/IBPMServices",
