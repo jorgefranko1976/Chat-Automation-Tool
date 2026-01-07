@@ -1837,6 +1837,20 @@ export default function Despachos() {
                           <>Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" /></>
                         )}
                       </Button>
+                      {generatedManifiestos.some(m => m.status === "success") && (
+                        <Button
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => saveDespachoMutation.mutate()}
+                          disabled={saveDespachoMutation.isPending}
+                          data-testid="button-save-despacho-manifiestos"
+                        >
+                          {saveDespachoMutation.isPending ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</>
+                          ) : (
+                            <><Save className="mr-2 h-4 w-4" /> Guardar Despacho Completo</>
+                          )}
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
