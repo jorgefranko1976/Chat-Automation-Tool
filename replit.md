@@ -11,6 +11,7 @@ The system handles:
 - **Bulk Import**: Processes Excel files for batch submission of control point data
 - **Enrollment Module**: Manages Terceros (third parties: farms, plants, drivers, owners) and Vehiculos (vehicles with SOAT, technical review, owner/holder information)
 - **Settings Management**: User profile, RNDC credentials and company information
+- **Report Designer**: Visual PDF template editor for customizing manifest field positions with drag-and-drop interface
 
 ## User Preferences
 
