@@ -290,6 +290,261 @@ INGRESOID,FECHAING,CODOPERACIONTRANSPORTE,FECHAEXPEDICIONMANIFIESTO,CODMUNICIPIO
   }
 }
 
+export interface TerceroDetails {
+  INGRESOID: string;
+  FECHAING: string;
+  PRIMERAPELLIDOIDTERCERO: string;
+  SEGUNDOAPELLIDOIDTERCERO: string;
+  PRIMERNOMBREIDTERCERO: string;
+  SEGUNDONOMBREIDTERCERO: string;
+  NUMTELEFONOCONTACTO: string;
+  NOMENCLATURADIRECCION: string;
+  CODMUNICIPIORNDC: string;
+  CODSEDETERCERO: string;
+  NOMSEDETERCERO: string;
+  NUMLICENCIACONDUCCION: string;
+  CODCATEGORIALICENCIACONDUCCION: string;
+  FECHAVENCIMIENTOLICENCIA: string;
+  LATITUD: string;
+  LONGITUD: string;
+  NOMBRERAZONSOCIAL?: string;
+}
+
+export interface VehiculoRndcDetails {
+  INGRESOID: string;
+  FECHAING: string;
+  CODMARCAVEHICULOCARGA: string;
+  CODLINEAVEHICULOCARGA: string;
+  ANOFABRICACIONVEHICULOCARGA: string;
+  CODTIPOIDPROPIETARIO: string;
+  NUMIDPROPIETARIO: string;
+  CODTIPOIDTENEDOR: string;
+  NUMIDTENEDOR: string;
+  CODTIPOCOMBUSTIBLE: string;
+  PESOVEHICULOVACIO: string;
+  CODCOLORVEHICULOCARGA: string;
+  CODTIPOCARROCERIA: string;
+  NUMNITASEGURADORASOAT: string;
+  FECHAVENCIMIENTOSOAT: string;
+  NUMSEGUROSOAT: string;
+  UNIDADMEDIDACAPACIDAD: string;
+}
+
+export interface VehiculoExtraDetails {
+  PLACA: string;
+  CODCONFIGURACION: string;
+  ESTADOMATRICULA: string;
+  FECHAVENCE_SOAT: string;
+  MARCA: string;
+  FECHAVENCE_RTM: string;
+}
+
+export async function queryTerceroDetails(
+  username: string,
+  password: string,
+  companyNit: string,
+  numIdTercero: string,
+  targetUrl?: string
+): Promise<{ success: boolean; details?: TerceroDetails; message: string; rawXml: string }> {
+  const xml = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>${username}</username>
+  <password>${password}</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>11</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,PRIMERNOMBREIDTERCERO,SEGUNDONOMBREIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODMUNICIPIORNDC,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD,NOMBRERAZONSOCIAL
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>${companyNit}</NUMNITEMPRESATRANSPORTE>
+  <NUMIDTERCERO>${numIdTercero}</NUMIDTERCERO>
+ </documento>
+</root>`;
+
+  const result = await sendXmlToRndc(xml, targetUrl);
+  
+  if (!result.success) {
+    return { success: false, message: result.message, rawXml: result.rawXml };
+  }
+
+  try {
+    const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+    const parsed = parser.parse(result.rawXml);
+    const doc = parsed?.root?.documento;
+    
+    if (!doc) {
+      return { success: false, message: "No se encontró el tercero", rawXml: result.rawXml };
+    }
+
+    const getVal = (key: string) => String(doc[key] || doc[key.toLowerCase()] || "");
+
+    const details: TerceroDetails = {
+      INGRESOID: getVal("INGRESOID") || getVal("ingresoid"),
+      FECHAING: getVal("FECHAING") || getVal("fechaing"),
+      PRIMERAPELLIDOIDTERCERO: getVal("PRIMERAPELLIDOIDTERCERO") || getVal("primerapellidoidtercero"),
+      SEGUNDOAPELLIDOIDTERCERO: getVal("SEGUNDOAPELLIDOIDTERCERO") || getVal("segundoapellidoidtercero"),
+      PRIMERNOMBREIDTERCERO: getVal("PRIMERNOMBREIDTERCERO") || getVal("primernombreidtercero"),
+      SEGUNDONOMBREIDTERCERO: getVal("SEGUNDONOMBREIDTERCERO") || getVal("segundonombreidtercero"),
+      NUMTELEFONOCONTACTO: getVal("NUMTELEFONOCONTACTO") || getVal("numtelefonocontacto"),
+      NOMENCLATURADIRECCION: getVal("NOMENCLATURADIRECCION") || getVal("nomenclaturadireccion"),
+      CODMUNICIPIORNDC: getVal("CODMUNICIPIORNDC") || getVal("codmunicipiorndc"),
+      CODSEDETERCERO: getVal("CODSEDETERCERO") || getVal("codsedetercero"),
+      NOMSEDETERCERO: getVal("NOMSEDETERCERO") || getVal("nomsedetercero"),
+      NUMLICENCIACONDUCCION: getVal("NUMLICENCIACONDUCCION") || getVal("numlicenciaconduccion"),
+      CODCATEGORIALICENCIACONDUCCION: getVal("CODCATEGORIALICENCIACONDUCCION") || getVal("codcategorialicenciaconduccion"),
+      FECHAVENCIMIENTOLICENCIA: getVal("FECHAVENCIMIENTOLICENCIA") || getVal("fechavencimientolicencia"),
+      LATITUD: getVal("LATITUD") || getVal("latitud"),
+      LONGITUD: getVal("LONGITUD") || getVal("longitud"),
+      NOMBRERAZONSOCIAL: getVal("NOMBRERAZONSOCIAL") || getVal("nombrerazonsocial"),
+    };
+
+    return { success: true, details, message: "Consulta exitosa", rawXml: result.rawXml };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: `Error parseando respuesta: ${error instanceof Error ? error.message : "desconocido"}`, 
+      rawXml: result.rawXml 
+    };
+  }
+}
+
+export async function queryVehiculoDetails(
+  username: string,
+  password: string,
+  companyNit: string,
+  numPlaca: string,
+  targetUrl?: string
+): Promise<{ success: boolean; details?: VehiculoRndcDetails; message: string; rawXml: string }> {
+  const xml = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>${username}</username>
+  <password>${password}</password>
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>12</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,CODMARCAVEHICULOCARGA,CODLINEAVEHICULOCARGA,ANOFABRICACIONVEHICULOCARGA,CODTIPOIDPROPIETARIO,NUMIDPROPIETARIO,CODTIPOIDTENEDOR,NUMIDTENEDOR,CODTIPOCOMBUSTIBLE,PESOVEHICULOVACIO,CODCOLORVEHICULOCARGA,CODTIPOCARROCERIA,NUMNITASEGURADORASOAT,FECHAVENCIMIENTOSOAT,NUMSEGUROSOAT,UNIDADMEDIDACAPACIDAD
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>${companyNit}</NUMNITEMPRESATRANSPORTE>
+  <NUMPLACA>'${numPlaca.toUpperCase()}'</NUMPLACA>
+ </documento>
+</root>`;
+
+  const result = await sendXmlToRndc(xml, targetUrl);
+  
+  if (!result.success) {
+    return { success: false, message: result.message, rawXml: result.rawXml };
+  }
+
+  try {
+    const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+    const parsed = parser.parse(result.rawXml);
+    const doc = parsed?.root?.documento;
+    
+    if (!doc) {
+      return { success: false, message: "No se encontró el vehículo", rawXml: result.rawXml };
+    }
+
+    const getVal = (key: string) => String(doc[key] || doc[key.toLowerCase()] || "");
+
+    const details: VehiculoRndcDetails = {
+      INGRESOID: getVal("INGRESOID") || getVal("ingresoid"),
+      FECHAING: getVal("FECHAING") || getVal("fechaing"),
+      CODMARCAVEHICULOCARGA: getVal("CODMARCAVEHICULOCARGA") || getVal("codmarcavehiculocarga"),
+      CODLINEAVEHICULOCARGA: getVal("CODLINEAVEHICULOCARGA") || getVal("codlineavehiculocarga"),
+      ANOFABRICACIONVEHICULOCARGA: getVal("ANOFABRICACIONVEHICULOCARGA") || getVal("anofabricacionvehiculocarga"),
+      CODTIPOIDPROPIETARIO: getVal("CODTIPOIDPROPIETARIO") || getVal("codtipoidpropietario"),
+      NUMIDPROPIETARIO: getVal("NUMIDPROPIETARIO") || getVal("numidpropietario"),
+      CODTIPOIDTENEDOR: getVal("CODTIPOIDTENEDOR") || getVal("codtipoidtenedor"),
+      NUMIDTENEDOR: getVal("NUMIDTENEDOR") || getVal("numidtenedor"),
+      CODTIPOCOMBUSTIBLE: getVal("CODTIPOCOMBUSTIBLE") || getVal("codtipocombustible"),
+      PESOVEHICULOVACIO: getVal("PESOVEHICULOVACIO") || getVal("pesovehiculovacio"),
+      CODCOLORVEHICULOCARGA: getVal("CODCOLORVEHICULOCARGA") || getVal("codcolorvehiculocarga"),
+      CODTIPOCARROCERIA: getVal("CODTIPOCARROCERIA") || getVal("codtipocarroceria"),
+      NUMNITASEGURADORASOAT: getVal("NUMNITASEGURADORASOAT") || getVal("numnitaseguradorasoat"),
+      FECHAVENCIMIENTOSOAT: getVal("FECHAVENCIMIENTOSOAT") || getVal("fechavencimientosoat"),
+      NUMSEGUROSOAT: getVal("NUMSEGUROSOAT") || getVal("numsegurosoat"),
+      UNIDADMEDIDACAPACIDAD: getVal("UNIDADMEDIDACAPACIDAD") || getVal("unidadmedidacapacidad"),
+    };
+
+    return { success: true, details, message: "Consulta exitosa", rawXml: result.rawXml };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: `Error parseando respuesta: ${error instanceof Error ? error.message : "desconocido"}`, 
+      rawXml: result.rawXml 
+    };
+  }
+}
+
+export async function queryVehiculoExtraDetails(
+  username: string,
+  password: string,
+  numPlaca: string,
+  targetUrl?: string
+): Promise<{ success: boolean; details?: VehiculoExtraDetails; message: string; rawXml: string }> {
+  const xml = `<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>${username}</username>
+  <password>${password}</password>
+ </acceso>
+ <solicitud>
+  <tipo>6</tipo>
+  <procesoid>48</procesoid>
+ </solicitud>
+ <variables>
+PLACA,CODCONFIGURACION,ESTADOMATRICULA,FECHAVENCE_SOAT,MARCA,FECHAVENCE_RTM
+ </variables>
+ <documento>
+  <PLACA>'${numPlaca.toUpperCase()}'</PLACA>
+ </documento>
+</root>`;
+
+  const result = await sendXmlToRndc(xml, targetUrl);
+  
+  if (!result.success) {
+    return { success: false, message: result.message, rawXml: result.rawXml };
+  }
+
+  try {
+    const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+    const parsed = parser.parse(result.rawXml);
+    const doc = parsed?.root?.documento;
+    
+    if (!doc) {
+      return { success: false, message: "No se encontró el vehículo", rawXml: result.rawXml };
+    }
+
+    const getVal = (key: string) => String(doc[key] || doc[key.toLowerCase()] || "");
+
+    const details: VehiculoExtraDetails = {
+      PLACA: getVal("PLACA") || getVal("placa"),
+      CODCONFIGURACION: getVal("CODCONFIGURACION") || getVal("codconfiguracion"),
+      ESTADOMATRICULA: getVal("ESTADOMATRICULA") || getVal("estadomatricula"),
+      FECHAVENCE_SOAT: getVal("FECHAVENCE_SOAT") || getVal("fechavence_soat"),
+      MARCA: getVal("MARCA") || getVal("marca"),
+      FECHAVENCE_RTM: getVal("FECHAVENCE_RTM") || getVal("fechavence_rtm"),
+    };
+
+    return { success: true, details, message: "Consulta exitosa", rawXml: result.rawXml };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: `Error parseando respuesta: ${error instanceof Error ? error.message : "desconocido"}`, 
+      rawXml: result.rawXml 
+    };
+  }
+}
+
 export function parseRndcResponse(xmlResponse: string): { code: string; message: string; success: boolean } {
   try {
     const parser = new XMLParser({

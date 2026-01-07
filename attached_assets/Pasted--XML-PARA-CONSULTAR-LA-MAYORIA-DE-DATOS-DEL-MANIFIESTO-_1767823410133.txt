@@ -1,0 +1,83 @@
+
+
+///XML PARA CONSULTAR LA MAYORIA DE DATOS DEL MANIFIESTO///
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>GERENTE@0739</username>///sacalo de configuracion//
+  <password>12345678</password>///sacalo de configuracion//
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>4</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,CODOPERACIONTRANSPORTE,FECHAEXPEDICIONMANIFIESTO,CODMUNICIPIOORIGENMANIFIESTO,CODMUNICIPIODESTINOMANIFIESTO,CODIDTITULARMANIFIESTO,NUMIDTITULARMANIFIESTO,NUMPLACA,NUMPLACAREMOLQUE,CODIDCONDUCTOR,NUMIDCONDUCTOR,CODIDCONDUCTOR2,NUMIDCONDUCTOR2,VALORFLETEPACTADOVIAJE,RETENCIONFUENTEMANIFIESTO,RETENCIONICAMANIFIESTOCARGA,CODMUNICIPIOPAGOSALDO,FECHAPAGOSALDOMANIFIESTO,NITMONITOREOFLOTA,ACEPTACIONELECTRONICA,SEGURIDADQR
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>9013690938</NUMNITEMPRESATRANSPORTE>///sacalo de configuracion//
+  <NUMMANIFIESTOCARGA>52541960</NUMMANIFIESTOCARGA>
+ </documento>
+</root>
+
+//// XML PARA CONSULTAR TERCERO , COMO CONDUCTOR Y TITULAR MANIFIESTO(nota recuerda que en el xml que se envio para generar el manifiesto estan los id de titular manifiesto y conductor)/////
+
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>GERENTE@0739</username>///sacalo de configuracion//
+  <password>12345678</password>///sacalo de configuracion//
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>11</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,NUMTELEFONOCONTACTO,NOMENCLATURADIRECCION,CODMUNICIPIORNDC,CODSEDETERCERO,NOMSEDETERCERO,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVENCIMIENTOLICENCIA,LATITUD,LONGITUD
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>9013690938</NUMNITEMPRESATRANSPORTE>
+  <NUMIDTERCERO>4727951</NUMIDTERCERO>
+ </documento>
+</root>
+///// XML PARA CONSULTAR LA PLACA ////
+
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>GERENTE@0739</username>///sacalo de configuracion//
+  <password>12345678</password>///sacalo de configuracion//
+ </acceso>
+ <solicitud>
+  <tipo>3</tipo>
+  <procesoid>12</procesoid>
+ </solicitud>
+ <variables>
+INGRESOID,FECHAING,CODMARCAVEHICULOCARGA,CODLINEAVEHICULOCARGA,ANOFABRICACIONVEHICULOCARGA,CODTIPOIDPROPIETARIO,NUMIDPROPIETARIO,CODTIPOIDTENEDOR,NUMIDTENEDOR,CODTIPOCOMBUSTIBLE,PESOVEHICULOVACIO,CODCOLORVEHICULOCARGA,CODTIPOCARROCERIA,NUMNITASEGURADORASOAT,FECHAVENCIMIENTOSOAT,NUMSEGUROSOAT,UNIDADMEDIDACAPACIDAD
+ </variables>
+ <documento>
+  <NUMNITEMPRESATRANSPORTE>9013690938</NUMNITEMPRESATRANSPORTE>///sacalo de configuracion//
+  <NUMPLACA>'TND676'</NUMPLACA>
+ </documento>
+</root>
+
+///// XML PARA CONSULTAR MAS DATOS DE LA PLACA///
+
+?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+ <acceso>
+  <username>GERENTE@0739</username>///sacalo de configuracion//
+  <password>12345678</password>///sacalo de configuracion//
+ </acceso>
+ <solicitud>
+  <tipo>6</tipo>
+  <procesoid>48</procesoid>
+ </solicitud>
+ <variables>
+PLACA,CODCONFIGURACION,ESTADOMATRICULA,FECHAVENCE_SOAT,MARCA,
+FECHAVENCE_RTM
+ </variables>
+ <documento>
+  <PLACA>'TND676'</PLACA>///NO OLVIDAR ENTRE COMILLA SIMPLE////
+ </documento>
+</root>

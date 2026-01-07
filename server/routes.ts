@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { sendXmlToRndc, queryManifiestoDetails } from "./rndc-service";
+import { sendXmlToRndc, queryManifiestoDetails, queryTerceroDetails, queryVehiculoDetails, queryVehiculoExtraDetails } from "./rndc-service";
 import QRCode from "qrcode";
 import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema, insertTerceroSchema, insertVehiculoSchema } from "@shared/schema";
 import { z } from "zod";
@@ -1166,6 +1166,60 @@ export async function registerRoutes(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error al consultar manifiesto";
+      res.status(500).json({ success: false, message });
+    }
+  });
+
+  // Enhanced endpoint that queries all manifest-related data for PDF generation
+  app.post("/api/rndc/manifiesto-details-enhanced", async (req, res) => {
+    try {
+      const { username, password, companyNit, numManifiesto, numPlaca, numIdConductor, numIdTitular, wsUrl, companyName, companyAddress, companyPhone, companyCity } = req.body;
+      
+      if (!username || !password || !companyNit || !numManifiesto) {
+        return res.status(400).json({ success: false, message: "Faltan parámetros requeridos" });
+      }
+
+      // Query manifest details (procesoid=4)
+      const manifestResult = await queryManifiestoDetails(username, password, companyNit, numManifiesto, wsUrl);
+      
+      if (!manifestResult.success || !manifestResult.details) {
+        return res.json({ success: false, message: manifestResult.message, rawXml: manifestResult.rawXml });
+      }
+
+      const details = manifestResult.details;
+      
+      // Get conductor and titular IDs from response or parameters
+      const conductorId = numIdConductor || details.NUMIDCONDUCTOR;
+      const titularId = numIdTitular || details.NUMIDTITULARMANIFIESTO;
+      const placa = numPlaca || details.NUMPLACA;
+
+      // Query additional data in parallel
+      const [conductorResult, titularResult, vehiculoResult, vehiculoExtraResult] = await Promise.all([
+        conductorId ? queryTerceroDetails(username, password, companyNit, conductorId, wsUrl) : Promise.resolve(null),
+        titularId && titularId !== conductorId ? queryTerceroDetails(username, password, companyNit, titularId, wsUrl) : Promise.resolve(null),
+        placa ? queryVehiculoDetails(username, password, companyNit, placa, wsUrl) : Promise.resolve(null),
+        placa ? queryVehiculoExtraDetails(username, password, placa, wsUrl) : Promise.resolve(null),
+      ]);
+
+      // Build enhanced response with all available data
+      res.json({ 
+        success: true, 
+        details,
+        conductor: conductorResult?.success ? conductorResult.details : null,
+        titular: titularResult?.success ? titularResult.details : (conductorResult?.success && titularId === conductorId ? conductorResult.details : null),
+        vehiculo: vehiculoResult?.success ? vehiculoResult.details : null,
+        vehiculoExtra: vehiculoExtraResult?.success ? vehiculoExtraResult.details : null,
+        companyInfo: {
+          name: companyName || "",
+          nit: companyNit,
+          address: companyAddress || "",
+          phone: companyPhone || "",
+          city: companyCity || "",
+        },
+        rawXml: manifestResult.rawXml,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al consultar datos del manifiesto";
       res.status(500).json({ success: false, message });
     }
   });
