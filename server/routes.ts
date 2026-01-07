@@ -1470,7 +1470,7 @@ export async function registerRoutes(
       plantaValid: z.boolean().nullable(),
       plantaData: z.object({ sede: z.string(), codMunicipio: z.string() }).nullable(),
       placaValid: z.boolean().nullable(),
-      placaData: z.object({ propietarioId: z.string(), venceSoat: z.string(), pesoVacio: z.string(), capacidad: z.string().optional() }).nullable(),
+      placaData: z.object({ tipoIdPropietario: z.string().optional(), propietarioId: z.string(), venceSoat: z.string(), pesoVacio: z.string(), capacidad: z.string().optional() }).nullable(),
       cedulaValid: z.boolean().nullable(),
       cedulaData: z.object({ venceLicencia: z.string(), nombre: z.string().optional() }).nullable(),
       horaCargue: z.string().optional(),
@@ -1700,7 +1700,7 @@ export async function registerRoutes(
       (async () => {
         const { XMLParser } = await import("fast-xml-parser");
         const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
-        const placaCache = new Map<string, { valid: boolean; data: { propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null; error?: string }>();
+        const placaCache = new Map<string, { valid: boolean; data: { tipoIdPropietario?: string; propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null; error?: string }>();
         let progress = 0;
 
         const validatedRows = [];
@@ -1737,7 +1737,7 @@ export async function registerRoutes(
   <procesoid>12</procesoid>
  </solicitud>
  <variables>
-INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOSOAT
+INGRESOID,FECHAING,NUMPLACA,CODTIPOIDPROPIETARIO,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOSOAT
  </variables>
  <documento>
   <NUMNITEMPRESATRANSPORTE>${credentials.nitEmpresa}</NUMNITEMPRESATRANSPORTE>
@@ -1754,11 +1754,13 @@ INGRESOID,FECHAING,NUMPLACA,NUMIDPROPIETARIO,PESOVEHICULOVACIO,FECHAVENCIMIENTOS
                   if (Array.isArray(doc)) doc = doc[doc.length - 1];
                   if (doc) {
                     placaValid = true;
+                    const tipoIdProp = String(doc.CODTIPOIDPROPIETARIO || doc.codtipoidpropietario || "");
                     const propId = String(doc.NUMIDPROPIETARIO || doc.numidpropietario || "");
                     const soat = String(doc.FECHAVENCIMIENTOSOAT || doc.fechavencimientosoat || "");
                     const peso = String(doc.PESOVEHICULOVACIO || doc.pesovehiculovacio || "");
                     const ingresoId = String(doc.INGRESOID || doc.ingresoid || "");
                     placaData = {
+                      tipoIdPropietario: tipoIdProp,
                       propietarioId: propId,
                       venceSoat: soat,
                       pesoVacio: peso,

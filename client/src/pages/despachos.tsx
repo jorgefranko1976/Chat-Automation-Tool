@@ -27,7 +27,7 @@ interface DespachoRow {
   plantaValid: boolean | null;
   plantaData: { sede: string; codMunicipio: string } | null;
   placaValid: boolean | null;
-  placaData: { propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null;
+  placaData: { tipoIdPropietario?: string; propietarioId: string; venceSoat: string; pesoVacio: string; capacidad?: string } | null;
   cedulaValid: boolean | null;
   cedulaData: { venceLicencia: string; nombre?: string } | null;
   horaCargue?: string;
@@ -412,6 +412,7 @@ export default function Despachos() {
         PLANTA_SEDE: row.plantaData?.sede || "",
         COD_MUNICIPIO_ORIGEN: row.plantaData?.codMunicipio || "",
         PLACA: row.placa,
+        TIPOIDPROPIETARIO: row.placaData?.tipoIdPropietario || "",
         NUMIDPROPIETARIO: row.placaData?.propietarioId || "",
         FECHAVENCIMIENTOSOAT: row.placaData?.venceSoat || "",
         CEDULA: row.cedula,
@@ -1132,6 +1133,7 @@ export default function Despachos() {
                         <th className="text-left p-3 font-medium">Mun. Origen</th>
                         <th className="text-center p-3 font-medium">OK</th>
                         <th className="text-left p-3 font-medium">Placa</th>
+                        <th className="text-left p-3 font-medium">Tipo ID</th>
                         <th className="text-left p-3 font-medium">ID Prop.</th>
                         <th className="text-left p-3 font-medium">SOAT</th>
                         <th className="text-left p-3 font-medium">Cap.</th>
@@ -1201,6 +1203,7 @@ export default function Despachos() {
                               data-testid={`input-placa-${originalIndex}`}
                             />
                           </td>
+                          <td className="p-3 text-xs">{row.placaData?.tipoIdPropietario || "-"}</td>
                           <td className="p-3 text-xs">{row.placaData?.propietarioId || "-"}</td>
                           <td className="p-3 text-xs">{row.placaData?.venceSoat || "-"}</td>
                           <td className="p-3 text-xs">{row.placaData?.capacidad || "-"}</td>
