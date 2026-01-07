@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Layout } from "@/components/layout/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,13 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   Upload, FileSpreadsheet, Calendar, BarChart3, Download, 
   FileText, Search, Loader2, TrendingUp, Building, Truck,
-  DollarSign, ClipboardList
+  DollarSign, ClipboardList, FileDown, ChevronDown
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 import { apiRequest } from "@/lib/queryClient";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -343,6 +345,164 @@ export default function Facturacion() {
   const totalViajes = excelData.reduce((sum, g) => sum + g.viajes, 0);
   const totalFleteGeneral = granjasTotales.reduce((sum, g) => sum + g.flete, 0);
   const totalViajesDespachos = granjasTotales.reduce((sum, g) => sum + g.viajes, 0);
+  
+  const detalleDataPorFecha = useMemo(() => {
+    const grouped: { [fecha: string]: DespachoDetalle[] } = {};
+    for (const item of detalleData) {
+      if (!grouped[item.fecha]) {
+        grouped[item.fecha] = [];
+      }
+      grouped[item.fecha].push(item);
+    }
+    return Object.entries(grouped).sort((a, b) => {
+      const dateA = new Date(a[0].split('/').reverse().join('-'));
+      const dateB = new Date(b[0].split('/').reverse().join('-'));
+      return dateA.getTime() - dateB.getTime();
+    });
+  }, [detalleData]);
+  
+  const exportToPDF = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    let yPos = margin;
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("INFORME DE DESPACHOS", pageWidth / 2, yPos, { align: "center" });
+    yPos += 8;
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Período: ${fechaInicio} al ${fechaFin}`, pageWidth / 2, yPos, { align: "center" });
+    yPos += 10;
+    
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, yPos, pageWidth - margin * 2, 20, "F");
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    const summaryY = yPos + 7;
+    doc.text(`Granjas: ${granjasTotales.length}`, margin + 10, summaryY);
+    doc.text(`Total Viajes: ${totalViajesDespachos}`, margin + 50, summaryY);
+    doc.text(`Total Manifiestos: ${resumenData.reduce((sum, r) => sum + r.totalManifiestos, 0)}`, margin + 100, summaryY);
+    doc.text(`Total Flete: $${totalFleteGeneral.toLocaleString()}`, margin + 160, summaryY);
+    yPos += 25;
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("RESUMEN POR GRANJA", margin, yPos);
+    yPos += 6;
+    
+    doc.setFontSize(8);
+    const colWidths = [10, 80, 30, 50];
+    const headers = ["#", "Granja (Centro de Costo)", "Viajes", "Total Flete"];
+    doc.setFillColor(66, 139, 202);
+    doc.setTextColor(255, 255, 255);
+    doc.rect(margin, yPos, pageWidth - margin * 2, 6, "F");
+    let xPos = margin + 2;
+    headers.forEach((header, i) => {
+      doc.text(header, xPos, yPos + 4);
+      xPos += colWidths[i];
+    });
+    yPos += 6;
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    granjasTotales.forEach((item, index) => {
+      if (yPos > pageHeight - 20) {
+        doc.addPage();
+        yPos = margin;
+      }
+      const bgColor = index % 2 === 0 ? 255 : 245;
+      doc.setFillColor(bgColor, bgColor, bgColor);
+      doc.rect(margin, yPos, pageWidth - margin * 2, 5, "F");
+      xPos = margin + 2;
+      doc.text(String(index + 1), xPos, yPos + 3.5);
+      xPos += colWidths[0];
+      doc.text(item.granja.substring(0, 40), xPos, yPos + 3.5);
+      xPos += colWidths[1];
+      doc.text(String(item.viajes), xPos, yPos + 3.5);
+      xPos += colWidths[2];
+      doc.text(`$${item.flete.toLocaleString()}`, xPos, yPos + 3.5);
+      yPos += 5;
+    });
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFillColor(200, 200, 200);
+    doc.rect(margin, yPos, pageWidth - margin * 2, 6, "F");
+    xPos = margin + 2;
+    doc.text("", xPos, yPos + 4);
+    xPos += colWidths[0];
+    doc.text("TOTAL", xPos, yPos + 4);
+    xPos += colWidths[1];
+    doc.text(String(totalViajesDespachos), xPos, yPos + 4);
+    xPos += colWidths[2];
+    doc.text(`$${totalFleteGeneral.toLocaleString()}`, xPos, yPos + 4);
+    yPos += 12;
+    
+    for (const [fecha, items] of detalleDataPorFecha) {
+      if (yPos > pageHeight - 40) {
+        doc.addPage();
+        yPos = margin;
+      }
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      const fechaFlete = items.reduce((sum, i) => sum + i.flete, 0);
+      doc.text(`DESPACHOS DEL ${fecha} - ${items.length} viajes - Flete: $${fechaFlete.toLocaleString()}`, margin, yPos);
+      yPos += 6;
+      
+      doc.setFontSize(7);
+      const detColWidths = [20, 20, 40, 30, 30, 25, 30, 18, 22];
+      const detHeaders = ["Fecha", "Placa", "Conductor", "Granja", "Planta", "Flete", "Titular", "Estado", "Manifiesto"];
+      doc.setFillColor(100, 100, 100);
+      doc.setTextColor(255, 255, 255);
+      doc.rect(margin, yPos, pageWidth - margin * 2, 5, "F");
+      xPos = margin + 1;
+      detHeaders.forEach((header, i) => {
+        doc.text(header, xPos, yPos + 3.5);
+        xPos += detColWidths[i];
+      });
+      yPos += 5;
+      
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      items.forEach((item, index) => {
+        if (yPos > pageHeight - 15) {
+          doc.addPage();
+          yPos = margin;
+        }
+        const bgColor = index % 2 === 0 ? 255 : 248;
+        doc.setFillColor(bgColor, bgColor, bgColor);
+        doc.rect(margin, yPos, pageWidth - margin * 2, 4.5, "F");
+        xPos = margin + 1;
+        doc.text(item.fecha, xPos, yPos + 3);
+        xPos += detColWidths[0];
+        doc.text(item.placa, xPos, yPos + 3);
+        xPos += detColWidths[1];
+        doc.text(item.conductor.substring(0, 22), xPos, yPos + 3);
+        xPos += detColWidths[2];
+        doc.text(item.granja.substring(0, 18), xPos, yPos + 3);
+        xPos += detColWidths[3];
+        doc.text(item.planta.substring(0, 18), xPos, yPos + 3);
+        xPos += detColWidths[4];
+        doc.text(`$${item.flete.toLocaleString()}`, xPos, yPos + 3);
+        xPos += detColWidths[5];
+        doc.text(`${item.tipoTitular === "C" ? "CC" : "NIT"}: ${item.titular.substring(0, 12)}`, xPos, yPos + 3);
+        xPos += detColWidths[6];
+        doc.text(item.estado.substring(0, 10), xPos, yPos + 3);
+        xPos += detColWidths[7];
+        doc.text(item.idManifiesto.substring(0, 12), xPos, yPos + 3);
+        yPos += 4.5;
+      });
+      yPos += 5;
+    }
+    
+    const fileName = `informe_despachos_${fechaInicio.replace(/-/g, "")}_${fechaFin.replace(/-/g, "")}.pdf`;
+    doc.save(fileName);
+    toast({ title: "PDF exportado", description: fileName });
+  };
   
   // Generate pre-factura from Excel file
   const handlePreFacturaUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -727,15 +887,26 @@ export default function Facturacion() {
                     {isLoading ? "Generando..." : "Generar Reporte"}
                   </Button>
                   {granjasTotales.length > 0 && (
-                    <Button
-                      onClick={exportDespachosResumen}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                      data-testid="button-export-despachos"
-                    >
-                      <Download className="h-4 w-4" />
-                      Exportar Excel
-                    </Button>
+                    <>
+                      <Button
+                        onClick={exportDespachosResumen}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        data-testid="button-export-despachos"
+                      >
+                        <Download className="h-4 w-4" />
+                        Exportar Excel
+                      </Button>
+                      <Button
+                        onClick={exportToPDF}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        data-testid="button-export-pdf"
+                      >
+                        <FileDown className="h-4 w-4" />
+                        Exportar PDF
+                      </Button>
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -907,62 +1078,103 @@ export default function Facturacion() {
                   </CardContent>
                 </Card>
                 
-                {/* Detailed Daily Report */}
+                {/* Detailed Daily Report - Grouped by Date */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Reporte Diario Detallado - Para Auditoría</CardTitle>
                     <CardDescription>
-                      Detalle de cada viaje con información de fletes, titulares y centros de costo
+                      Detalle de cada viaje agrupado por fecha, con información de fletes, titulares y centros de costo
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[400px]">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Placa</TableHead>
-                            <TableHead>Conductor</TableHead>
-                            <TableHead>Granja</TableHead>
-                            <TableHead>Planta</TableHead>
-                            <TableHead className="text-right">Flete</TableHead>
-                            <TableHead>Titular</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead>ID Manifiesto</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {detalleData.map((item, index) => (
-                            <TableRow key={`${item.fecha}-${item.placa}-${index}`} data-testid={`row-detalle-${index}`}>
-                              <TableCell className="whitespace-nowrap">{item.fecha}</TableCell>
-                              <TableCell className="font-mono">{item.placa}</TableCell>
-                              <TableCell className="max-w-[150px] truncate" title={item.conductor}>
-                                {item.conductor}
-                              </TableCell>
-                              <TableCell>{item.granja}</TableCell>
-                              <TableCell className="max-w-[100px] truncate">{item.planta}</TableCell>
-                              <TableCell className="text-right font-mono">
-                                ${item.flete.toLocaleString()}
-                              </TableCell>
-                              <TableCell>
-                                {item.tipoTitular === "C" ? "CC: " : "NIT: "}
-                                {item.titular}
-                              </TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={item.estado === "Exitoso" ? "default" : 
-                                          item.estado === "Error" ? "destructive" : "secondary"}
-                                  className={item.estado === "Exitoso" ? "bg-green-600" : ""}
-                                >
-                                  {item.estado}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">{item.idManifiesto}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </ScrollArea>
+                    <Accordion type="multiple" className="w-full space-y-2">
+                      {detalleDataPorFecha.map(([fecha, items]) => {
+                        const fechaFlete = items.reduce((sum, i) => sum + i.flete, 0);
+                        const exitosos = items.filter(i => i.estado === "Exitoso").length;
+                        return (
+                          <AccordionItem key={fecha} value={fecha} className="border rounded-lg px-4">
+                            <AccordionTrigger className="hover:no-underline py-3">
+                              <div className="flex items-center justify-between w-full pr-4">
+                                <div className="flex items-center gap-4">
+                                  <Calendar className="h-5 w-5 text-primary" />
+                                  <span className="font-bold text-lg">{fecha}</span>
+                                  <Badge variant="secondary" className="ml-2">
+                                    {items.length} viajes
+                                  </Badge>
+                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                    {exitosos} exitosos
+                                  </Badge>
+                                </div>
+                                <span className="font-mono font-bold text-primary">
+                                  ${fechaFlete.toLocaleString()}
+                                </span>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="overflow-x-auto border rounded-md mt-2">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow className="bg-muted/50">
+                                      <TableHead>Placa</TableHead>
+                                      <TableHead>Conductor</TableHead>
+                                      <TableHead>Granja</TableHead>
+                                      <TableHead>Planta</TableHead>
+                                      <TableHead className="text-right">Flete</TableHead>
+                                      <TableHead>Titular</TableHead>
+                                      <TableHead>Estado</TableHead>
+                                      <TableHead>ID Manifiesto</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {items.map((item, index) => (
+                                      <TableRow key={`${item.placa}-${index}`} data-testid={`row-detalle-${fecha}-${index}`}>
+                                        <TableCell className="font-mono">{item.placa}</TableCell>
+                                        <TableCell className="max-w-[150px] truncate" title={item.conductor}>
+                                          {item.conductor}
+                                        </TableCell>
+                                        <TableCell>{item.granja}</TableCell>
+                                        <TableCell className="max-w-[100px] truncate">{item.planta}</TableCell>
+                                        <TableCell className="text-right font-mono">
+                                          ${item.flete.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                          {item.tipoTitular === "C" ? "CC: " : "NIT: "}
+                                          {item.titular}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge 
+                                            variant={item.estado === "Exitoso" ? "default" : 
+                                                    item.estado === "Error" ? "destructive" : "secondary"}
+                                            className={item.estado === "Exitoso" ? "bg-green-600" : ""}
+                                          >
+                                            {item.estado}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">{item.idManifiesto}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                    <TableRow className="bg-muted/30 font-medium">
+                                      <TableCell colSpan={4} className="text-right">
+                                        Subtotal {fecha}:
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono font-bold">
+                                        ${fechaFlete.toLocaleString()}
+                                      </TableCell>
+                                      <TableCell colSpan={3}></TableCell>
+                                    </TableRow>
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
+                    {detalleDataPorFecha.length === 0 && (
+                      <p className="text-center text-muted-foreground py-8">
+                        No hay datos detallados para mostrar
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </>
