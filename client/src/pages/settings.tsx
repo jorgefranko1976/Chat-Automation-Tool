@@ -8,9 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSettings, RndcSettings, WsEnvironment } from "@/hooks/use-settings";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
-import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server, User, Lock, Loader2, LogOut } from "lucide-react";
+import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server, User, Lock, Loader2, LogOut, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { ReportDesigner } from "@/components/report-designer";
 
 export default function Settings() {
   const { settings, saveSettings } = useSettings();
@@ -163,8 +164,8 @@ export default function Settings() {
           <p className="text-muted-foreground">Configure los parámetros del sistema</p>
         </div>
 
-        <Tabs defaultValue="user" className="w-full max-w-3xl">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="user" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="user" data-testid="tab-user">
               <User className="mr-2 h-4 w-4" /> Usuario
             </TabsTrigger>
@@ -179,6 +180,9 @@ export default function Settings() {
             </TabsTrigger>
             <TabsTrigger value="system" data-testid="tab-system">
               <Server className="mr-2 h-4 w-4" /> Sistema
+            </TabsTrigger>
+            <TabsTrigger value="reports" data-testid="tab-reports">
+              <FileText className="mr-2 h-4 w-4" /> Reportes
             </TabsTrigger>
           </TabsList>
 
@@ -581,6 +585,21 @@ export default function Settings() {
                     El servidor se reiniciará automáticamente si está configurado con PM2.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <Card>
+              <CardHeader>
+                <CardTitle>Diseñador de Reportes</CardTitle>
+                <CardDescription>
+                  Personalice la posición de los campos en los PDFs de manifiestos. 
+                  Arrastre los campos sobre la plantilla para ajustar su ubicación.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ReportDesigner />
               </CardContent>
             </Card>
           </TabsContent>

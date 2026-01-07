@@ -1,0 +1,435 @@
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Save, RotateCcw, GripVertical, Trash2, Plus, Eye, Download, Upload, Star } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import type { PdfTemplateField, PdfTemplate } from "@shared/schema";
+
+interface FieldDefinition {
+  id: string;
+  label: string;
+  dataKey: string;
+  defaultX: number;
+  defaultY: number;
+  page: number;
+}
+
+const MANIFEST_FIELDS: FieldDefinition[] = [
+  { id: "consecutivo", label: "Consecutivo", dataKey: "consecutivo", defaultX: 238, defaultY: 29, page: 1 },
+  { id: "ingresoid", label: "Autorización (MEC)", dataKey: "ingresoId", defaultX: 238, defaultY: 36, page: 1 },
+  { id: "fechaExpedicion", label: "Fecha Expedición", dataKey: "fechaExpedicion", defaultX: 20, defaultY: 52, page: 1 },
+  { id: "fechaRadicacion", label: "Fecha Radicación", dataKey: "fechaRadicacion", defaultX: 60, defaultY: 52, page: 1 },
+  { id: "tipoManifiesto", label: "Tipo Manifiesto", dataKey: "tipoManifiesto", defaultX: 107, defaultY: 52, page: 1 },
+  { id: "origen", label: "Origen", dataKey: "origen", defaultX: 145, defaultY: 52, page: 1 },
+  { id: "destino", label: "Destino", dataKey: "destino", defaultX: 202, defaultY: 52, page: 1 },
+  { id: "titularNombre", label: "Titular Nombre", dataKey: "titularNombre", defaultX: 20, defaultY: 66, page: 1 },
+  { id: "titularDocumento", label: "Titular Documento", dataKey: "titularDocumento", defaultX: 90, defaultY: 66, page: 1 },
+  { id: "titularDireccion", label: "Titular Dirección", dataKey: "titularDireccion", defaultX: 140, defaultY: 66, page: 1 },
+  { id: "titularTelefono", label: "Titular Teléfono", dataKey: "titularTelefono", defaultX: 202, defaultY: 66, page: 1 },
+  { id: "titularCiudad", label: "Titular Ciudad", dataKey: "titularCiudad", defaultX: 252, defaultY: 66, page: 1 },
+  { id: "placa", label: "Placa Vehículo", dataKey: "placa", defaultX: 20, defaultY: 77, page: 1 },
+  { id: "marca", label: "Marca Vehículo", dataKey: "marca", defaultX: 50, defaultY: 77, page: 1 },
+  { id: "placaRemolque", label: "Placa Semiremolque", dataKey: "placaRemolque", defaultX: 82, defaultY: 77, page: 1 },
+  { id: "configuracion", label: "Configuración", dataKey: "configuracion", defaultX: 130, defaultY: 77, page: 1 },
+  { id: "pesoVacio", label: "Peso Vacío", dataKey: "pesoVacio", defaultX: 152, defaultY: 77, page: 1 },
+  { id: "aseguradoraSoat", label: "Aseguradora SOAT", dataKey: "aseguradoraSoat", defaultX: 195, defaultY: 77, page: 1 },
+  { id: "polizaSoat", label: "Póliza SOAT", dataKey: "polizaSoat", defaultX: 237, defaultY: 77, page: 1 },
+  { id: "venceSoat", label: "Vence SOAT", dataKey: "venceSoat", defaultX: 259, defaultY: 77, page: 1 },
+  { id: "conductorNombre", label: "Conductor Nombre", dataKey: "conductorNombre", defaultX: 20, defaultY: 87, page: 1 },
+  { id: "conductorDocumento", label: "Conductor Documento", dataKey: "conductorDocumento", defaultX: 80, defaultY: 87, page: 1 },
+  { id: "conductorDireccion", label: "Conductor Dirección", dataKey: "conductorDireccion", defaultX: 130, defaultY: 87, page: 1 },
+  { id: "conductorTelefono", label: "Conductor Teléfono", dataKey: "conductorTelefono", defaultX: 195, defaultY: 87, page: 1 },
+  { id: "conductorLicencia", label: "Licencia Conducción", dataKey: "conductorLicencia", defaultX: 225, defaultY: 87, page: 1 },
+  { id: "tenedorDocumento", label: "Tenedor Documento", dataKey: "tenedorDocumento", defaultX: 20, defaultY: 107, page: 1 },
+  { id: "tenedorDireccion", label: "Tenedor Dirección", dataKey: "tenedorDireccion", defaultX: 130, defaultY: 107, page: 1 },
+  { id: "tenedorTelefono", label: "Tenedor Teléfono", dataKey: "tenedorTelefono", defaultX: 205, defaultY: 107, page: 1 },
+  { id: "remesaNumero", label: "Número Remesa", dataKey: "remesaNumero", defaultX: 15, defaultY: 126, page: 1 },
+  { id: "unidadMedida", label: "Unidad Medida", dataKey: "unidadMedida", defaultX: 37, defaultY: 126, page: 1 },
+  { id: "cantidad", label: "Cantidad", dataKey: "cantidad", defaultX: 57, defaultY: 126, page: 1 },
+  { id: "naturaleza", label: "Naturaleza Carga", dataKey: "naturaleza", defaultX: 75, defaultY: 126, page: 1 },
+  { id: "producto", label: "Producto", dataKey: "producto", defaultX: 101, defaultY: 131, page: 1 },
+  { id: "remitente", label: "Remitente", dataKey: "remitente", defaultX: 155, defaultY: 126, page: 1 },
+  { id: "destinatario", label: "Destinatario", dataKey: "destinatario", defaultX: 205, defaultY: 126, page: 1 },
+  { id: "valorTotal", label: "Valor Total Viaje", dataKey: "valorTotal", defaultX: 53, defaultY: 150, page: 1 },
+  { id: "retencionFuente", label: "Retención Fuente", dataKey: "retencionFuente", defaultX: 53, defaultY: 157, page: 1 },
+  { id: "retencionIca", label: "Retención ICA", dataKey: "retencionIca", defaultX: 53, defaultY: 163, page: 1 },
+  { id: "valorNeto", label: "Valor Neto", dataKey: "valorNeto", defaultX: 53, defaultY: 170, page: 1 },
+  { id: "anticipo", label: "Anticipo", dataKey: "anticipo", defaultX: 53, defaultY: 177, page: 1 },
+  { id: "saldo", label: "Saldo a Pagar", dataKey: "saldo", defaultX: 53, defaultY: 183, page: 1 },
+  { id: "lugarPago", label: "Lugar de Pago", dataKey: "lugarPago", defaultX: 143, defaultY: 150, page: 1 },
+  { id: "fechaPago", label: "Fecha Pago Saldo", dataKey: "fechaPago", defaultX: 170, defaultY: 150, page: 1 },
+  { id: "valorEnLetras", label: "Valor en Letras", dataKey: "valorEnLetras", defaultX: 53, defaultY: 191, page: 1 },
+  { id: "p2_consecutivo", label: "Consecutivo (Pág 2)", dataKey: "consecutivo", defaultX: 238, defaultY: 45, page: 2 },
+  { id: "p2_ingresoid", label: "Autorización (Pág 2)", dataKey: "ingresoId", defaultX: 238, defaultY: 52, page: 2 },
+  { id: "p2_placa", label: "Placa (Pág 2)", dataKey: "placa", defaultX: 42, defaultY: 70, page: 2 },
+  { id: "p2_conductor", label: "Conductor (Pág 2)", dataKey: "conductorNombre", defaultX: 110, defaultY: 70, page: 2 },
+  { id: "p2_cedula", label: "Cédula (Pág 2)", dataKey: "cedula", defaultX: 240, defaultY: 70, page: 2 },
+  { id: "p2_remesa", label: "Remesa (Pág 2)", dataKey: "remesaNumero", defaultX: 17, defaultY: 90, page: 2 },
+  { id: "p2_hrsCargue", label: "Hrs Cargue", dataKey: "hrsCargue", defaultX: 52, defaultY: 90, page: 2 },
+  { id: "p2_hrsDescargue", label: "Hrs Descargue", dataKey: "hrsDescargue", defaultX: 67, defaultY: 90, page: 2 },
+  { id: "p2_fechaCargue", label: "Fecha Cargue", dataKey: "fechaCargue", defaultX: 88, defaultY: 90, page: 2 },
+  { id: "p2_horaCargue", label: "Hora Cargue", dataKey: "horaCargue", defaultX: 105, defaultY: 90, page: 2 },
+  { id: "p2_fechaDescargue", label: "Fecha Descargue", dataKey: "fechaDescargue", defaultX: 198, defaultY: 90, page: 2 },
+  { id: "p2_horaDescargue", label: "Hora Descargue", dataKey: "horaDescargue", defaultX: 218, defaultY: 90, page: 2 },
+];
+
+const SCALE = 2.5;
+
+export function ReportDesigner() {
+  const [activePage, setActivePage] = useState<1 | 2>(1);
+  const [fields, setFields] = useState<PdfTemplateField[]>([]);
+  const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<PdfTemplate[]>([]);
+  const [currentTemplate, setCurrentTemplate] = useState<PdfTemplate | null>(null);
+  const [templateName, setTemplateName] = useState("Mi Plantilla");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await apiRequest("GET", "/api/pdf-templates");
+      const data = await res.json();
+      if (data.success) {
+        setTemplates(data.templates);
+        const defaultTemplate = data.templates.find((t: PdfTemplate) => t.isDefault === 1);
+        if (defaultTemplate) {
+          setCurrentTemplate(defaultTemplate);
+          setFields(defaultTemplate.fields);
+          setTemplateName(defaultTemplate.name);
+        } else {
+          initializeDefaultFields();
+        }
+      }
+    } catch {
+      initializeDefaultFields();
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const initializeDefaultFields = () => {
+    const defaultFields: PdfTemplateField[] = MANIFEST_FIELDS.map(f => ({
+      id: f.id,
+      label: f.label,
+      dataKey: f.dataKey,
+      x: f.defaultX,
+      y: f.defaultY,
+      fontSize: 6,
+      fontWeight: "normal" as const,
+      page: f.page,
+    }));
+    setFields(defaultFields);
+  };
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
+
+  const handleMouseDown = (e: React.MouseEvent, fieldId: string) => {
+    e.preventDefault();
+    const field = fields.find(f => f.id === fieldId);
+    if (!field || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left - field.x * SCALE,
+      y: e.clientY - rect.top - field.y * SCALE,
+    });
+    setSelectedField(fieldId);
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !selectedField || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const newX = Math.max(0, Math.min(279, (e.clientX - rect.left - dragOffset.x) / SCALE));
+    const newY = Math.max(0, Math.min(216, (e.clientY - rect.top - dragOffset.y) / SCALE));
+
+    setFields(prev => prev.map(f => 
+      f.id === selectedField ? { ...f, x: Math.round(newX), y: Math.round(newY) } : f
+    ));
+  }, [isDragging, selectedField, dragOffset]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  const updateFieldProperty = (fieldId: string, property: keyof PdfTemplateField, value: any) => {
+    setFields(prev => prev.map(f =>
+      f.id === fieldId ? { ...f, [property]: value } : f
+    ));
+  };
+
+  const saveTemplate = async () => {
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: templateName,
+        templateType: "manifiesto",
+        fields,
+        pageWidth: 279,
+        pageHeight: 216,
+        orientation: "landscape",
+      };
+
+      if (currentTemplate) {
+        const res = await apiRequest("PUT", `/api/pdf-templates/${currentTemplate.id}`, payload);
+        const data = await res.json();
+        if (data.success) {
+          toast({ title: "Guardado", description: "Plantilla actualizada correctamente" });
+          setCurrentTemplate(data.template);
+          loadTemplates();
+        }
+      } else {
+        const res = await apiRequest("POST", "/api/pdf-templates", payload);
+        const data = await res.json();
+        if (data.success) {
+          toast({ title: "Guardado", description: "Nueva plantilla creada" });
+          setCurrentTemplate(data.template);
+          loadTemplates();
+        }
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo guardar la plantilla", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const setAsDefault = async () => {
+    if (!currentTemplate) return;
+    try {
+      await apiRequest("POST", `/api/pdf-templates/${currentTemplate.id}/set-default`);
+      toast({ title: "Predeterminada", description: "Esta plantilla se usará para generar PDFs" });
+      loadTemplates();
+    } catch {
+      toast({ title: "Error", description: "No se pudo establecer como predeterminada", variant: "destructive" });
+    }
+  };
+
+  const newTemplate = () => {
+    setCurrentTemplate(null);
+    setTemplateName("Nueva Plantilla");
+    initializeDefaultFields();
+  };
+
+  const loadTemplate = (template: PdfTemplate) => {
+    setCurrentTemplate(template);
+    setFields(template.fields);
+    setTemplateName(template.name);
+  };
+
+  const pageFields = fields.filter(f => f.page === activePage);
+  const selectedFieldData = fields.find(f => f.id === selectedField);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-96">Cargando...</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-4 gap-4">
+      <div className="col-span-1 space-y-4">
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm">Plantillas Guardadas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button onClick={newTemplate} size="sm" variant="outline" className="w-full">
+              <Plus className="h-4 w-4 mr-2" /> Nueva Plantilla
+            </Button>
+            <ScrollArea className="h-32">
+              {templates.map(t => (
+                <div
+                  key={t.id}
+                  onClick={() => loadTemplate(t)}
+                  className={`p-2 rounded cursor-pointer text-sm flex items-center gap-2 ${currentTemplate?.id === t.id ? "bg-primary/10" : "hover:bg-muted"}`}
+                >
+                  {t.isDefault === 1 && <Star className="h-3 w-3 text-yellow-500" />}
+                  {t.name}
+                </div>
+              ))}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm">Configuración</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <Label className="text-xs">Nombre de Plantilla</Label>
+              <Input
+                value={templateName}
+                onChange={e => setTemplateName(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={saveTemplate} disabled={isSaving} size="sm" className="flex-1">
+                <Save className="h-4 w-4 mr-1" />
+                {isSaving ? "Guardando..." : "Guardar"}
+              </Button>
+              {currentTemplate && (
+                <Button onClick={setAsDefault} size="sm" variant="outline">
+                  <Star className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm">Campos Disponibles</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-64">
+              <div className="space-y-1">
+                {pageFields.map(f => (
+                  <div
+                    key={f.id}
+                    onClick={() => setSelectedField(f.id)}
+                    className={`p-2 rounded cursor-pointer text-xs ${selectedField === f.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  >
+                    {f.label}
+                    <span className="text-muted-foreground ml-2">({f.x}, {f.y})</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {selectedFieldData && (
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm">Propiedades del Campo</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">X (mm)</Label>
+                  <Input
+                    type="number"
+                    value={selectedFieldData.x}
+                    onChange={e => updateFieldProperty(selectedFieldData.id, "x", parseInt(e.target.value) || 0)}
+                    className="h-7 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Y (mm)</Label>
+                  <Input
+                    type="number"
+                    value={selectedFieldData.y}
+                    onChange={e => updateFieldProperty(selectedFieldData.id, "y", parseInt(e.target.value) || 0)}
+                    className="h-7 text-xs"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Tamaño Fuente</Label>
+                <Input
+                  type="number"
+                  value={selectedFieldData.fontSize}
+                  onChange={e => updateFieldProperty(selectedFieldData.id, "fontSize", parseInt(e.target.value) || 6)}
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Peso Fuente</Label>
+                <Select
+                  value={selectedFieldData.fontWeight}
+                  onValueChange={v => updateFieldProperty(selectedFieldData.id, "fontWeight", v)}
+                >
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="bold">Negrita</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <div className="col-span-3">
+        <Card>
+          <CardHeader className="py-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">Vista Previa de Plantilla</CardTitle>
+            <Tabs value={String(activePage)} onValueChange={v => setActivePage(Number(v) as 1 | 2)}>
+              <TabsList className="h-8">
+                <TabsTrigger value="1" className="text-xs h-6">Página 1</TabsTrigger>
+                <TabsTrigger value="2" className="text-xs h-6">Página 2</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-auto border rounded" style={{ maxHeight: "70vh" }}>
+              <div
+                ref={canvasRef}
+                className="relative bg-white"
+                style={{
+                  width: 279 * SCALE,
+                  height: 216 * SCALE,
+                  backgroundImage: `url(${activePage === 1 ? "/manifiesto_template_p1.jpg" : "/manifiesto_template_p2.png"})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              >
+                {pageFields.map(field => (
+                  <div
+                    key={field.id}
+                    onMouseDown={e => handleMouseDown(e, field.id)}
+                    className={`absolute cursor-move select-none px-1 rounded text-xs whitespace-nowrap ${
+                      selectedField === field.id
+                        ? "bg-blue-500 text-white ring-2 ring-blue-300"
+                        : "bg-yellow-300/80 text-black hover:bg-yellow-400/80"
+                    }`}
+                    style={{
+                      left: field.x * SCALE,
+                      top: field.y * SCALE,
+                      fontSize: field.fontSize * SCALE * 0.6,
+                      fontWeight: field.fontWeight,
+                    }}
+                  >
+                    <GripVertical className="inline h-3 w-3 mr-1 opacity-50" />
+                    {field.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Arrastra los campos para posicionarlos. Usa el panel izquierdo para ajustar propiedades exactas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
