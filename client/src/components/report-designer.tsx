@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Save, GripVertical, Trash2, Plus, Star, Type, Database } from "lucide-react";
+import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { PdfTemplateField, PdfTemplate } from "@shared/schema";
@@ -101,7 +101,11 @@ export function ReportDesigner() {
     defaultValue: "",
     page: 1,
   });
+  const [backgroundImage1, setBackgroundImage1] = useState<string | null>(null);
+  const [backgroundImage2, setBackgroundImage2] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const fileInputRef1 = useRef<HTMLInputElement>(null);
+  const fileInputRef2 = useRef<HTMLInputElement>(null);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -114,6 +118,8 @@ export function ReportDesigner() {
           setCurrentTemplate(defaultTemplate);
           setFields(defaultTemplate.fields);
           setTemplateName(defaultTemplate.name);
+          setBackgroundImage1(defaultTemplate.backgroundImage1 || null);
+          setBackgroundImage2(defaultTemplate.backgroundImage2 || null);
         } else {
           initializeDefaultFields();
         }
@@ -192,6 +198,33 @@ export function ReportDesigner() {
     ));
   };
 
+  const handleImageUpload = (page: 1 | 2) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Error", description: "Por favor seleccione un archivo de imagen", variant: "destructive" });
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Error", description: "La imagen no debe superar 5MB", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      if (page === 1) {
+        setBackgroundImage1(base64);
+      } else {
+        setBackgroundImage2(base64);
+      }
+      toast({ title: "Imagen cargada", description: `Fondo de página ${page} actualizado` });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const saveTemplate = async () => {
     setIsSaving(true);
     try {
@@ -202,6 +235,8 @@ export function ReportDesigner() {
         pageWidth: 279,
         pageHeight: 216,
         orientation: "landscape",
+        backgroundImage1,
+        backgroundImage2,
       };
 
       if (currentTemplate) {
@@ -242,6 +277,8 @@ export function ReportDesigner() {
   const newTemplate = () => {
     setCurrentTemplate(null);
     setTemplateName("Nueva Plantilla");
+    setBackgroundImage1(null);
+    setBackgroundImage2(null);
     initializeDefaultFields();
   };
 
@@ -249,6 +286,17 @@ export function ReportDesigner() {
     setCurrentTemplate(template);
     setFields(template.fields);
     setTemplateName(template.name);
+    setBackgroundImage1(template.backgroundImage1 || null);
+    setBackgroundImage2(template.backgroundImage2 || null);
+  };
+
+  const clearBackgroundImage = (page: 1 | 2) => {
+    if (page === 1) {
+      setBackgroundImage1(null);
+    } else {
+      setBackgroundImage2(null);
+    }
+    toast({ title: "Imagen eliminada", description: `Fondo de página ${page} restaurado al predeterminado` });
   };
 
   const addCustomField = () => {
@@ -452,12 +500,59 @@ export function ReportDesigner() {
         <Card>
           <CardHeader className="py-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Vista Previa de Plantilla</CardTitle>
-            <Tabs value={String(activePage)} onValueChange={v => setActivePage(Number(v) as 1 | 2)}>
-              <TabsList className="h-8">
-                <TabsTrigger value="1" className="text-xs h-6">Página 1</TabsTrigger>
-                <TabsTrigger value="2" className="text-xs h-6">Página 2</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <input
+                  ref={fileInputRef1}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload(1)}
+                  className="hidden"
+                  data-testid="input-bg-image-1"
+                />
+                <input
+                  ref={fileInputRef2}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload(2)}
+                  className="hidden"
+                  data-testid="input-bg-image-2"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => (activePage === 1 ? fileInputRef1 : fileInputRef2).current?.click()}
+                  data-testid="button-change-bg"
+                >
+                  <Upload className="h-3 w-3 mr-1" />
+                  Cambiar Fondo
+                </Button>
+                {((activePage === 1 && backgroundImage1) || (activePage === 2 && backgroundImage2)) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-destructive hover:text-destructive"
+                    onClick={() => clearBackgroundImage(activePage)}
+                    data-testid="button-clear-bg"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <Tabs value={String(activePage)} onValueChange={v => setActivePage(Number(v) as 1 | 2)}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="1" className="text-xs h-6">
+                    {backgroundImage1 && <Image className="h-3 w-3 mr-1 text-green-500" />}
+                    Página 1
+                  </TabsTrigger>
+                  <TabsTrigger value="2" className="text-xs h-6">
+                    {backgroundImage2 && <Image className="h-3 w-3 mr-1 text-green-500" />}
+                    Página 2
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-auto border rounded" style={{ maxHeight: "70vh" }}>
@@ -467,7 +562,11 @@ export function ReportDesigner() {
                 style={{
                   width: 279 * SCALE,
                   height: 216 * SCALE,
-                  backgroundImage: `url(${activePage === 1 ? "/manifiesto_template_p1.jpg" : "/manifiesto_template_p2.png"})`,
+                  backgroundImage: `url(${
+                    activePage === 1 
+                      ? (backgroundImage1 || "/manifiesto_template_p1.jpg") 
+                      : (backgroundImage2 || "/manifiesto_template_p2.png")
+                  })`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}

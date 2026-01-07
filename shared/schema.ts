@@ -502,6 +502,8 @@ export const pdfTemplates = pgTable("pdf_templates", {
   pageWidth: integer("page_width").default(279),
   pageHeight: integer("page_height").default(216),
   orientation: varchar("orientation").default("landscape"),
+  backgroundImage1: text("background_image_1"),
+  backgroundImage2: text("background_image_2"),
   isDefault: integer("is_default").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
