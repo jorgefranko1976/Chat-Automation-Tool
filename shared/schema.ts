@@ -185,6 +185,31 @@ export const insertRemesaSubmissionSchema = createInsertSchema(remesaSubmissions
 export type InsertRemesaSubmission = z.infer<typeof insertRemesaSubmissionSchema>;
 export type RemesaSubmission = typeof remesaSubmissions.$inferSelect;
 
+export const manifiestoSubmissions = pgTable("manifiesto_submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  batchId: varchar("batch_id").notNull(),
+  consecutivoManifiesto: varchar("consecutivo_manifiesto").notNull(),
+  numNitEmpresa: varchar("num_nit_empresa").notNull(),
+  numPlaca: varchar("num_placa").notNull(),
+  xmlRequest: text("xml_request").notNull(),
+  xmlResponse: text("xml_response"),
+  status: varchar("status").notNull().default("pending"),
+  responseCode: varchar("response_code"),
+  responseMessage: text("response_message"),
+  idManifiesto: varchar("id_manifiesto"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertManifiestoSubmissionSchema = createInsertSchema(manifiestoSubmissions).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
+});
+
+export type InsertManifiestoSubmission = z.infer<typeof insertManifiestoSubmissionSchema>;
+export type ManifiestoSubmission = typeof manifiestoSubmissions.$inferSelect;
+
 export const monitoringQueries = pgTable("monitoring_queries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   queryType: varchar("query_type").notNull(),

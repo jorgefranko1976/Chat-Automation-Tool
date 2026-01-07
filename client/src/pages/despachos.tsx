@@ -50,6 +50,33 @@ interface GeneratedRemesa {
   responseCode?: string;
   responseMessage?: string;
   idRemesa?: string;
+  // Data needed for manifiesto
+  codMunicipioOrigen?: string;
+  codMunicipioDestino?: string;
+  tipoIdPropietario?: string;
+  numIdPropietario?: string;
+  cedula?: string;
+  valorFlete?: number;
+  fecha?: string;
+}
+
+interface GeneratedManifiesto {
+  consecutivo: number;
+  placa: string;
+  fechaExpedicion: string;
+  codMunicipioOrigen: string;
+  codMunicipioDestino: string;
+  tipoIdTitular: string;
+  numIdTitular: string;
+  cedula: string;
+  valorFlete: number;
+  fechaPagoSaldo: string;
+  consecutivoRemesa: number;
+  xmlRequest: string;
+  status: "pending" | "processing" | "success" | "error";
+  responseCode?: string;
+  responseMessage?: string;
+  idManifiesto?: string;
 }
 
 export default function Despachos() {
@@ -67,9 +94,12 @@ export default function Despachos() {
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [sortOrder, setSortOrder] = useState<"default" | "success_first" | "errors_first">("default");
   const [generatedRemesas, setGeneratedRemesas] = useState<GeneratedRemesa[]>([]);
+  const [generatedManifiestos, setGeneratedManifiestos] = useState<GeneratedManifiesto[]>([]);
   const [isSendingRemesas, setIsSendingRemesas] = useState(false);
+  const [isSendingManifiestos, setIsSendingManifiestos] = useState(false);
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   const [showRemesasHistory, setShowRemesasHistory] = useState(false);
+  const [stepDComplete, setStepDComplete] = useState(false);
 
   const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
     queryKey: ["/api/rndc/remesas/history"],
@@ -580,6 +610,10 @@ export default function Despachos() {
   </variables>
 </root>`;
       
+      const ton = parseFloat(row.toneladas.replace(",", ".")) || 0;
+      const flete = parseFloat((row.granjaData?.flete || "").replace(/[^\d.-]/g, "")) || 0;
+      const valorFlete = Math.round(ton * flete);
+      
       remesas.push({
         consecutivo: currentConsecutivo,
         placa: row.placa,
@@ -592,6 +626,14 @@ export default function Despachos() {
         sedeDestinatario: row.granjaData?.sede,
         xmlRequest: xml,
         status: "pending",
+        // Data for manifiesto
+        codMunicipioOrigen: row.plantaData?.codMunicipio,
+        codMunicipioDestino: row.granjaData?.codMunicipio,
+        tipoIdPropietario: row.placaData?.tipoIdPropietario || "C",
+        numIdPropietario: row.placaData?.propietarioId,
+        cedula: row.cedula.replace(/[^\d]/g, ""),
+        valorFlete,
+        fecha: row.fecha,
       });
       currentConsecutivo++;
     }
@@ -619,6 +661,181 @@ export default function Despachos() {
 
   const clearGeneratedRemesas = () => {
     setGeneratedRemesas([]);
+    setGeneratedManifiestos([]);
+  };
+
+  const addDays = (dateStr: string, days: number): string => {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      date.setDate(date.getDate() + days);
+      return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+    }
+    return dateStr;
+  };
+
+  const generateManifiestosXml = () => {
+    const successRemesas = generatedRemesas.filter(r => r.status === "success");
+    if (successRemesas.length === 0) {
+      toast({ title: "Error", description: "No hay remesas exitosas para generar manifiestos", variant: "destructive" });
+      return;
+    }
+
+    if (!settings.usernameRndc || !settings.passwordRndc || !settings.companyNit) {
+      toast({ title: "Error", description: "Configure credenciales RNDC en Configuración", variant: "destructive" });
+      return;
+    }
+
+    const manifiestos: GeneratedManifiesto[] = [];
+
+    for (const remesa of successRemesas) {
+      const fechaPagoSaldo = addDays(remesa.fecha || remesa.fechaCargue, 5);
+      
+      const xml = `<?xml version="1.0" encoding="ISO-8859-1"?>
+<root>
+  <acceso>
+    <username>${settings.usernameRndc}</username>
+    <password>${settings.passwordRndc}</password>
+  </acceso>
+  <solicitud>
+    <tipo>1</tipo>
+    <procesoid>4</procesoid>
+  </solicitud>
+  <variables>
+    <NUMNITEMPRESATRANSPORTE>${settings.companyNit}</NUMNITEMPRESATRANSPORTE>
+    <NUMMANIFIESTOCARGA>${remesa.consecutivo}</NUMMANIFIESTOCARGA>
+    <CODOPERACIONTRANSPORTE>G</CODOPERACIONTRANSPORTE>
+    <FECHAEXPEDICIONMANIFIESTO>${remesa.fecha || remesa.fechaCargue}</FECHAEXPEDICIONMANIFIESTO>
+    <CODMUNICIPIOORIGENMANIFIESTO>${remesa.codMunicipioOrigen || ""}</CODMUNICIPIOORIGENMANIFIESTO>
+    <CODMUNICIPIODESTINOMANIFIESTO>${remesa.codMunicipioDestino || ""}</CODMUNICIPIODESTINOMANIFIESTO>
+    <CODIDTITULARMANIFIESTO>${remesa.tipoIdPropietario || "C"}</CODIDTITULARMANIFIESTO>
+    <NUMIDTITULARMANIFIESTO>${remesa.numIdPropietario || ""}</NUMIDTITULARMANIFIESTO>
+    <NUMPLACA>${remesa.placa}</NUMPLACA>
+    <CODIDCONDUCTOR>C</CODIDCONDUCTOR>
+    <NUMIDCONDUCTOR>${remesa.cedula || ""}</NUMIDCONDUCTOR>
+    <VALORFLETEPACTADOVIAJE>${remesa.valorFlete || 0}</VALORFLETEPACTADOVIAJE>
+    <RETENCIONICAMANIFIESTOCARGA>1</RETENCIONICAMANIFIESTOCARGA>
+    <VALORANTICIPOMANIFIESTO>0</VALORANTICIPOMANIFIESTO>
+    <CODMUNICIPIOPAGOSALDO>11001000</CODMUNICIPIOPAGOSALDO>
+    <FECHAPAGOSALDOMANIFIESTO>${fechaPagoSaldo}</FECHAPAGOSALDOMANIFIESTO>
+    <CODRESPONSABLEPAGOCARGUE>E</CODRESPONSABLEPAGOCARGUE>
+    <CODRESPONSABLEPAGODESCARGUE>E</CODRESPONSABLEPAGODESCARGUE>
+    <ACEPTACIONELECTRONICA>SI</ACEPTACIONELECTRONICA>
+    <REMESASMAN procesoid="43">
+      <REMESA>
+        <CONSECUTIVOREMESA>${remesa.consecutivo}</CONSECUTIVOREMESA>
+      </REMESA>
+    </REMESASMAN>
+  </variables>
+</root>`;
+
+      manifiestos.push({
+        consecutivo: remesa.consecutivo,
+        placa: remesa.placa,
+        fechaExpedicion: remesa.fecha || remesa.fechaCargue,
+        codMunicipioOrigen: remesa.codMunicipioOrigen || "",
+        codMunicipioDestino: remesa.codMunicipioDestino || "",
+        tipoIdTitular: remesa.tipoIdPropietario || "C",
+        numIdTitular: remesa.numIdPropietario || "",
+        cedula: remesa.cedula || "",
+        valorFlete: remesa.valorFlete || 0,
+        fechaPagoSaldo,
+        consecutivoRemesa: remesa.consecutivo,
+        xmlRequest: xml,
+        status: "pending",
+      });
+    }
+
+    setGeneratedManifiestos(manifiestos);
+    toast({
+      title: "Manifiestos Generados",
+      description: `${manifiestos.length} manifiestos listos para enviar`
+    });
+  };
+
+  const handleDownloadManifiestos = () => {
+    if (generatedManifiestos.length === 0) return;
+    const allXml = generatedManifiestos.map(m => m.xmlRequest).join("\n\n<!-- ==================== SIGUIENTE MANIFIESTO ==================== -->\n\n");
+    const blob = new Blob([allXml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `manifiestos_${new Date().toISOString().split("T")[0]}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSendManifiestos = async () => {
+    if (generatedManifiestos.length === 0) return;
+
+    setIsSendingManifiestos(true);
+
+    try {
+      const wsUrl = settings.wsEnvironment === "production"
+        ? settings.wsUrlProd
+        : settings.wsUrlTest;
+
+      const submissions = generatedManifiestos.map(m => ({
+        consecutivoManifiesto: String(m.consecutivo),
+        numNitEmpresa: settings.companyNit,
+        numPlaca: m.placa,
+        xmlRequest: m.xmlRequest,
+      }));
+
+      const response = await apiRequest("POST", "/api/rndc/manifiesto-batch", {
+        submissions,
+        wsUrl,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({ title: "Enviando", description: result.message });
+        pollManifiestoResults(result.batchId);
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+        setIsSendingManifiestos(false);
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error al enviar manifiestos", variant: "destructive" });
+      setIsSendingManifiestos(false);
+    }
+  };
+
+  const pollManifiestoResults = async (batchId: string) => {
+    try {
+      const response = await apiRequest("GET", `/api/rndc/manifiesto-batch/${batchId}/results`);
+      const result = await response.json();
+
+      if (result.completed) {
+        const updatedManifiestos = generatedManifiestos.map(m => {
+          const submissionResult = result.results?.find((r: any) => String(r.consecutivoManifiesto) === String(m.consecutivo));
+          if (submissionResult) {
+            return {
+              ...m,
+              status: submissionResult.success ? "success" as const : "error" as const,
+              responseCode: submissionResult.responseCode,
+              responseMessage: submissionResult.responseMessage,
+              idManifiesto: submissionResult.idManifiesto,
+            };
+          }
+          return m;
+        });
+        setGeneratedManifiestos(updatedManifiestos);
+        setIsSendingManifiestos(false);
+        setStepDComplete(true);
+
+        const successCount = updatedManifiestos.filter(m => m.status === "success").length;
+        toast({
+          title: "Manifiestos Procesados",
+          description: `${successCount}/${updatedManifiestos.length} manifiestos enviados exitosamente`
+        });
+      } else {
+        setTimeout(() => pollManifiestoResults(batchId), 2000);
+      }
+    } catch {
+      setIsSendingManifiestos(false);
+    }
   };
 
   const getRemesaStatusBadge = (status: string) => {
@@ -1344,6 +1561,119 @@ export default function Despachos() {
                   </Table>
                 </div>
               </CardContent>
+            </Card>
+          )}
+
+          {generatedRemesas.filter(r => r.status === "success").length > 0 && (
+            <Card className="border-blue-200 dark:border-blue-800">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileCode className="h-5 w-5 text-blue-600" /> Paso D: Manifiestos
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {generatedManifiestos.length === 0
+                      ? `${generatedRemesas.filter(r => r.status === "success").length} remesas exitosas disponibles para generar manifiestos`
+                      : `${generatedManifiestos.length} manifiestos generados`}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {generatedManifiestos.length === 0 ? (
+                    <Button
+                      onClick={generateManifiestosXml}
+                      className="bg-blue-600 hover:bg-blue-700"
+                      data-testid="button-generate-manifiestos"
+                    >
+                      <FileCode className="h-4 w-4 mr-2" />
+                      Generar Manifiestos
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadManifiestos}
+                        data-testid="button-download-manifiestos"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Descargar XML
+                      </Button>
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={handleSendManifiestos}
+                        disabled={isSendingManifiestos}
+                        data-testid="button-send-manifiestos"
+                      >
+                        {isSendingManifiestos ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</>
+                        ) : (
+                          <>Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" /></>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardHeader>
+              {generatedManifiestos.length > 0 && (
+                <CardContent>
+                  <div className="max-h-[300px] overflow-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Consecutivo</TableHead>
+                          <TableHead>Placa</TableHead>
+                          <TableHead>Mun. Origen</TableHead>
+                          <TableHead>Mun. Destino</TableHead>
+                          <TableHead>Cédula Conductor</TableHead>
+                          <TableHead>Valor Flete</TableHead>
+                          <TableHead>Fecha Pago</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>ID Manifiesto</TableHead>
+                          <TableHead>Respuesta</TableHead>
+                          <TableHead>XML</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {generatedManifiestos.map((manifiesto, i) => (
+                          <TableRow key={i} data-testid={`row-manifiesto-${i}`}>
+                            <TableCell className="font-mono">{manifiesto.consecutivo}</TableCell>
+                            <TableCell>{manifiesto.placa}</TableCell>
+                            <TableCell className="font-mono text-xs">{manifiesto.codMunicipioOrigen}</TableCell>
+                            <TableCell className="font-mono text-xs">{manifiesto.codMunicipioDestino}</TableCell>
+                            <TableCell className="font-mono">{manifiesto.cedula}</TableCell>
+                            <TableCell className="font-mono text-green-700">${manifiesto.valorFlete.toLocaleString()}</TableCell>
+                            <TableCell>{manifiesto.fechaPagoSaldo}</TableCell>
+                            <TableCell>{getRemesaStatusBadge(manifiesto.status)}</TableCell>
+                            <TableCell className="font-mono">{manifiesto.idManifiesto || "-"}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-xs" title={manifiesto.responseMessage}>
+                              {manifiesto.responseMessage || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" data-testid={`button-view-manifiesto-xml-${i}`}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl max-h-[80vh]">
+                                  <DialogHeader>
+                                    <DialogTitle>XML Manifiesto - Consecutivo {manifiesto.consecutivo}</DialogTitle>
+                                  </DialogHeader>
+                                  <ScrollArea className="h-[60vh]">
+                                    <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap font-mono">
+                                      {manifiesto.xmlRequest}
+                                    </pre>
+                                  </ScrollArea>
+                                </DialogContent>
+                              </Dialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              )}
             </Card>
           )}
 

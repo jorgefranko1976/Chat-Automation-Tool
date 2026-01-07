@@ -77,6 +77,16 @@ const cumplidoManifiestoBatchSchema = z.object({
   wsUrl: z.string().url().optional(),
 });
 
+const manifiestoBatchSchema = z.object({
+  submissions: z.array(z.object({
+    consecutivoManifiesto: z.string(),
+    numNitEmpresa: z.string(),
+    numPlaca: z.string(),
+    xmlRequest: z.string(),
+  })),
+  wsUrl: z.string().url().optional(),
+});
+
 const remesaBatchSchema = z.object({
   submissions: z.array(z.object({
     consecutivoRemesa: z.string(),
@@ -1083,6 +1093,66 @@ export async function registerRoutes(
       res.json({ success: true, submissions });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al obtener historial de remesas" });
+    }
+  });
+
+  app.post("/api/rndc/manifiesto-batch", async (req, res) => {
+    try {
+      const parsed = manifiestoBatchSchema.parse(req.body);
+      const { submissions, wsUrl } = parsed;
+
+      const batch = await storage.createRndcBatch({
+        type: "manifiesto",
+        totalRecords: submissions.length,
+        successCount: 0,
+        errorCount: 0,
+        pendingCount: submissions.length,
+        status: "processing",
+      });
+
+      const createdSubmissions = await Promise.all(
+        submissions.map(sub =>
+          storage.createManifiestoSubmission({
+            batchId: batch.id,
+            consecutivoManifiesto: sub.consecutivoManifiesto,
+            numNitEmpresa: sub.numNitEmpresa,
+            numPlaca: sub.numPlaca,
+            xmlRequest: sub.xmlRequest,
+            status: "pending",
+          })
+        )
+      );
+
+      processManifiestoAsync(batch.id, createdSubmissions.map(s => s.id), wsUrl || "");
+
+      res.json({
+        success: true,
+        batchId: batch.id,
+        message: `Lote creado con ${submissions.length} manifiestos. Procesando...`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al crear lote de manifiestos";
+      res.status(400).json({ success: false, message });
+    }
+  });
+
+  app.get("/api/rndc/manifiesto-batch/:batchId/results", async (req, res) => {
+    try {
+      const submissions = await storage.getManifiestoSubmissionsByBatch(req.params.batchId);
+      const allProcessed = submissions.every(s => s.status === "success" || s.status === "error");
+      res.json({ 
+        success: true, 
+        completed: allProcessed,
+        results: submissions.map(s => ({
+          consecutivoManifiesto: s.consecutivoManifiesto,
+          success: s.status === "success",
+          responseCode: s.responseCode,
+          responseMessage: s.responseMessage,
+          idManifiesto: s.idManifiesto,
+        }))
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener manifiestos" });
     }
   });
 
@@ -2508,6 +2578,86 @@ async function processRemesaAsync(batchId: string, submissionIds: string[], wsUr
       });
     } catch {
       console.error(`Failed to mark remesa batch ${batchId} as completed`);
+    }
+  }
+}
+
+async function processManifiestoAsync(batchId: string, submissionIds: string[], wsUrl: string) {
+  let successCount = 0;
+  let errorCount = 0;
+
+  try {
+    for (const submissionId of submissionIds) {
+      try {
+        const submission = await storage.getManifiestoSubmission(submissionId);
+        if (!submission) {
+          errorCount++;
+          continue;
+        }
+
+        await storage.updateManifiestoSubmission(submissionId, { status: "processing" });
+
+        const response = await sendXmlToRndc(submission.xmlRequest, wsUrl);
+
+        let idManifiesto: string | null = null;
+        if (response.success && response.rawXml) {
+          const idMatch = response.rawXml.match(/<INGRESOIDMANIFIESTO>([^<]+)<\/INGRESOIDMANIFIESTO>/i);
+          if (idMatch) {
+            idManifiesto = idMatch[1];
+          }
+        }
+
+        await storage.updateManifiestoSubmission(submissionId, {
+          status: response.success ? "success" : "error",
+          xmlResponse: response.rawXml,
+          responseCode: response.code,
+          responseMessage: response.message,
+          idManifiesto: idManifiesto,
+          processedAt: new Date(),
+        });
+
+        if (response.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        errorCount++;
+        try {
+          await storage.updateManifiestoSubmission(submissionId, {
+            status: "error",
+            responseMessage: error instanceof Error ? error.message : "Error desconocido",
+            processedAt: new Date(),
+          });
+        } catch {
+          console.error(`Failed to update manifiesto ${submissionId} status`);
+        }
+      }
+
+      const pendingCount = submissionIds.length - successCount - errorCount;
+      try {
+        await storage.updateRndcBatch(batchId, {
+          successCount,
+          errorCount,
+          pendingCount,
+        });
+      } catch {
+        console.error(`Failed to update manifiesto batch ${batchId} progress`);
+      }
+    }
+  } finally {
+    try {
+      await storage.updateRndcBatch(batchId, {
+        status: "completed",
+        completedAt: new Date(),
+        successCount,
+        errorCount,
+        pendingCount: 0,
+      });
+    } catch {
+      console.error(`Failed to mark manifiesto batch ${batchId} as completed`);
     }
   }
 }

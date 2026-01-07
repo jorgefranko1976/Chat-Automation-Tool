@@ -7,6 +7,7 @@ import {
   cumplidoRemesaSubmissions,
   cumplidoManifiestoSubmissions,
   remesaSubmissions,
+  manifiestoSubmissions,
   monitoringQueries,
   rndcManifests,
   rndcControlPoints,
@@ -29,6 +30,8 @@ import {
   type InsertCumplidoManifiestoSubmission,
   type RemesaSubmission,
   type InsertRemesaSubmission,
+  type ManifiestoSubmission,
+  type InsertManifiestoSubmission,
   type MonitoringQuery,
   type InsertMonitoringQuery,
   type RndcManifest,
@@ -96,6 +99,11 @@ export interface IStorage {
   updateRemesaSubmission(id: string, updates: Partial<RemesaSubmission>): Promise<RemesaSubmission | undefined>;
   getRemesaSubmissionsByBatch(batchId: string): Promise<RemesaSubmission[]>;
   getAllRemesaSubmissions(limit?: number): Promise<RemesaSubmission[]>;
+  
+  createManifiestoSubmission(submission: InsertManifiestoSubmission): Promise<ManifiestoSubmission>;
+  getManifiestoSubmission(id: string): Promise<ManifiestoSubmission | undefined>;
+  updateManifiestoSubmission(id: string, updates: Partial<ManifiestoSubmission>): Promise<ManifiestoSubmission | undefined>;
+  getManifiestoSubmissionsByBatch(batchId: string): Promise<ManifiestoSubmission[]>;
   
   getRndcBatchesByType(type: string, limit?: number): Promise<RndcBatch[]>;
   
@@ -339,6 +347,25 @@ export class DatabaseStorage implements IStorage {
 
   async getAllRemesaSubmissions(limit = 100): Promise<RemesaSubmission[]> {
     return db.select().from(remesaSubmissions).orderBy(desc(remesaSubmissions.createdAt)).limit(limit);
+  }
+
+  async createManifiestoSubmission(submission: InsertManifiestoSubmission): Promise<ManifiestoSubmission> {
+    const [newSubmission] = await db.insert(manifiestoSubmissions).values(submission).returning();
+    return newSubmission;
+  }
+
+  async getManifiestoSubmission(id: string): Promise<ManifiestoSubmission | undefined> {
+    const [submission] = await db.select().from(manifiestoSubmissions).where(eq(manifiestoSubmissions.id, id));
+    return submission;
+  }
+
+  async updateManifiestoSubmission(id: string, updates: Partial<ManifiestoSubmission>): Promise<ManifiestoSubmission | undefined> {
+    const [submission] = await db.update(manifiestoSubmissions).set(updates).where(eq(manifiestoSubmissions.id, id)).returning();
+    return submission;
+  }
+
+  async getManifiestoSubmissionsByBatch(batchId: string): Promise<ManifiestoSubmission[]> {
+    return db.select().from(manifiestoSubmissions).where(eq(manifiestoSubmissions.batchId, batchId)).orderBy(desc(manifiestoSubmissions.createdAt));
   }
 
   async getRndcBatchesByType(type: string, limit = 50): Promise<RndcBatch[]> {
