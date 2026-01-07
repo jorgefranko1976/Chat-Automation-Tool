@@ -1677,7 +1677,7 @@ export default function Despachos() {
             </Card>
           )}
 
-          {generatedRemesas.filter(r => r.status === "success").length > 0 && (
+          {(generatedRemesas.filter(r => r.status === "success").length > 0 || generatedManifiestos.length > 0) && (
             <Card className="border-blue-200 dark:border-blue-800">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
