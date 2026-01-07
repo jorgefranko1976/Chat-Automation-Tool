@@ -100,6 +100,7 @@ export default function Despachos() {
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   const [showRemesasHistory, setShowRemesasHistory] = useState(false);
   const [stepDComplete, setStepDComplete] = useState(false);
+  const [selectedHistoryRemesas, setSelectedHistoryRemesas] = useState<Set<string>>(new Set());
 
   const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
     queryKey: ["/api/rndc/remesas/history"],
@@ -753,6 +754,112 @@ export default function Despachos() {
     });
   };
 
+  const generateManifiestosFromHistory = () => {
+    if (selectedHistoryRemesas.size === 0) {
+      toast({ title: "Error", description: "Seleccione al menos una remesa del historial", variant: "destructive" });
+      return;
+    }
+
+    if (!settings.usernameRndc || !settings.passwordRndc || !settings.companyNit) {
+      toast({ title: "Error", description: "Configure credenciales RNDC en Configuración", variant: "destructive" });
+      return;
+    }
+
+    const selectedRemesas = remesasHistory.filter((r: any) => 
+      selectedHistoryRemesas.has(r.id) && r.status === "success"
+    );
+
+    if (selectedRemesas.length === 0) {
+      toast({ title: "Error", description: "Solo se pueden generar manifiestos de remesas exitosas", variant: "destructive" });
+      return;
+    }
+
+    const manifiestos: GeneratedManifiesto[] = [];
+
+    for (const remesa of selectedRemesas) {
+      const fechaBase = remesa.fechaCargue || new Date().toLocaleDateString("es-CO");
+      const fechaPagoSaldo = addDays(fechaBase, 5);
+      
+      const xml = `<?xml version="1.0" encoding="ISO-8859-1"?>
+<root>
+  <acceso>
+    <username>${settings.usernameRndc}</username>
+    <password>${settings.passwordRndc}</password>
+  </acceso>
+  <solicitud>
+    <tipo>1</tipo>
+    <procesoid>4</procesoid>
+  </solicitud>
+  <variables>
+    <NUMNITEMPRESATRANSPORTE>${settings.companyNit}</NUMNITEMPRESATRANSPORTE>
+    <NUMMANIFIESTOCARGA>${remesa.consecutivoRemesa}</NUMMANIFIESTOCARGA>
+    <CODOPERACIONTRANSPORTE>G</CODOPERACIONTRANSPORTE>
+    <FECHAEXPEDICIONMANIFIESTO>${fechaBase}</FECHAEXPEDICIONMANIFIESTO>
+    <CODMUNICIPIOORIGENMANIFIESTO>${remesa.codMunicipioOrigen || ""}</CODMUNICIPIOORIGENMANIFIESTO>
+    <CODMUNICIPIODESTINOMANIFIESTO>${remesa.codMunicipioDestino || ""}</CODMUNICIPIODESTINOMANIFIESTO>
+    <CODIDTITULARMANIFIESTO>${remesa.tipoIdPropietario || "C"}</CODIDTITULARMANIFIESTO>
+    <NUMIDTITULARMANIFIESTO>${remesa.numIdPropietario || settings.companyNit}</NUMIDTITULARMANIFIESTO>
+    <NUMPLACA>${remesa.numPlaca}</NUMPLACA>
+    <CODIDCONDUCTOR>C</CODIDCONDUCTOR>
+    <NUMIDCONDUCTOR>${remesa.cedula || ""}</NUMIDCONDUCTOR>
+    <VALORFLETEPACTADOVIAJE>${remesa.valorFlete || 0}</VALORFLETEPACTADOVIAJE>
+    <RETENCIONICAMANIFIESTOCARGA>1</RETENCIONICAMANIFIESTOCARGA>
+    <VALORANTICIPOMANIFIESTO>0</VALORANTICIPOMANIFIESTO>
+    <CODMUNICIPIOPAGOSALDO>11001000</CODMUNICIPIOPAGOSALDO>
+    <FECHAPAGOSALDOMANIFIESTO>${fechaPagoSaldo}</FECHAPAGOSALDOMANIFIESTO>
+    <CODRESPONSABLEPAGOCARGUE>D</CODRESPONSABLEPAGOCARGUE>
+    <CODRESPONSABLEPAGODESCARGUE>D</CODRESPONSABLEPAGODESCARGUE>
+    <ACEPTACIONELECTRONICA>SI</ACEPTACIONELECTRONICA>
+    <REMESASMAN procesoid="43">
+      <REMESA>
+        <CONSECUTIVOREMESA>${remesa.consecutivoRemesa}</CONSECUTIVOREMESA>
+      </REMESA>
+    </REMESASMAN>
+  </variables>
+</root>`;
+
+      manifiestos.push({
+        consecutivo: parseInt(remesa.consecutivoRemesa),
+        placa: remesa.numPlaca,
+        fechaExpedicion: fechaBase,
+        codMunicipioOrigen: remesa.codMunicipioOrigen || "",
+        codMunicipioDestino: remesa.codMunicipioDestino || "",
+        tipoIdTitular: remesa.tipoIdPropietario || "C",
+        numIdTitular: remesa.numIdPropietario || settings.companyNit,
+        cedula: remesa.cedula || "",
+        valorFlete: remesa.valorFlete || 0,
+        fechaPagoSaldo,
+        consecutivoRemesa: parseInt(remesa.consecutivoRemesa),
+        xmlRequest: xml,
+        status: "pending",
+      });
+    }
+
+    setGeneratedManifiestos(manifiestos);
+    setSelectedHistoryRemesas(new Set());
+    toast({
+      title: "Manifiestos Generados",
+      description: `${manifiestos.length} manifiestos listos para enviar desde historial`
+    });
+  };
+
+  const toggleHistoryRemesaSelection = (id: string) => {
+    const newSet = new Set(selectedHistoryRemesas);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedHistoryRemesas(newSet);
+  };
+
+  const selectAllSuccessfulHistory = () => {
+    const successIds = remesasHistory
+      .filter((r: any) => r.status === "success")
+      .map((r: any) => r.id);
+    setSelectedHistoryRemesas(new Set(successIds));
+  };
+
   const handleDownloadManifiestos = () => {
     if (generatedManifiestos.length === 0) return;
     const allXml = generatedManifiestos.map(m => m.xmlRequest).join("\n\n<!-- ==================== SIGUIENTE MANIFIESTO ==================== -->\n\n");
@@ -868,6 +975,12 @@ export default function Despachos() {
         horaDescargue: r.horaDescargue,
         sedeRemitente: r.sedeRemitente || "",
         sedeDestinatario: r.sedeDestinatario || "",
+        codMunicipioOrigen: r.codMunicipioOrigen || "",
+        codMunicipioDestino: r.codMunicipioDestino || "",
+        tipoIdPropietario: r.tipoIdPropietario || "",
+        numIdPropietario: r.numIdPropietario || "",
+        cedula: r.cedula || "",
+        valorFlete: r.valorFlete || 0,
         xmlRequest: r.xmlRequest,
       }));
 
@@ -1683,7 +1796,7 @@ export default function Despachos() {
                 <CardTitle className="text-lg flex items-center gap-2">
                   <History className="h-5 w-5" /> Historial de Remesas
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Transacciones enviadas al RNDC</p>
+                <p className="text-sm text-muted-foreground">Transacciones enviadas al RNDC - Seleccione para generar manifiestos</p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -1698,14 +1811,35 @@ export default function Despachos() {
                   {showRemesasHistory ? "Ocultar" : "Ver Historial"}
                 </Button>
                 {showRemesasHistory && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => refetchRemesasHistory()}
-                    data-testid="button-refresh-history"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchRemesasHistory()}
+                      data-testid="button-refresh-history"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllSuccessfulHistory}
+                      data-testid="button-select-all-success-history"
+                    >
+                      Seleccionar Exitosas
+                    </Button>
+                    {selectedHistoryRemesas.size > 0 && (
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700"
+                        size="sm"
+                        onClick={generateManifiestosFromHistory}
+                        data-testid="button-generate-manifiestos-from-history"
+                      >
+                        <FileCode className="h-4 w-4 mr-2" />
+                        Generar Manifiestos ({selectedHistoryRemesas.size})
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </CardHeader>
@@ -1718,6 +1852,7 @@ export default function Despachos() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10"></TableHead>
                           <TableHead>Fecha</TableHead>
                           <TableHead>Consecutivo</TableHead>
                           <TableHead>Placa</TableHead>
@@ -1732,7 +1867,21 @@ export default function Despachos() {
                       </TableHeader>
                       <TableBody>
                         {remesasHistory.map((remesa: any, i: number) => (
-                          <TableRow key={remesa.id || i} data-testid={`row-history-${i}`}>
+                          <TableRow 
+                            key={remesa.id || i} 
+                            data-testid={`row-history-${i}`}
+                            className={selectedHistoryRemesas.has(remesa.id) ? "bg-blue-50 dark:bg-blue-900/20" : ""}
+                          >
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                checked={selectedHistoryRemesas.has(remesa.id)}
+                                onChange={() => toggleHistoryRemesaSelection(remesa.id)}
+                                disabled={remesa.status !== "success"}
+                                className="h-4 w-4"
+                                data-testid={`checkbox-history-${i}`}
+                              />
+                            </TableCell>
                             <TableCell className="text-xs">
                               {remesa.createdAt ? new Date(remesa.createdAt).toLocaleString("es-CO") : "-"}
                             </TableCell>
