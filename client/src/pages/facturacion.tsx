@@ -73,6 +73,12 @@ export default function Facturacion() {
   const [detalleData, setDetalleData] = useState<DespachoDetalle[]>([]);
   const [granjasTotales, setGranjasTotales] = useState<{ granja: string; viajes: number; flete: number }[]>([]);
   
+  // Pre-factura state
+  const [preFacturaFechaInicio, setPreFacturaFechaInicio] = useState("");
+  const [preFacturaFechaFin, setPreFacturaFechaFin] = useState("");
+  const [preFacturaItems, setPreFacturaItems] = useState<{ item: number; descripcion: string; fecha: string }[]>([]);
+  const [isLoadingPreFactura, setIsLoadingPreFactura] = useState(false);
+  
   // Process Excel file with multiple sheets
   const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -334,6 +340,88 @@ export default function Facturacion() {
   const totalFleteGeneral = granjasTotales.reduce((sum, g) => sum + g.flete, 0);
   const totalViajesDespachos = granjasTotales.reduce((sum, g) => sum + g.viajes, 0);
   
+  // Generate pre-factura items
+  const generatePreFactura = async () => {
+    if (!preFacturaFechaInicio || !preFacturaFechaFin) {
+      toast({ title: "Error", description: "Seleccione rango de fechas", variant: "destructive" });
+      return;
+    }
+    
+    setIsLoadingPreFactura(true);
+    
+    try {
+      const response = await apiRequest("GET", `/api/despachos`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || "Error al cargar despachos");
+      }
+      
+      // Filter by date range
+      const filteredDespachos = result.despachos.filter((d: any) => {
+        if (!d.fecha) return false;
+        return d.fecha >= preFacturaFechaInicio && d.fecha <= preFacturaFechaFin;
+      });
+      
+      // Get unique dates with successful manifiestos
+      const fechasConManifiestos = new Set<string>();
+      
+      for (const despacho of filteredDespachos) {
+        if (despacho.manifiestos && Array.isArray(despacho.manifiestos)) {
+          const hasSuccess = despacho.manifiestos.some((m: any) => m.status === "success");
+          if (hasSuccess) {
+            fechasConManifiestos.add(despacho.fecha);
+          }
+        }
+      }
+      
+      // Sort dates and generate items
+      const sortedDates = Array.from(fechasConManifiestos).sort();
+      
+      const months = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", 
+                      "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+      
+      const items = sortedDates.map((fecha, index) => {
+        const [year, month, day] = fecha.split("-");
+        const monthName = months[parseInt(month, 10) - 1];
+        const dayNum = parseInt(day, 10);
+        
+        return {
+          item: index + 1,
+          descripcion: `LOGISTICA GUIA Y MANIFIESTO TRANSPORTE DE CARGA - ${dayNum} ${monthName}`,
+          fecha
+        };
+      });
+      
+      setPreFacturaItems(items);
+      
+      toast({ 
+        title: "Pre-factura generada", 
+        description: `${items.length} líneas de facturación` 
+      });
+    } catch (error) {
+      toast({ title: "Error", description: "Error al generar pre-factura", variant: "destructive" });
+    } finally {
+      setIsLoadingPreFactura(false);
+    }
+  };
+  
+  const exportPreFactura = () => {
+    if (preFacturaItems.length === 0) {
+      toast({ title: "Error", description: "No hay datos para exportar", variant: "destructive" });
+      return;
+    }
+    
+    const ws = XLSX.utils.json_to_sheet(preFacturaItems.map(item => ({
+      "Ítem": item.item,
+      "Descripción": item.descripcion
+    })));
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pre-Factura");
+    XLSX.writeFile(wb, `Pre_Factura_${preFacturaFechaInicio}_${preFacturaFechaFin}.xlsx`);
+  };
+  
   return (
     <Layout>
       <div className="container mx-auto py-6 px-4 space-y-6">
@@ -350,7 +438,7 @@ export default function Facturacion() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="excel" className="flex items-center gap-2" data-testid="tab-excel">
               <FileSpreadsheet className="h-4 w-4" />
               Informe Excel
@@ -358,6 +446,10 @@ export default function Facturacion() {
             <TabsTrigger value="despachos" className="flex items-center gap-2" data-testid="tab-despachos">
               <ClipboardList className="h-4 w-4" />
               Informe Despachos
+            </TabsTrigger>
+            <TabsTrigger value="prefactura" className="flex items-center gap-2" data-testid="tab-prefactura">
+              <FileText className="h-4 w-4" />
+              Pre-Factura
             </TabsTrigger>
           </TabsList>
           
@@ -813,6 +905,103 @@ export default function Facturacion() {
                   </CardContent>
                 </Card>
               </>
+            )}
+          </TabsContent>
+          
+          {/* TAB 3: Pre-Factura */}
+          <TabsContent value="prefactura" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Generar Pre-Factura
+                </CardTitle>
+                <CardDescription>
+                  Genere líneas de facturación con el formato estándar para cada día con manifiestos exitosos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="preFacturaFechaInicio">Fecha Inicio</Label>
+                    <Input
+                      id="preFacturaFechaInicio"
+                      type="date"
+                      value={preFacturaFechaInicio}
+                      onChange={(e) => setPreFacturaFechaInicio(e.target.value)}
+                      data-testid="input-prefactura-fecha-inicio"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="preFacturaFechaFin">Fecha Fin</Label>
+                    <Input
+                      id="preFacturaFechaFin"
+                      type="date"
+                      value={preFacturaFechaFin}
+                      onChange={(e) => setPreFacturaFechaFin(e.target.value)}
+                      data-testid="input-prefactura-fecha-fin"
+                    />
+                  </div>
+                  <Button
+                    onClick={generatePreFactura}
+                    disabled={isLoadingPreFactura || !preFacturaFechaInicio || !preFacturaFechaFin}
+                    className="flex items-center gap-2"
+                    data-testid="button-generate-prefactura"
+                  >
+                    {isLoadingPreFactura ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                    {isLoadingPreFactura ? "Generando..." : "Generar Pre-Factura"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {preFacturaItems.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5" />
+                      Líneas de Facturación
+                    </CardTitle>
+                    <CardDescription>
+                      {preFacturaItems.length} líneas generadas para el período seleccionado
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={exportPreFactura}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    data-testid="button-export-prefactura"
+                  >
+                    <Download className="h-4 w-4" />
+                    Exportar Excel
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[500px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[80px]">Ítem</TableHead>
+                          <TableHead>Descripción</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {preFacturaItems.map((item) => (
+                          <TableRow key={item.item} data-testid={`row-prefactura-${item.item}`}>
+                            <TableCell className="font-medium text-center">{item.item}</TableCell>
+                            <TableCell>{item.descripcion}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
         </Tabs>
