@@ -258,7 +258,7 @@ function TercerosSection() {
                   <th className="text-left p-3 font-medium">Tipo</th>
                   <th className="text-left p-3 font-medium">Granja</th>
                   <th className="text-left p-3 font-medium">Nombre Sede</th>
-                  <th className="text-left p-3 font-medium">Nombre</th>
+                  <th className="text-left p-3 font-medium">Sede</th>
                   <th className="text-left p-3 font-medium">Cód. Mun.</th>
                   <th className="text-left p-3 font-medium">Flete</th>
                   <th className="text-left p-3 font-medium">Coordenadas</th>
@@ -285,7 +285,7 @@ function TercerosSection() {
                       </td>
                       <td className="p-3">{tercero.codigoGranja || "-"}</td>
                       <td className="p-3">{tercero.nombreSede || "-"}</td>
-                      <td className="p-3">{tercero.nombre} {tercero.primerApellido} {tercero.segundoApellido || ""}</td>
+                      <td className="p-3">{tercero.sede || "-"}</td>
                       <td className="p-3 font-mono text-xs">{tercero.codMunicipioRndc || "-"}</td>
                       <td className="p-3">{tercero.flete ? Math.round(Number(tercero.flete)).toLocaleString() : "-"}</td>
                       <td className="p-3">
