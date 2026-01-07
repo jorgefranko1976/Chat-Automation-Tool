@@ -975,12 +975,24 @@ export default function Despachos() {
         const updatedManifiestos = generatedManifiestos.map(m => {
           const submissionResult = result.results?.find((r: any) => String(r.consecutivoManifiesto) === String(m.consecutivo));
           if (submissionResult) {
+            // Extract idManifiesto from response message if not provided directly
+            let extractedId = submissionResult.idManifiesto;
+            if (!extractedId && submissionResult.responseMessage) {
+              const idMatch = submissionResult.responseMessage.match(/IngresoID:\s*(\d+)/i);
+              if (idMatch) {
+                extractedId = idMatch[1];
+              }
+            }
+            // Also try responseCode for numeric IDs
+            if (!extractedId && submissionResult.responseCode && /^\d+$/.test(submissionResult.responseCode)) {
+              extractedId = submissionResult.responseCode;
+            }
             return {
               ...m,
               status: submissionResult.success ? "success" as const : "error" as const,
               responseCode: submissionResult.responseCode,
               responseMessage: submissionResult.responseMessage,
-              idManifiesto: submissionResult.idManifiesto,
+              idManifiesto: extractedId,
             };
           }
           return m;
@@ -1003,7 +1015,19 @@ export default function Despachos() {
   };
 
   const generateManifiestoPdf = async (manifiesto: GeneratedManifiesto) => {
-    if (manifiesto.status !== "success" || !manifiesto.idManifiesto) {
+    // Try to extract ID from response message if not set directly
+    let manifiestoId = manifiesto.idManifiesto;
+    if (!manifiestoId && manifiesto.responseMessage) {
+      const idMatch = manifiesto.responseMessage.match(/IngresoID:\s*(\d+)/i);
+      if (idMatch) {
+        manifiestoId = idMatch[1];
+      }
+    }
+    if (!manifiestoId && manifiesto.responseCode && /^\d+$/.test(manifiesto.responseCode)) {
+      manifiestoId = manifiesto.responseCode;
+    }
+    
+    if (manifiesto.status !== "success" || !manifiestoId) {
       toast({ title: "Error", description: "El manifiesto debe estar aprobado para generar PDF", variant: "destructive" });
       return;
     }
@@ -2139,7 +2163,11 @@ export default function Despachos() {
                               </Dialog>
                             </TableCell>
                             <TableCell>
-                              {manifiesto.status === "success" && manifiesto.idManifiesto && (
+                              {manifiesto.status === "success" && (
+                                manifiesto.idManifiesto || 
+                                manifiesto.responseMessage?.match(/IngresoID:\s*(\d+)/i) ||
+                                (manifiesto.responseCode && /^\d+$/.test(manifiesto.responseCode))
+                              ) && (
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 

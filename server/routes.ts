@@ -2727,10 +2727,25 @@ async function processManifiestoAsync(batchId: string, submissionIds: string[], 
         const response = await sendXmlToRndc(submission.xmlRequest, wsUrl);
 
         let idManifiesto: string | null = null;
-        if (response.success && response.rawXml) {
-          const idMatch = response.rawXml.match(/<INGRESOIDMANIFIESTO>([^<]+)<\/INGRESOIDMANIFIESTO>/i);
-          if (idMatch) {
-            idManifiesto = idMatch[1];
+        if (response.success) {
+          // Try multiple extraction methods
+          if (response.rawXml) {
+            // Method 1: Look for INGRESOIDMANIFIESTO tag
+            const idMatch = response.rawXml.match(/<INGRESOIDMANIFIESTO>([^<]+)<\/INGRESOIDMANIFIESTO>/i);
+            if (idMatch) {
+              idManifiesto = idMatch[1];
+            }
+            // Method 2: Look for ingresoid tag
+            if (!idManifiesto) {
+              const ingresoidMatch = response.rawXml.match(/<ingresoid>([^<]+)<\/ingresoid>/i);
+              if (ingresoidMatch) {
+                idManifiesto = ingresoidMatch[1];
+              }
+            }
+          }
+          // Method 3: Use the response code (which often contains the ID for successful submissions)
+          if (!idManifiesto && response.code && /^\d+$/.test(response.code)) {
+            idManifiesto = response.code;
           }
         }
 
