@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Radio, Truck, Upload, Settings, FileCheck, Search, LogOut, User, UserPlus, Package } from "lucide-react";
+import { LayoutDashboard, Radio, Truck, Upload, Settings, FileCheck, Search, LogOut, User, UserPlus, Package, Receipt } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export function Sidebar() {
@@ -21,6 +21,7 @@ export function Sidebar() {
     { href: "/queries", label: "Consultas RNDC", icon: Search },
     { href: "/enrollment", label: "Enrolamiento", icon: UserPlus },
     { href: "/despachos", label: "Despachos", icon: Package },
+    { href: "/facturacion", label: "Facturación", icon: Receipt },
     { href: "/settings", label: "Configuración", icon: Settings },
   ];
 
