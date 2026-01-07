@@ -1410,6 +1410,123 @@ export async function registerRoutes(
     }
   });
 
+  // Destinos RNDC routes
+  app.get("/api/destinos", requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 500;
+      const destinos = await storage.getDestinos(limit);
+      res.json({ success: true, destinos });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener destinos" });
+    }
+  });
+
+  app.get("/api/destinos/search", requireAuth, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.status(400).json({ success: false, message: "Parámetro de búsqueda requerido" });
+      }
+      const destinos = await storage.searchDestinos(query);
+      res.json({ success: true, destinos });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar destinos" });
+    }
+  });
+
+  app.get("/api/destinos/:id", requireAuth, async (req, res) => {
+    try {
+      const destino = await storage.getDestino(req.params.id);
+      if (!destino) {
+        return res.status(404).json({ success: false, message: "Destino no encontrado" });
+      }
+      res.json({ success: true, destino });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener destino" });
+    }
+  });
+
+  app.post("/api/destinos", requireAuth, async (req, res) => {
+    try {
+      const destino = await storage.createDestino(req.body);
+      res.json({ success: true, destino });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al crear destino" });
+    }
+  });
+
+  app.put("/api/destinos/:id", requireAuth, async (req, res) => {
+    try {
+      const destino = await storage.updateDestino(req.params.id, req.body);
+      if (!destino) {
+        return res.status(404).json({ success: false, message: "Destino no encontrado" });
+      }
+      res.json({ success: true, destino });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al actualizar destino" });
+    }
+  });
+
+  app.delete("/api/destinos/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteDestino(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al eliminar destino" });
+    }
+  });
+
+  app.post("/api/destinos/bulk-import", requireAuth, async (req, res) => {
+    try {
+      const { rows } = req.body as { rows: any[] };
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ success: false, message: "No hay datos para importar" });
+      }
+
+      const results = { created: 0, updated: 0, errors: [] as string[] };
+
+      for (const row of rows) {
+        try {
+          const destinoData = {
+            tipoIdTercero: String(row.TIPOIDTERCERO || row.tipoIdTercero || "Nit"),
+            nombreSede: String(row.NOMSEDETERCERO || row.nombreSede || ""),
+            numIdTercero: String(row.NUMIDTERCERO || row.numIdTercero || ""),
+            codSede: String(row.CODSEDETERCERO || row.codSede || ""),
+            nombreTercero: String(row.NOMIDTERCERO || row.nombreTercero || ""),
+            direccion: String(row.NOMENCLATURADIRECCION || row.direccion || ""),
+            municipioRndc: String(row.MUNICIPIORNDC || row.municipioRndc || ""),
+            codMunicipioRndc: String(row.CODMUNICIPIORNDC || row.codMunicipioRndc || ""),
+            latitud: String(row.LATITUD || row.latitud || ""),
+            longitud: String(row.LONGITUD || row.longitud || ""),
+            regimenSimple: String(row.REGIMENSIMPLE || row.regimenSimple || "N"),
+          };
+
+          if (!destinoData.nombreSede || !destinoData.codMunicipioRndc) {
+            results.errors.push(`Fila sin datos requeridos: ${JSON.stringify(row)}`);
+            continue;
+          }
+
+          const { isNew } = await storage.upsertDestino(destinoData);
+          if (isNew) {
+            results.created++;
+          } else {
+            results.updated++;
+          }
+        } catch (err) {
+          results.errors.push(`Error en fila: ${JSON.stringify(row)}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Importación completada: ${results.created} creados, ${results.updated} actualizados`,
+        results,
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al importar destinos" });
+    }
+  });
+
   app.get("/api/conductores", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 500;

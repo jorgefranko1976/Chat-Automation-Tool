@@ -449,3 +449,29 @@ export const insertDespachoSchema = createInsertSchema(despachos).omit({
 
 export type InsertDespacho = z.infer<typeof insertDespachoSchema>;
 export type Despacho = typeof despachos.$inferSelect;
+
+export const destinos = pgTable("destinos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tipoIdTercero: varchar("tipo_id_tercero").notNull(),
+  nombreSede: varchar("nombre_sede").notNull(),
+  numIdTercero: varchar("num_id_tercero").notNull(),
+  codSede: varchar("cod_sede").notNull(),
+  nombreTercero: varchar("nombre_tercero"),
+  direccion: varchar("direccion"),
+  municipioRndc: varchar("municipio_rndc"),
+  codMunicipioRndc: varchar("cod_municipio_rndc").notNull(),
+  latitud: varchar("latitud"),
+  longitud: varchar("longitud"),
+  regimenSimple: varchar("regimen_simple").default("N"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDestinoSchema = createInsertSchema(destinos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDestino = z.infer<typeof insertDestinoSchema>;
+export type Destino = typeof destinos.$inferSelect;

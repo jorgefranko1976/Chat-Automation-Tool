@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin, Upload, Loader2, UserCheck, MoreHorizontal } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users, Car, Eye, ChevronLeft, ChevronRight, Download, MapPin, Upload, Loader2, UserCheck, MoreHorizontal, Building2 } from "lucide-react";
 import * as XLSX from "xlsx";
-import type { Tercero, Vehiculo, RndcConductor } from "@shared/schema";
+import type { Tercero, Vehiculo, RndcConductor, Destino } from "@shared/schema";
 
 const TIPOS_TERCERO = [
   { value: "GRANJA", label: "Granja" },
@@ -39,7 +39,7 @@ export default function EnrollmentPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-xl grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="terceros" className="flex items-center gap-2" data-testid="tab-terceros">
               <Users className="h-4 w-4" />
               Terceros
@@ -51,6 +51,10 @@ export default function EnrollmentPage() {
             <TabsTrigger value="vehiculos" className="flex items-center gap-2" data-testid="tab-vehiculos">
               <Car className="h-4 w-4" />
               Vehículos
+            </TabsTrigger>
+            <TabsTrigger value="destinos" className="flex items-center gap-2" data-testid="tab-destinos">
+              <Building2 className="h-4 w-4" />
+              Destinos RNDC
             </TabsTrigger>
           </TabsList>
 
@@ -64,6 +68,10 @@ export default function EnrollmentPage() {
 
           <TabsContent value="vehiculos" className="mt-6">
             <VehiculosSection />
+          </TabsContent>
+
+          <TabsContent value="destinos" className="mt-6">
+            <DestinosSection />
           </TabsContent>
         </Tabs>
       </div>
@@ -1528,5 +1536,230 @@ function VehiculoFormDialog({ open, onOpenChange, vehiculo }: { open: boolean; o
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DestinosSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isImporting, setIsImporting] = useState(false);
+  const itemsPerPage = 15;
+
+  const { data: destinosData, isLoading } = useQuery({
+    queryKey: ["/api/destinos"],
+    queryFn: async () => {
+      const res = await fetch("/api/destinos");
+      return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/destinos/${id}`, { method: "DELETE" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/destinos"] });
+      toast({ title: "Destino eliminado" });
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (rows: any[]) => {
+      const res = await fetch("/api/destinos/bulk-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+        credentials: "include",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/destinos"] });
+      toast({ 
+        title: "Importación completada", 
+        description: data.message || `${data.results?.created || 0} creados, ${data.results?.updated || 0} actualizados`
+      });
+    },
+    onError: () => {
+      toast({ title: "Error al importar", variant: "destructive" });
+    },
+  });
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+      
+      if (rows.length === 0) {
+        toast({ title: "Error", description: "El archivo no contiene datos", variant: "destructive" });
+        return;
+      }
+
+      await importMutation.mutateAsync(rows);
+    } catch (error) {
+      toast({ title: "Error al procesar archivo", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+      event.target.value = "";
+    }
+  };
+
+  const destinos: Destino[] = destinosData?.destinos || [];
+  const filteredDestinos = destinos.filter(d =>
+    d.nombreSede?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.municipioRndc?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.codMunicipioRndc?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredDestinos.length / itemsPerPage);
+  const paginatedDestinos = filteredDestinos.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Destinos RNDC ({destinos.length})
+            </CardTitle>
+            <div className="flex gap-2">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="destinos-import"
+                disabled={isImporting}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById("destinos-import")?.click()}
+                disabled={isImporting}
+                data-testid="button-import-destinos"
+              >
+                {isImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                {isImporting ? "Importando..." : "Importar Excel"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por sede, municipio o código..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-10"
+                data-testid="input-search-destinos"
+              />
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="border rounded-md overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Sede</th>
+                    <th className="px-4 py-3 text-left font-medium">Código Sede</th>
+                    <th className="px-4 py-3 text-left font-medium">Tercero</th>
+                    <th className="px-4 py-3 text-left font-medium">Municipio RNDC</th>
+                    <th className="px-4 py-3 text-left font-medium">Código Municipio</th>
+                    <th className="px-4 py-3 text-left font-medium">Coordenadas</th>
+                    <th className="px-4 py-3 text-center font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedDestinos.map((destino) => (
+                    <tr key={destino.id} className="border-t hover:bg-muted/30" data-testid={`row-destino-${destino.id}`}>
+                      <td className="px-4 py-2 font-medium">{destino.nombreSede}</td>
+                      <td className="px-4 py-2 font-mono text-sm">{destino.codSede}</td>
+                      <td className="px-4 py-2 text-muted-foreground max-w-[200px] truncate" title={destino.nombreTercero || ""}>
+                        {destino.nombreTercero}
+                      </td>
+                      <td className="px-4 py-2">{destino.municipioRndc}</td>
+                      <td className="px-4 py-2 font-mono text-sm text-primary">{destino.codMunicipioRndc}</td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                        {destino.latitud && destino.longitud ? `${destino.latitud}, ${destino.longitud}` : "-"}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteMutation.mutate(destino.id)}
+                          className="text-destructive hover:text-destructive"
+                          data-testid={`button-delete-destino-${destino.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {paginatedDestinos.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                        {searchQuery ? "No se encontraron destinos" : "No hay destinos registrados. Importe un Excel para comenzar."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredDestinos.length)} de {filteredDestinos.length}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="flex items-center px-3 text-sm">
+                  {currentPage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   rndcVehiculos,
   rndcConductores,
   despachos,
+  destinos,
   type User,
   type InsertUser,
   type UpdateUserProfile,
@@ -50,6 +51,8 @@ import {
   type InsertRndcConductor,
   type Despacho,
   type InsertDespacho,
+  type Destino,
+  type InsertDestino,
 } from "@shared/schema";
 
 export interface DashboardStats {
@@ -166,6 +169,16 @@ export interface IStorage {
   updateDespacho(id: string, updates: Partial<Despacho>): Promise<Despacho | undefined>;
   deleteDespacho(id: string): Promise<void>;
   getDespachos(limit?: number): Promise<Despacho[]>;
+  
+  createDestino(destino: InsertDestino): Promise<Destino>;
+  getDestino(id: string): Promise<Destino | undefined>;
+  getDestinoByCodSede(numIdTercero: string, codSede: string): Promise<Destino | undefined>;
+  getDestinoByNombreSede(nombreSede: string): Promise<Destino | undefined>;
+  updateDestino(id: string, updates: Partial<Destino>): Promise<Destino | undefined>;
+  deleteDestino(id: string): Promise<void>;
+  getDestinos(limit?: number): Promise<Destino[]>;
+  searchDestinos(query: string): Promise<Destino[]>;
+  upsertDestino(destino: InsertDestino): Promise<{ destino: Destino; isNew: boolean }>;
 }
 
 export interface ManifestSearchFilters {
@@ -731,6 +744,58 @@ export class DatabaseStorage implements IStorage {
 
   async getDespachos(limit = 50): Promise<Despacho[]> {
     return db.select().from(despachos).orderBy(desc(despachos.createdAt)).limit(limit);
+  }
+
+  async createDestino(destino: InsertDestino): Promise<Destino> {
+    const [newDestino] = await db.insert(destinos).values(destino).returning();
+    return newDestino;
+  }
+
+  async getDestino(id: string): Promise<Destino | undefined> {
+    const [destino] = await db.select().from(destinos).where(eq(destinos.id, id));
+    return destino;
+  }
+
+  async getDestinoByCodSede(numIdTercero: string, codSede: string): Promise<Destino | undefined> {
+    const [destino] = await db.select().from(destinos)
+      .where(and(eq(destinos.numIdTercero, numIdTercero), eq(destinos.codSede, codSede)));
+    return destino;
+  }
+
+  async getDestinoByNombreSede(nombreSede: string): Promise<Destino | undefined> {
+    const [destino] = await db.select().from(destinos)
+      .where(sql`LOWER(${destinos.nombreSede}) = LOWER(${nombreSede})`);
+    return destino;
+  }
+
+  async updateDestino(id: string, updates: Partial<Destino>): Promise<Destino | undefined> {
+    const [destino] = await db.update(destinos).set({ ...updates, updatedAt: new Date() }).where(eq(destinos.id, id)).returning();
+    return destino;
+  }
+
+  async deleteDestino(id: string): Promise<void> {
+    await db.delete(destinos).where(eq(destinos.id, id));
+  }
+
+  async getDestinos(limit = 500): Promise<Destino[]> {
+    return db.select().from(destinos).orderBy(destinos.nombreSede).limit(limit);
+  }
+
+  async searchDestinos(query: string): Promise<Destino[]> {
+    const searchPattern = `%${query}%`;
+    return db.select().from(destinos).where(
+      sql`(${destinos.nombreSede} ILIKE ${searchPattern} OR ${destinos.municipioRndc} ILIKE ${searchPattern} OR ${destinos.codMunicipioRndc} ILIKE ${searchPattern})`
+    ).orderBy(destinos.nombreSede).limit(100);
+  }
+
+  async upsertDestino(destino: InsertDestino): Promise<{ destino: Destino; isNew: boolean }> {
+    const existing = await this.getDestinoByCodSede(destino.numIdTercero, destino.codSede);
+    if (existing) {
+      const updated = await this.updateDestino(existing.id, destino);
+      return { destino: updated!, isNew: false };
+    }
+    const newDestino = await this.createDestino(destino);
+    return { destino: newDestino, isNew: true };
   }
 }
 
