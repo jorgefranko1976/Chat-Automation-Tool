@@ -1195,9 +1195,9 @@ export async function registerRoutes(
             latitud: String(row.Latitud || row.latitud || ""),
             longitud: String(row.longitud || row.Longitud || ""),
             municipio: String(row.Municipio_rndc || row.municipio || ""),
-            codMunicipioRndc: String(row.CODMUNICIPIORNDC || row.codMunicipioRndc || ""),
-            direccion: String(row.NOMENCLATURADIRECCION || row.direccion || ""),
-            flete: String(row.Flete || row.flete || ""),
+            codMunicipioRndc: String(row.CODMUNICIPIORNDC || row["Cod Municipio"] || row.codMunicipioRndc || ""),
+            direccion: String(row.NOMENCLATURADIRECCION || row["Dirección"] || row.direccion || ""),
+            flete: String(Math.round(Number(row.Flete || row.flete || 0)) || ""),
           };
 
           if (!terceroData.codigoGranja || !terceroData.nombre) {
