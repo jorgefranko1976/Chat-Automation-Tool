@@ -1034,11 +1034,14 @@ export default function Despachos() {
 
       const wsUrl = settings.wsEnvironment === "production" ? settings.wsUrlProd : settings.wsUrlTest;
 
-      const detailsResponse = await apiRequest("POST", "/api/rndc/manifiesto-details", {
+      const detailsResponse = await apiRequest("POST", "/api/rndc/manifiesto-details-enhanced", {
         username: settings.usernameRndc,
         password: settings.passwordRndc,
         companyNit: settings.companyNit,
         numManifiesto: String(manifiesto.consecutivo),
+        numPlaca: manifiesto.placa,
+        numIdConductor: manifiesto.cedula,
+        numIdTitular: manifiesto.numIdTitular,
         wsUrl,
         companyName: settings.companyName || "TRANSPETROMIRA S.A.S",
         companyAddress: settings.companyAddress || "",
@@ -1054,6 +1057,11 @@ export default function Despachos() {
       }
 
       const details = detailsResult.details;
+      const conductor = detailsResult.conductor;
+      const titular = detailsResult.titular;
+      const vehiculo = detailsResult.vehiculo;
+      const vehiculoExtra = detailsResult.vehiculoExtra;
+      
       const associatedRemesa = generatedRemesas.find(r => r.consecutivo === manifiesto.consecutivoRemesa);
       
       const normalizeCedula = (val: string) => val?.replace(/[.\-\s]/g, "") || "";
@@ -1066,6 +1074,25 @@ export default function Despachos() {
       const origName = manifiesto.codMunicipioOrigen || "";
       const destName = manifiesto.codMunicipioDestino || "";
       const cargoDesc = "ALIMENTO PARA AVES DE CORRAL";
+      
+      const buildNombreConductor = () => {
+        if (conductor) {
+          const nombres = [conductor.PRIMERNOMBREIDTERCERO, conductor.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
+          const apellidos = [conductor.PRIMERAPELLIDOIDTERCERO, conductor.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
+          return `${nombres} ${apellidos}`.trim() || conductor.NOMBRERAZONSOCIAL || "";
+        }
+        return associatedRow?.cedulaData?.nombre || "";
+      };
+      
+      const buildNombreTitular = () => {
+        if (titular) {
+          if (titular.NOMBRERAZONSOCIAL) return titular.NOMBRERAZONSOCIAL;
+          const nombres = [titular.PRIMERNOMBREIDTERCERO, titular.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
+          const apellidos = [titular.PRIMERAPELLIDOIDTERCERO, titular.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
+          return `${nombres} ${apellidos}`.trim();
+        }
+        return details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular;
+      };
 
       const qrResponse = await apiRequest("POST", "/api/rndc/manifiesto-qr", {
         mec: details.INGRESOID,
@@ -1177,50 +1204,70 @@ export default function Despachos() {
       y = drawSectionHeader("INFORMACION DEL VEHICULO Y CONDUCTORES", y);
       y += 2;
 
-      labelValue("TITULAR MANIFIESTO:", details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular, leftCol, y, 32);
+      const titularNombre = buildNombreTitular();
+      const titularTelefono = titular?.NUMTELEFONOCONTACTO || "-";
+      const titularDireccion = titular?.NOMENCLATURADIRECCION || "-";
+      const titularCiudad = titular?.CODMUNICIPIORNDC || settings.companyCity || "-";
+      
+      labelValue("TITULAR MANIFIESTO:", titularNombre, leftCol, y, 32);
       labelValue("DOCUMENTO:", `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`, 85, y, 22);
-      labelValue("TELEFONO:", associatedRow?.placaData?.propietarioId ? "" : "-", 140, y, 18);
+      labelValue("TELEFONO:", titularTelefono, 140, y, 18);
       y += 4;
-      labelValue("DIRECCION:", "-", leftCol, y, 20);
-      labelValue("CIUDAD:", settings.companyCity || "-", 120, y, 15);
+      labelValue("DIRECCION:", titularDireccion, leftCol, y, 20);
+      labelValue("CIUDAD:", titularCiudad, 120, y, 15);
       y += 5;
 
       drawLine(y);
       y += 3;
 
+      const marcaVehiculo = vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "-";
+      const pesoVacio = vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "-";
+      const configVehiculo = vehiculoExtra?.CODCONFIGURACION || (details.NUMPLACAREMOLQUE ? "3S2" : "C2");
+      const aseguradoraSoat = vehiculo?.NUMNITASEGURADORASOAT || "-";
+      const polizaSoat = vehiculo?.NUMSEGUROSOAT || "-";
+      const venceSoat = vehiculo?.FECHAVENCIMIENTOSOAT || vehiculoExtra?.FECHAVENCE_SOAT || associatedRow?.placaData?.venceSoat || "-";
+      
       labelValue("PLACA:", details.NUMPLACA || "", leftCol, y, 12);
-      labelValue("MARCA:", "-", 40, y, 12);
+      labelValue("MARCA:", marcaVehiculo, 40, y, 12);
       labelValue("PL. SEMIREMOLQUE:", details.NUMPLACAREMOLQUE || "-", 70, y, 30);
-      labelValue("CONFIG:", details.NUMPLACAREMOLQUE ? "3S2" : "C2", 115, y, 14);
-      labelValue("PESO VACIO:", associatedRow?.placaData?.pesoVacio || "-", 145, y, 22);
+      labelValue("CONFIG:", configVehiculo, 115, y, 14);
+      labelValue("PESO VACIO:", pesoVacio, 145, y, 22);
       y += 4;
-      labelValue("ASEGURADORA SOAT:", "-", leftCol, y, 32);
-      labelValue("No. POLIZA:", "-", 70, y, 20);
-      labelValue("VENCE SOAT:", associatedRow?.placaData?.venceSoat || "-", 120, y, 22);
+      labelValue("ASEGURADORA SOAT:", aseguradoraSoat, leftCol, y, 32);
+      labelValue("No. POLIZA:", polizaSoat, 70, y, 20);
+      labelValue("VENCE SOAT:", venceSoat, 120, y, 22);
       y += 5;
 
       drawLine(y);
       y += 3;
 
-      const conductorNombre = associatedRow?.cedulaData?.nombre || details.NUMIDCONDUCTOR || "";
+      const conductorNombre = buildNombreConductor();
+      const conductorTelefono = conductor?.NUMTELEFONOCONTACTO || "-";
+      const conductorDireccion = conductor?.NOMENCLATURADIRECCION || "-";
+      const conductorLicencia = conductor?.NUMLICENCIACONDUCCION || "-";
+      const conductorVenceLic = conductor?.FECHAVENCIMIENTOLICENCIA || associatedRow?.cedulaData?.venceLicencia || "-";
+      
       labelValue("CONDUCTOR:", conductorNombre, leftCol, y, 22);
       labelValue("DOCUMENTO:", `CC: ${manifiesto.cedula}`, 85, y, 22);
-      labelValue("No. LICENCIA:", "-", 145, y, 22);
+      labelValue("No. LICENCIA:", conductorLicencia, 145, y, 22);
       y += 4;
-      labelValue("DIRECCION:", "-", leftCol, y, 20);
-      labelValue("TELEFONO:", "-", 85, y, 18);
-      labelValue("VENCE LIC:", associatedRow?.cedulaData?.venceLicencia || "-", 145, y, 20);
+      labelValue("DIRECCION:", conductorDireccion, leftCol, y, 20);
+      labelValue("TELEFONO:", conductorTelefono, 85, y, 18);
+      labelValue("VENCE LIC:", conductorVenceLic, 145, y, 20);
       y += 5;
 
       drawLine(y);
       y += 3;
 
-      labelValue("POSEEDOR/TENEDOR:", details.NOMIDTITULARMANIFIESTOCARGA || "-", leftCol, y, 32);
-      labelValue("DOCUMENTO:", `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`, 85, y, 22);
-      labelValue("CIUDAD:", "-", 160, y, 14);
+      const tenedorId = vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular;
+      const tenedorTipo = vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular;
+      
+      labelValue("POSEEDOR/TENEDOR:", tenedorId, leftCol, y, 32);
+      labelValue("DOCUMENTO:", `${tenedorTipo}: ${tenedorId}`, 85, y, 22);
+      labelValue("CIUDAD:", titularCiudad, 160, y, 14);
       y += 4;
-      labelValue("DIRECCION:", "-", leftCol, y, 20);
-      labelValue("TELEFONO:", "-", 120, y, 18);
+      labelValue("DIRECCION:", titularDireccion, leftCol, y, 20);
+      labelValue("TELEFONO:", titularTelefono, 120, y, 18);
       y += 5;
 
       y = drawSectionHeader("INFORMACION DE LA MERCANCIA TRANSPORTADA", y);
