@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+<root>
+<acceso>
+ <username>USUARIO1</username>//// Lo sacara del modulo Configuracion UsuarioRNDC ////
+ <password> USUARIO1</password>///// Lo sacara del Moudulo Configuracion PasswordRNDC ////
+</acceso>
+<solicitud>
+ <tipo>1</tipo>
+ <procesoid>4</procesoid>
+</solicitud>
+<variables>
+<NUMNITEMPRESATRANSPORTE>900301001</NUMNITEMPRESATRANSPORTE>//// Sacarlo del modulo CONFIGURACION NIT Empresa/////
+<NUMMANIFIESTOCARGA>0001</NUMMANIFIESTOCARGA>//// debera sacarlo del modulo configuracion Nota: para remesa y manifiesto es el mismo numero /////
+ <CODOPERACIONTRANSPORTE>G</CODOPERACIONTRANSPORTE>//// campo fijo ////
+<FECHAEXPEDICIONMANIFIESTO>29/07/2011</FECHAEXPEDICIONMANIFIESTO>//// lo tomarara del campo(Fecha)  del excel robusto////
+<CODMUNICIPIOORIGENMANIFIESTO>76001000</CODMUNICIPIOORIGENMANIFIESTO>//// lo tomarara del campo (Mun. Origen) del excel robusto////
+<CODMUNICIPIODESTINOMANIFIESTO>11001000</CODMUNICIPIODESTINOMANIFIESTO>/// lo tomarara del campo (Mun. Destino) del excel robusto////
+<CODIDTITULARMANIFIESTO>C</CODIDTITULARMANIFIESTO>/// lo tomarara del campo (Tipo ID) del excel robusto////
+<NUMIDTITULARMANIFIESTO>79616565</NUMIDTITULARMANIFIESTO>/// lo tomarara del campo (ID Prop.) del excel robusto////
+ <NUMPLACA>XXXXXX</NUMPLACA>/// lo tomarara del campo (Placa) del excel robusto////
+ <CODIDCONDUCTOR>C</CODIDCONDUCTOR>// campo fijo////
+ <NUMIDCONDUCTOR>4675675</NUMIDCONDUCTOR>// lo tomarara del campo (Cédula) del excel robusto////
+ <VALORFLETEPACTADOVIAJE>3250000</VALORFLETEPACTADOVIAJE>>// lo tomarara del campo (Valor) del excel robusto////
+<RETENCIONICAMANIFIESTOCARGA>1</RETENCIONICAMANIFIESTOCARGA>////campo fijo///
+<VALORANTICIPOMANIFIESTO>0</VALORANTICIPOMANIFIESTO>////campo fijo///
+<CODMUNICIPIOPAGOSALDO>11001000</CODMUNICIPIOPAGOSALDO>////campo fijo///
+<FECHAPAGOSALDOMANIFIESTO>29/07/2011</FECHAPAGOSALDOMANIFIESTO>// lo tomarara del campo (Fecha +5 dias) del excel robusto////
+<CODRESPONSABLEPAGOCARGUE>E</CODRESPONSABLEPAGOCARGUE>////campo fijo///
+<CODRESPONSABLEPAGODESCARGUE>E</CODRESPONSABLEPAGODESCARGUE>////campo fijo///
+ <ACEPTACIONELECTRONICA>SI</ACEPTACIONELECTRONICA>////campo fijo///
+ <REMESASMAN procesoid="43">
+ <REMESA>
+ <CONSECUTIVOREMESA>xxxxx</CONSECUTIVOREMESA>////Mismo numero de la remesa generada////
+ </REMESA>
+ </REMESASMAN>
+</variables>
+</root>
