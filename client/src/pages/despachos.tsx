@@ -1106,13 +1106,75 @@ export default function Despachos() {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Upload className="h-5 w-5" />
                 Cargar Excel de Despachos
               </CardTitle>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowSavedDespachos(!showSavedDespachos)}
+                data-testid="button-show-saved-header"
+              >
+                <FolderOpen className="mr-2 h-4 w-4" />
+                {showSavedDespachos ? "Ocultar Guardados" : "Cargar Guardados"}
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
+              {showSavedDespachos && savedDespachos.length > 0 && (
+                <Card className="border-dashed mb-4">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm">Despachos Guardados ({savedDespachos.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y max-h-48 overflow-y-auto">
+                      {savedDespachos.map((d: any) => (
+                        <div key={d.id} className="flex items-center justify-between px-4 py-2 hover:bg-muted/50">
+                          <div className="flex-1">
+                            <span className="font-medium text-sm">{d.nombre}</span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              ({d.totalRows} filas, {d.validRows} OK)
+                            </span>
+                            {d.status === "completed" && (
+                              <Badge className="ml-2 bg-green-600">Completo</Badge>
+                            )}
+                            {d.status === "remesas_sent" && (
+                              <Badge className="ml-2 bg-blue-600">Remesas</Badge>
+                            )}
+                            {d.status === "draft" && (
+                              <Badge variant="outline" className="ml-2">Borrador</Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => loadDespacho(d.id)}
+                              data-testid={`button-load-header-${d.id}`}
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => deleteDespachoMutation.mutate(d.id)}
+                              data-testid={`button-delete-header-${d.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {showSavedDespachos && savedDespachos.length === 0 && (
+                <div className="text-center text-muted-foreground py-4 border border-dashed rounded-lg mb-4">
+                  No hay despachos guardados
+                </div>
+              )}
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <Label htmlFor="file-upload" className="sr-only">Archivo Excel</Label>
