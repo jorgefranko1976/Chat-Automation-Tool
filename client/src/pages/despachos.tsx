@@ -405,12 +405,12 @@ export default function Despachos() {
       const flete = parseFloat((row.granjaData?.flete || "").replace(/[^\d.-]/g, "")) || 0;
       const valorFlete = ton * flete;
       return {
-        GRANJA: row.granja,
-        GRANJA_SEDE: row.granjaData?.sede || "",
-        GRANJA_COD_MUNICIPIO: row.granjaData?.codMunicipio || "",
-        PLANTA: row.planta,
-        PLANTA_SEDE: row.plantaData?.sede || "",
-        PLANTA_COD_MUNICIPIO: row.plantaData?.codMunicipio || "",
+        DESTINO: row.granja,
+        DESTINO_SEDE: row.granjaData?.sede || "",
+        DESTINO_COD_MUNICIPIO: row.granjaData?.codMunicipio || "",
+        ORIGEN: row.planta,
+        ORIGEN_SEDE: row.plantaData?.sede || "",
+        ORIGEN_COD_MUNICIPIO: row.plantaData?.codMunicipio || "",
         PLACA: row.placa,
         NUMIDPROPIETARIO: row.placaData?.propietarioId || "",
         FECHAVENCIMIENTOSOAT: row.placaData?.venceSoat || "",
@@ -1123,11 +1123,11 @@ export default function Despachos() {
                           />
                         </th>
                         <th className="text-left p-3 font-medium">#</th>
-                        <th className="text-left p-3 font-medium">Granja</th>
+                        <th className="text-left p-3 font-medium">Destino</th>
                         <th className="text-left p-3 font-medium">Sede</th>
                         <th className="text-left p-3 font-medium">Cód Mun</th>
                         <th className="text-center p-3 font-medium">OK</th>
-                        <th className="text-left p-3 font-medium">Planta</th>
+                        <th className="text-left p-3 font-medium">Origen</th>
                         <th className="text-left p-3 font-medium">Sede</th>
                         <th className="text-left p-3 font-medium">Cód Mun</th>
                         <th className="text-center p-3 font-medium">OK</th>
