@@ -18,6 +18,7 @@ import {
   rndcConductores,
   despachos,
   destinos,
+  pdfTemplates,
   type User,
   type InsertUser,
   type UpdateUserProfile,
@@ -53,6 +54,8 @@ import {
   type InsertDespacho,
   type Destino,
   type InsertDestino,
+  type PdfTemplate,
+  type InsertPdfTemplate,
 } from "@shared/schema";
 
 export interface DashboardStats {
@@ -179,6 +182,14 @@ export interface IStorage {
   getDestinos(limit?: number): Promise<Destino[]>;
   searchDestinos(query: string): Promise<Destino[]>;
   upsertDestino(destino: InsertDestino): Promise<{ destino: Destino; isNew: boolean }>;
+  
+  createPdfTemplate(template: InsertPdfTemplate): Promise<PdfTemplate>;
+  getPdfTemplate(id: string): Promise<PdfTemplate | undefined>;
+  getPdfTemplatesByUser(userId: string): Promise<PdfTemplate[]>;
+  getDefaultPdfTemplate(userId: string, templateType: string): Promise<PdfTemplate | undefined>;
+  updatePdfTemplate(id: string, updates: Partial<PdfTemplate>): Promise<PdfTemplate | undefined>;
+  deletePdfTemplate(id: string): Promise<void>;
+  setDefaultPdfTemplate(id: string, userId: string): Promise<void>;
 }
 
 export interface ManifestSearchFilters {
@@ -796,6 +807,58 @@ export class DatabaseStorage implements IStorage {
     }
     const newDestino = await this.createDestino(destino);
     return { destino: newDestino, isNew: true };
+  }
+
+  async createPdfTemplate(template: InsertPdfTemplate): Promise<PdfTemplate> {
+    const [newTemplate] = await db.insert(pdfTemplates).values(template as any).returning();
+    return newTemplate;
+  }
+
+  async getPdfTemplate(id: string): Promise<PdfTemplate | undefined> {
+    const [template] = await db.select().from(pdfTemplates).where(eq(pdfTemplates.id, id));
+    return template;
+  }
+
+  async getPdfTemplatesByUser(userId: string): Promise<PdfTemplate[]> {
+    return db.select().from(pdfTemplates)
+      .where(eq(pdfTemplates.userId, userId))
+      .orderBy(desc(pdfTemplates.updatedAt));
+  }
+
+  async getDefaultPdfTemplate(userId: string, templateType: string): Promise<PdfTemplate | undefined> {
+    const [template] = await db.select().from(pdfTemplates)
+      .where(and(
+        eq(pdfTemplates.userId, userId),
+        eq(pdfTemplates.templateType, templateType),
+        eq(pdfTemplates.isDefault, 1)
+      ));
+    return template;
+  }
+
+  async updatePdfTemplate(id: string, updates: Partial<PdfTemplate>): Promise<PdfTemplate | undefined> {
+    const [template] = await db.update(pdfTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(pdfTemplates.id, id))
+      .returning();
+    return template;
+  }
+
+  async deletePdfTemplate(id: string): Promise<void> {
+    await db.delete(pdfTemplates).where(eq(pdfTemplates.id, id));
+  }
+
+  async setDefaultPdfTemplate(id: string, userId: string): Promise<void> {
+    const template = await this.getPdfTemplate(id);
+    if (!template) return;
+    await db.update(pdfTemplates)
+      .set({ isDefault: 0 })
+      .where(and(
+        eq(pdfTemplates.userId, userId),
+        eq(pdfTemplates.templateType, template.templateType)
+      ));
+    await db.update(pdfTemplates)
+      .set({ isDefault: 1 })
+      .where(eq(pdfTemplates.id, id));
   }
 }
 

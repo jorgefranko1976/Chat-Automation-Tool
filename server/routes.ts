@@ -1581,6 +1581,93 @@ export async function registerRoutes(
     }
   });
 
+  // PDF Template routes
+  app.get("/api/pdf-templates", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "No autenticado" });
+      }
+      const templates = await storage.getPdfTemplatesByUser(userId);
+      res.json({ success: true, templates });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener plantillas" });
+    }
+  });
+
+  app.get("/api/pdf-templates/default/:templateType", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "No autenticado" });
+      }
+      const template = await storage.getDefaultPdfTemplate(userId, req.params.templateType);
+      res.json({ success: true, template });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener plantilla predeterminada" });
+    }
+  });
+
+  app.get("/api/pdf-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.getPdfTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ success: false, message: "Plantilla no encontrada" });
+      }
+      res.json({ success: true, template });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener plantilla" });
+    }
+  });
+
+  app.post("/api/pdf-templates", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "No autenticado" });
+      }
+      const template = await storage.createPdfTemplate({ ...req.body, userId });
+      res.json({ success: true, template });
+    } catch (error) {
+      console.error("Error creating PDF template:", error);
+      res.status(500).json({ success: false, message: "Error al crear plantilla" });
+    }
+  });
+
+  app.put("/api/pdf-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.updatePdfTemplate(req.params.id, req.body);
+      if (!template) {
+        return res.status(404).json({ success: false, message: "Plantilla no encontrada" });
+      }
+      res.json({ success: true, template });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al actualizar plantilla" });
+    }
+  });
+
+  app.post("/api/pdf-templates/:id/set-default", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "No autenticado" });
+      }
+      await storage.setDefaultPdfTemplate(req.params.id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al establecer plantilla predeterminada" });
+    }
+  });
+
+  app.delete("/api/pdf-templates/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deletePdfTemplate(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al eliminar plantilla" });
+    }
+  });
+
   app.get("/api/conductores", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 500;

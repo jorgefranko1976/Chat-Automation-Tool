@@ -475,3 +475,40 @@ export const insertDestinoSchema = createInsertSchema(destinos).omit({
 
 export type InsertDestino = z.infer<typeof insertDestinoSchema>;
 export type Destino = typeof destinos.$inferSelect;
+
+export const pdfTemplateFieldSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  dataKey: z.string(),
+  x: z.number(),
+  y: z.number(),
+  fontSize: z.number().default(6),
+  fontWeight: z.enum(["normal", "bold"]).default("normal"),
+  maxWidth: z.number().optional(),
+  page: z.number().default(1),
+});
+
+export type PdfTemplateField = z.infer<typeof pdfTemplateFieldSchema>;
+
+export const pdfTemplates = pgTable("pdf_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: varchar("name").notNull(),
+  templateType: varchar("template_type").notNull().default("manifiesto"),
+  fields: jsonb("fields").notNull().$type<PdfTemplateField[]>(),
+  pageWidth: integer("page_width").default(279),
+  pageHeight: integer("page_height").default(216),
+  orientation: varchar("orientation").default("landscape"),
+  isDefault: integer("is_default").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPdfTemplateSchema = createInsertSchema(pdfTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPdfTemplate = z.infer<typeof insertPdfTemplateSchema>;
+export type PdfTemplate = typeof pdfTemplates.$inferSelect;
