@@ -1397,25 +1397,94 @@ export default function Despachos() {
     const zip = new JSZip();
     let successCount = 0;
     let errorCount = 0;
+    const errorMessages: string[] = [];
     
     toast({ title: "Generando PDFs", description: `Procesando ${selectedManifestosForPdf.size} manifiestos...` });
     
-    for (const index of selectedManifestosForPdf) {
+    // Fetch template once for all PDFs
+    let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string } | null = null;
+    try {
+      const templateRes = await apiRequest("GET", "/api/pdf-templates/default/manifiesto");
+      const templateData = await templateRes.json();
+      if (templateData.success && templateData.template) pdfTemplate = templateData.template;
+    } catch {}
+    
+    // Pre-load and compress background images once
+    const loadImage = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    };
+    
+    const compressImageForPdf = (img: HTMLImageElement, maxWidth: number, maxHeight: number, quality: number): string => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      if (width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
+      if (height > maxHeight) { width = (width * maxHeight) / height; height = maxHeight; }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return img.src;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL('image/jpeg', quality);
+    };
+    
+    const bgSrc1 = pdfTemplate?.backgroundImage1 || (pdfTemplate ? null : "/manifiesto_template_p1.jpg");
+    const bgSrc2 = pdfTemplate?.backgroundImage2 || (pdfTemplate ? null : "/manifiesto_template_p2.png");
+    
+    let compressedBg1: string | null = null;
+    let compressedBg2: string | null = null;
+    
+    if (bgSrc1) {
+      try {
+        const rawBg1 = await loadImage(bgSrc1);
+        compressedBg1 = compressImageForPdf(rawBg1, 1400, 1080, 0.7);
+      } catch {}
+    }
+    if (bgSrc2) {
+      try {
+        const rawBg2 = await loadImage(bgSrc2);
+        compressedBg2 = compressImageForPdf(rawBg2, 1400, 1080, 0.7);
+      } catch {}
+    }
+    
+    const wsUrl = settings.wsEnvironment === "production" ? settings.wsUrlProd : settings.wsUrlTest;
+    const pageWidth = 279;
+    const pageHeight = 216;
+    
+    const selectedIndices = Array.from(selectedManifestosForPdf);
+    for (const index of selectedIndices) {
       const manifiesto = generatedManifiestos[index];
       if (!manifiesto || manifiesto.status !== "success") continue;
       
       try {
         const detailsRes = await apiRequest("POST", "/api/rndc/manifiesto-details-enhanced", {
-          username: settings.rndcUser,
-          password: settings.rndcPassword,
-          numNitEmpresa: settings.companyNit,
-          consecutivoManifiesto: String(manifiesto.consecutivo),
+          username: settings.usernameRndc,
+          password: settings.passwordRndc,
+          companyNit: settings.companyNit,
+          numManifiesto: String(manifiesto.consecutivo),
           numPlaca: manifiesto.placa,
-          wsUrl: settings.wsEnvironment === "production" ? settings.wsUrlProd : settings.wsUrlTest,
+          numIdConductor: manifiesto.cedula,
+          numIdTitular: manifiesto.numIdTitular,
+          wsUrl,
+          companyName: settings.companyName || "TRANSPETROMIRA S.A.S",
+          companyAddress: settings.companyAddress || "",
+          companyPhone: settings.companyPhone || "",
+          companyCity: settings.companyCity || "",
         });
         
         const detailsResult = await detailsRes.json();
-        if (!detailsResult.success) continue;
+        if (!detailsResult.success || !detailsResult.details) {
+          errorCount++;
+          errorMessages.push(`${manifiesto.placa}: No se obtuvieron detalles`);
+          continue;
+        }
         
         const details = detailsResult.details;
         const conductor = detailsResult.conductor;
@@ -1423,26 +1492,30 @@ export default function Despachos() {
         const vehiculo = detailsResult.vehiculo;
         const vehiculoExtra = detailsResult.vehiculoExtra;
         
-        const associatedRow = rows.find(r => r.placa === manifiesto.placa && r.cedula === manifiesto.cedula);
-        const associatedRemesa = generatedRemesas.find(r => r.placa === manifiesto.placa && r.cedula === manifiesto.cedula);
+        const normalizeCedula = (val: string) => val?.replace(/[.\-\s]/g, "") || "";
+        const normalizedManifiestoCedula = normalizeCedula(manifiesto.cedula);
+        const associatedRow = rows.find(r => 
+          r.placa?.toUpperCase() === manifiesto.placa?.toUpperCase() && 
+          normalizeCedula(r.cedula) === normalizedManifiestoCedula
+        );
+        const associatedRemesa = generatedRemesas.find(r => r.consecutivo === manifiesto.consecutivoRemesa);
         
-        const origMunicipio = municipiosColombia.find(m => m.codigo === details.CODMUNICIPIOORIGENMANIFIESTO);
-        const destMunicipio = municipiosColombia.find(m => m.codigo === details.CODMUNICIPIODESTINOMANIFIESTO);
-        const origName = origMunicipio ? origMunicipio.municipio : details.CODMUNICIPIOORIGENMANIFIESTO;
-        const destName = destMunicipio ? destMunicipio.municipio : details.CODMUNICIPIODESTINOMANIFIESTO;
+        const origName = manifiesto.codMunicipioOrigen || "";
+        const destName = manifiesto.codMunicipioDestino || "";
         const cargoDesc = "ALIMENTO PARA AVES DE CORRAL";
         
         const buildNombreConductor = () => {
           if (conductor) {
             const nombres = [conductor.PRIMERNOMBREIDTERCERO, conductor.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
             const apellidos = [conductor.PRIMERAPELLIDOIDTERCERO, conductor.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
-            return `${nombres} ${apellidos}`.trim();
+            return `${nombres} ${apellidos}`.trim() || conductor.NOMBRERAZONSOCIAL || "";
           }
-          return associatedRow?.cedulaData?.nombre || `Conductor ${manifiesto.cedula}`;
+          return associatedRow?.cedulaData?.nombre || "";
         };
         
         const buildNombreTitular = () => {
           if (titular) {
+            if (titular.NOMBRERAZONSOCIAL) return titular.NOMBRERAZONSOCIAL;
             const nombres = [titular.PRIMERNOMBREIDTERCERO, titular.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
             const apellidos = [titular.PRIMERAPELLIDOIDTERCERO, titular.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
             return `${nombres} ${apellidos}`.trim();
@@ -1466,90 +1539,95 @@ export default function Despachos() {
         });
         
         const qrResult = await qrResponse.json();
-        if (!qrResult.success) continue;
+        if (!qrResult.success) {
+          errorCount++;
+          errorMessages.push(`${manifiesto.placa}: Error generando QR`);
+          continue;
+        }
         
-        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
-        const pageWidth = 279;
-        const pageHeight = 216;
-        
-        const loadImage = (src: string): Promise<HTMLImageElement> => {
-          return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-          });
-        };
-        
-        const compressImageForPdf = (img: HTMLImageElement, maxWidth: number, maxHeight: number, quality: number): string => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          if (width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
-          if (height > maxHeight) { width = (width * maxHeight) / height; height = maxHeight; }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return img.src;
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0, width, height);
-          return canvas.toDataURL('image/jpeg', quality);
-        };
-        
-        let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string } | null = null;
-        try {
-          const templateRes = await apiRequest("GET", "/api/pdf-templates/default/manifiesto");
-          const templateData = await templateRes.json();
-          if (templateData.success && templateData.template) pdfTemplate = templateData.template;
-        } catch {}
-        
+        // Build complete data dictionary matching single PDF generation
         const titularNombre = buildNombreTitular();
+        const titularTelefono = titular?.NUMTELEFONOCONTACTO || "";
+        const titularDireccion = titular?.NOMENCLATURADIRECCION || "";
+        const titularCiudad = titular?.CODMUNICIPIORNDC || settings.companyCity || "";
+        const marcaVehiculo = vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "";
+        const pesoVacio = vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "";
+        const configVehiculo = vehiculoExtra?.CODCONFIGURACION || (details.NUMPLACAREMOLQUE ? "3S2" : "C2");
+        const aseguradoraSoat = vehiculo?.NUMNITASEGURADORASOAT || "";
+        const polizaSoat = vehiculo?.NUMSEGUROSOAT || "";
+        const venceSoat = vehiculo?.FECHAVENCIMIENTOSOAT || vehiculoExtra?.FECHAVENCE_SOAT || associatedRow?.placaData?.venceSoat || "";
         const conductorNombre = buildNombreConductor();
+        const conductorTelefono = conductor?.NUMTELEFONOCONTACTO || "";
+        const conductorDireccion = conductor?.NOMENCLATURADIRECCION || "";
+        const conductorLicencia = conductor?.NUMLICENCIACONDUCCION || "";
+        const tenedorId = vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular;
+        const tenedorTipo = vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular;
+        const cantidadKg = associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : "");
         const valorTotal = parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0");
         const retencionFuente = Math.round(manifiesto.valorFlete * 0.01);
         const valorNeto = manifiesto.valorFlete - retencionFuente;
         const anticipo = parseInt(details.VALORANTICIPOMANIFIESTO || "0");
         const saldo = valorNeto - anticipo;
+        const valorEnLetras = `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`;
         
         const dataDict: Record<string, string> = {
           consecutivo: String(manifiesto.consecutivo),
           ingresoId: details.INGRESOID || "",
           fechaExpedicion: details.FECHAEXPEDICIONMANIFIESTO || "",
+          fechaRadicacion: details.FECHAEXPEDICIONMANIFIESTO || "",
+          tipoManifiesto: "General",
           origen: origName.substring(0, 25),
           destino: destName.substring(0, 25),
           titularNombre: titularNombre.substring(0, 35),
           titularDocumento: `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`,
+          titularDireccion: titularDireccion.substring(0, 35),
+          titularTelefono: titularTelefono,
+          titularCiudad: titularCiudad.substring(0, 18),
           placa: details.NUMPLACA || "",
+          marca: marcaVehiculo.substring(0, 12),
+          placaRemolque: details.NUMPLACAREMOLQUE || "",
+          configuracion: configVehiculo,
+          pesoVacio: pesoVacio,
+          aseguradoraSoat: aseguradoraSoat.substring(0, 18),
+          polizaSoat: polizaSoat.substring(0, 12),
+          venceSoat: venceSoat,
           conductorNombre: conductorNombre.substring(0, 40),
           conductorDocumento: `CC: ${manifiesto.cedula}`,
+          conductorDireccion: conductorDireccion.substring(0, 35),
+          conductorTelefono: conductorTelefono,
+          conductorLicencia: conductorLicencia,
           cedula: manifiesto.cedula,
+          tenedorDocumento: `${tenedorTipo}: ${tenedorId}`,
+          tenedorDireccion: titularDireccion.substring(0, 30),
+          tenedorTelefono: titularTelefono,
+          remesaNumero: String(manifiesto.consecutivoRemesa),
+          unidadMedida: "Kilogramos",
+          cantidad: cantidadKg,
+          naturaleza: "Carga Normal",
+          producto: "ALIMENTO PARA AVES DE CORRAL",
+          remitente: associatedRow?.granja?.substring(0, 25) || "",
+          destinatario: associatedRow?.planta?.substring(0, 25) || "",
           valorTotal: `$${valorTotal.toLocaleString()}`,
           retencionFuente: `$${retencionFuente.toLocaleString()}`,
+          retencionIca: `$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`,
           valorNeto: `$${valorNeto.toLocaleString()}`,
           anticipo: `$${anticipo.toLocaleString()}`,
           saldo: `$${saldo.toLocaleString()}`,
           lugarPago: settings.companyCity || "BOGOTA D.C.",
           fechaPago: manifiesto.fechaPagoSaldo || "",
-          remesaNumero: String(manifiesto.consecutivoRemesa),
+          valorEnLetras: valorEnLetras,
+          hrsCargue: "0.00",
+          hrsDescargue: "2.00",
+          fechaCargue: associatedRemesa?.fechaCargue || "",
+          horaCargue: associatedRemesa?.horaCargue || "",
+          fechaDescargue: associatedRemesa?.fechaDescargue || "",
+          horaDescargue: associatedRemesa?.horaDescargue || "",
         };
         
-        const bgSrc1 = pdfTemplate?.backgroundImage1 || (pdfTemplate ? null : "/manifiesto_template_p1.jpg");
-        const bgSrc2 = pdfTemplate?.backgroundImage2 || (pdfTemplate ? null : "/manifiesto_template_p2.png");
-        
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
         const qrImg = await loadImage(qrResult.qrDataUrl);
-        let compressedBg1: string | null = null;
-        let compressedBg2: string | null = null;
         
-        if (bgSrc1) {
-          const rawBg1 = await loadImage(bgSrc1);
-          compressedBg1 = compressImageForPdf(rawBg1, 1400, 1080, 0.7);
-        }
-        if (bgSrc2) {
-          const rawBg2 = await loadImage(bgSrc2);
-          compressedBg2 = compressImageForPdf(rawBg2, 1400, 1080, 0.7);
-        }
-        
+        // Page 1
         if (compressedBg1) pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
         pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
         
@@ -1568,11 +1646,84 @@ export default function Despachos() {
           pdf.text(value, field.x, field.y);
         };
         
-        if (page1Fields.length > 0) page1Fields.forEach(renderField);
+        if (page1Fields.length > 0) {
+          page1Fields.forEach(renderField);
+        } else {
+          // Fallback to hardcoded positions matching single PDF
+          pdf.setFontSize(7);
+          pdf.text(dataDict.consecutivo, 238, 29);
+          pdf.text(dataDict.ingresoId, 238, 36);
+          pdf.setFontSize(6);
+          pdf.text(dataDict.fechaExpedicion, 20, 52);
+          pdf.text(dataDict.fechaRadicacion, 60, 52);
+          pdf.text(dataDict.tipoManifiesto, 107, 52);
+          pdf.text(dataDict.origen, 145, 52);
+          pdf.text(dataDict.destino, 202, 52);
+          pdf.text(dataDict.titularNombre, 20, 66);
+          pdf.text(dataDict.titularDocumento, 90, 66);
+          pdf.text(dataDict.titularDireccion, 140, 66);
+          pdf.text(dataDict.titularTelefono, 202, 66);
+          pdf.text(dataDict.titularCiudad, 252, 66);
+          pdf.text(dataDict.placa, 20, 77);
+          pdf.text(dataDict.marca, 50, 77);
+          pdf.text(dataDict.placaRemolque, 82, 77);
+          pdf.text(dataDict.configuracion, 130, 77);
+          pdf.text(dataDict.pesoVacio, 152, 77);
+          pdf.text(dataDict.aseguradoraSoat, 195, 77);
+          pdf.text(dataDict.polizaSoat, 237, 77);
+          pdf.text(dataDict.venceSoat, 259, 77);
+          pdf.text(dataDict.conductorNombre, 20, 87);
+          pdf.text(dataDict.conductorDocumento, 80, 87);
+          pdf.text(dataDict.conductorDireccion, 130, 87);
+          pdf.text(dataDict.conductorTelefono, 195, 87);
+          pdf.text(dataDict.conductorLicencia, 225, 87);
+          pdf.text(dataDict.tenedorDocumento, 20, 107);
+          pdf.text(dataDict.tenedorDireccion, 130, 107);
+          pdf.text(dataDict.tenedorTelefono, 205, 107);
+          pdf.setFontSize(5);
+          pdf.text(dataDict.remesaNumero, 15, 126);
+          pdf.text(dataDict.unidadMedida, 37, 126);
+          pdf.text(dataDict.cantidad, 57, 126);
+          pdf.text(dataDict.naturaleza, 75, 126);
+          pdf.text(dataDict.producto, 101, 131);
+          pdf.text(dataDict.remitente, 155, 126);
+          pdf.text(dataDict.destinatario, 205, 126);
+          pdf.setFontSize(6);
+          pdf.text(dataDict.valorTotal, 53, 150);
+          pdf.text(dataDict.retencionFuente, 53, 157);
+          pdf.text(dataDict.retencionIca, 53, 163);
+          pdf.text(dataDict.valorNeto, 53, 170);
+          pdf.text(dataDict.anticipo, 53, 177);
+          pdf.text(dataDict.saldo, 53, 183);
+          pdf.text(dataDict.lugarPago, 143, 150);
+          pdf.text(dataDict.fechaPago, 170, 150);
+          pdf.setFontSize(5);
+          pdf.text(dataDict.valorEnLetras, 53, 191);
+        }
         
+        // Page 2
         pdf.addPage("letter", "landscape");
         if (compressedBg2) pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
-        if (page2Fields.length > 0) page2Fields.forEach(renderField);
+        
+        if (page2Fields.length > 0) {
+          page2Fields.forEach(renderField);
+        } else {
+          pdf.setFontSize(7);
+          pdf.text(dataDict.consecutivo, 238, 45);
+          pdf.text(dataDict.ingresoId, 238, 52);
+          pdf.setFontSize(6);
+          pdf.text(dataDict.placa, 42, 70);
+          pdf.text(dataDict.conductorNombre, 110, 70);
+          pdf.text(dataDict.cedula, 240, 70);
+          pdf.setFontSize(5);
+          pdf.text(dataDict.remesaNumero, 17, 90);
+          pdf.text(dataDict.hrsCargue, 52, 90);
+          pdf.text(dataDict.hrsDescargue, 67, 90);
+          pdf.text(dataDict.fechaCargue, 88, 90);
+          pdf.text(dataDict.horaCargue, 105, 90);
+          pdf.text(dataDict.fechaDescargue, 198, 90);
+          pdf.text(dataDict.horaDescargue, 218, 90);
+        }
         
         const pdfBlob = pdf.output('blob');
         const fileName = `${details.NUMPLACA}_${manifiesto.consecutivo}.pdf`;
@@ -1582,6 +1733,7 @@ export default function Despachos() {
       } catch (error) {
         console.error(`Error generating PDF for manifest ${manifiesto.consecutivo}:`, error);
         errorCount++;
+        errorMessages.push(`${manifiesto.placa}: Error inesperado`);
       }
     }
     
@@ -1594,7 +1746,7 @@ export default function Despachos() {
       URL.revokeObjectURL(link.href);
       toast({ title: "PDFs Generados", description: `${successCount} PDFs descargados en ZIP${errorCount > 0 ? `, ${errorCount} errores` : ''}` });
     } else {
-      toast({ title: "Error", description: "No se pudo generar ningún PDF", variant: "destructive" });
+      toast({ title: "Error", description: `No se pudo generar ningún PDF. ${errorMessages.slice(0, 3).join(', ')}`, variant: "destructive" });
     }
     
     setSelectedManifestosForPdf(new Set());
