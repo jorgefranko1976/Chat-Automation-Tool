@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
+import JSZip from "jszip";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface DespachoRow {
@@ -102,6 +103,8 @@ export default function Despachos() {
   const [showRemesasHistory, setShowRemesasHistory] = useState(false);
   const [stepDComplete, setStepDComplete] = useState(false);
   const [selectedHistoryRemesas, setSelectedHistoryRemesas] = useState<Set<string>>(new Set());
+  const [selectedManifestosForPdf, setSelectedManifestosForPdf] = useState<Set<number>>(new Set());
+  const [isGeneratingBulkPdfs, setIsGeneratingBulkPdfs] = useState(false);
 
   const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
     queryKey: ["/api/rndc/remesas/history"],
@@ -1378,13 +1381,240 @@ export default function Despachos() {
         pdf.text(dataDict.horaDescargue, 218, 90);
       }
 
-      pdf.save(`Manifiesto_${manifiesto.consecutivo}_${details.INGRESOID}.pdf`);
-      toast({ title: "PDF Generado", description: `Manifiesto ${manifiesto.consecutivo} descargado` });
+      pdf.save(`${details.NUMPLACA}_${manifiesto.consecutivo}.pdf`);
+      toast({ title: "PDF Generado", description: `${details.NUMPLACA}_${manifiesto.consecutivo}.pdf descargado` });
 
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast({ title: "Error", description: "Error al generar el PDF", variant: "destructive" });
     }
+  };
+
+  const generateBulkPdfs = async () => {
+    if (selectedManifestosForPdf.size === 0) return;
+    
+    setIsGeneratingBulkPdfs(true);
+    const zip = new JSZip();
+    let successCount = 0;
+    let errorCount = 0;
+    
+    toast({ title: "Generando PDFs", description: `Procesando ${selectedManifestosForPdf.size} manifiestos...` });
+    
+    for (const index of selectedManifestosForPdf) {
+      const manifiesto = generatedManifiestos[index];
+      if (!manifiesto || manifiesto.status !== "success") continue;
+      
+      try {
+        const detailsRes = await apiRequest("POST", "/api/rndc/manifiesto-details-enhanced", {
+          username: settings.rndcUser,
+          password: settings.rndcPassword,
+          numNitEmpresa: settings.companyNit,
+          consecutivoManifiesto: String(manifiesto.consecutivo),
+          numPlaca: manifiesto.placa,
+          wsUrl: settings.wsEnvironment === "production" ? settings.wsUrlProd : settings.wsUrlTest,
+        });
+        
+        const detailsResult = await detailsRes.json();
+        if (!detailsResult.success) continue;
+        
+        const details = detailsResult.details;
+        const conductor = detailsResult.conductor;
+        const titular = detailsResult.titular;
+        const vehiculo = detailsResult.vehiculo;
+        const vehiculoExtra = detailsResult.vehiculoExtra;
+        
+        const associatedRow = rows.find(r => r.placa === manifiesto.placa && r.cedula === manifiesto.cedula);
+        const associatedRemesa = generatedRemesas.find(r => r.placa === manifiesto.placa && r.cedula === manifiesto.cedula);
+        
+        const origMunicipio = municipiosColombia.find(m => m.codigo === details.CODMUNICIPIOORIGENMANIFIESTO);
+        const destMunicipio = municipiosColombia.find(m => m.codigo === details.CODMUNICIPIODESTINOMANIFIESTO);
+        const origName = origMunicipio ? origMunicipio.municipio : details.CODMUNICIPIOORIGENMANIFIESTO;
+        const destName = destMunicipio ? destMunicipio.municipio : details.CODMUNICIPIODESTINOMANIFIESTO;
+        const cargoDesc = "ALIMENTO PARA AVES DE CORRAL";
+        
+        const buildNombreConductor = () => {
+          if (conductor) {
+            const nombres = [conductor.PRIMERNOMBREIDTERCERO, conductor.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
+            const apellidos = [conductor.PRIMERAPELLIDOIDTERCERO, conductor.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
+            return `${nombres} ${apellidos}`.trim();
+          }
+          return associatedRow?.cedulaData?.nombre || `Conductor ${manifiesto.cedula}`;
+        };
+        
+        const buildNombreTitular = () => {
+          if (titular) {
+            const nombres = [titular.PRIMERNOMBREIDTERCERO, titular.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
+            const apellidos = [titular.PRIMERAPELLIDOIDTERCERO, titular.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
+            return `${nombres} ${apellidos}`.trim();
+          }
+          return details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular;
+        };
+
+        const qrResponse = await apiRequest("POST", "/api/rndc/manifiesto-qr", {
+          mec: details.INGRESOID,
+          fecha: details.FECHAEXPEDICIONMANIFIESTO,
+          placa: details.NUMPLACA,
+          remolque: details.NUMPLACAREMOLQUE || undefined,
+          config: details.NUMPLACAREMOLQUE ? "3S2" : "2",
+          orig: origName.substring(0, 20),
+          dest: destName.substring(0, 20),
+          mercancia: cargoDesc.substring(0, 30),
+          conductor: details.NUMIDCONDUCTOR,
+          empresa: (settings.companyName || "TRANSPETROMIRA S.A.S").substring(0, 30),
+          obs: details.ACEPTACIONELECTRONICA === "S" ? "ACEPTACION ELECTRONICA" : "",
+          seguro: details.SEGURIDADQR,
+        });
+        
+        const qrResult = await qrResponse.json();
+        if (!qrResult.success) continue;
+        
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+        const pageWidth = 279;
+        const pageHeight = 216;
+        
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+          });
+        };
+        
+        const compressImageForPdf = (img: HTMLImageElement, maxWidth: number, maxHeight: number, quality: number): string => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) { height = (height * maxWidth) / width; width = maxWidth; }
+          if (height > maxHeight) { width = (width * maxHeight) / height; height = maxHeight; }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return img.src;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          return canvas.toDataURL('image/jpeg', quality);
+        };
+        
+        let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string } | null = null;
+        try {
+          const templateRes = await apiRequest("GET", "/api/pdf-templates/default/manifiesto");
+          const templateData = await templateRes.json();
+          if (templateData.success && templateData.template) pdfTemplate = templateData.template;
+        } catch {}
+        
+        const titularNombre = buildNombreTitular();
+        const conductorNombre = buildNombreConductor();
+        const valorTotal = parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0");
+        const retencionFuente = Math.round(manifiesto.valorFlete * 0.01);
+        const valorNeto = manifiesto.valorFlete - retencionFuente;
+        const anticipo = parseInt(details.VALORANTICIPOMANIFIESTO || "0");
+        const saldo = valorNeto - anticipo;
+        
+        const dataDict: Record<string, string> = {
+          consecutivo: String(manifiesto.consecutivo),
+          ingresoId: details.INGRESOID || "",
+          fechaExpedicion: details.FECHAEXPEDICIONMANIFIESTO || "",
+          origen: origName.substring(0, 25),
+          destino: destName.substring(0, 25),
+          titularNombre: titularNombre.substring(0, 35),
+          titularDocumento: `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`,
+          placa: details.NUMPLACA || "",
+          conductorNombre: conductorNombre.substring(0, 40),
+          conductorDocumento: `CC: ${manifiesto.cedula}`,
+          cedula: manifiesto.cedula,
+          valorTotal: `$${valorTotal.toLocaleString()}`,
+          retencionFuente: `$${retencionFuente.toLocaleString()}`,
+          valorNeto: `$${valorNeto.toLocaleString()}`,
+          anticipo: `$${anticipo.toLocaleString()}`,
+          saldo: `$${saldo.toLocaleString()}`,
+          lugarPago: settings.companyCity || "BOGOTA D.C.",
+          fechaPago: manifiesto.fechaPagoSaldo || "",
+          remesaNumero: String(manifiesto.consecutivoRemesa),
+        };
+        
+        const bgSrc1 = pdfTemplate?.backgroundImage1 || (pdfTemplate ? null : "/manifiesto_template_p1.jpg");
+        const bgSrc2 = pdfTemplate?.backgroundImage2 || (pdfTemplate ? null : "/manifiesto_template_p2.png");
+        
+        const qrImg = await loadImage(qrResult.qrDataUrl);
+        let compressedBg1: string | null = null;
+        let compressedBg2: string | null = null;
+        
+        if (bgSrc1) {
+          const rawBg1 = await loadImage(bgSrc1);
+          compressedBg1 = compressImageForPdf(rawBg1, 1400, 1080, 0.7);
+        }
+        if (bgSrc2) {
+          const rawBg2 = await loadImage(bgSrc2);
+          compressedBg2 = compressImageForPdf(rawBg2, 1400, 1080, 0.7);
+        }
+        
+        if (compressedBg1) pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
+        pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
+        
+        const templateFields = pdfTemplate?.fields || [];
+        const page1Fields = templateFields.filter((f: any) => f.page === 1);
+        const page2Fields = templateFields.filter((f: any) => f.page === 2);
+        
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(0, 0, 0);
+        
+        const renderField = (field: any) => {
+          const fontSize = field.fontSize || 6;
+          pdf.setFontSize(fontSize);
+          pdf.setFont("helvetica", field.fontWeight === "bold" ? "bold" : "normal");
+          const value = field.isCustom && field.bindingType === "static" ? (field.defaultValue || "") : (dataDict[field.dataKey] || field.defaultValue || "");
+          pdf.text(value, field.x, field.y);
+        };
+        
+        if (page1Fields.length > 0) page1Fields.forEach(renderField);
+        
+        pdf.addPage("letter", "landscape");
+        if (compressedBg2) pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
+        if (page2Fields.length > 0) page2Fields.forEach(renderField);
+        
+        const pdfBlob = pdf.output('blob');
+        const fileName = `${details.NUMPLACA}_${manifiesto.consecutivo}.pdf`;
+        zip.file(fileName, pdfBlob);
+        successCount++;
+        
+      } catch (error) {
+        console.error(`Error generating PDF for manifest ${manifiesto.consecutivo}:`, error);
+        errorCount++;
+      }
+    }
+    
+    if (successCount > 0) {
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = `Manifiestos_${new Date().toISOString().split('T')[0]}.zip`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      toast({ title: "PDFs Generados", description: `${successCount} PDFs descargados en ZIP${errorCount > 0 ? `, ${errorCount} errores` : ''}` });
+    } else {
+      toast({ title: "Error", description: "No se pudo generar ningún PDF", variant: "destructive" });
+    }
+    
+    setSelectedManifestosForPdf(new Set());
+    setIsGeneratingBulkPdfs(false);
+  };
+
+  const toggleManifestoSelection = (index: number) => {
+    setSelectedManifestosForPdf(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) newSet.delete(index);
+      else newSet.add(index);
+      return newSet;
+    });
+  };
+
+  const selectAllManifestosForPdf = () => {
+    const successIndices = generatedManifiestos
+      .map((m, i) => (m.status === "success" ? i : -1))
+      .filter(i => i !== -1);
+    setSelectedManifestosForPdf(new Set(successIndices));
   };
 
   const getRemesaStatusBadge = (status: string) => {
@@ -2264,9 +2494,45 @@ export default function Despachos() {
               {generatedManifiestos.length > 0 && (
                 <CardContent>
                   <div className="max-h-[300px] overflow-auto rounded-md border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedManifestosForPdf.size === generatedManifiestos.filter(m => m.status === "success").length) {
+                            setSelectedManifestosForPdf(new Set());
+                          } else {
+                            selectAllManifestosForPdf();
+                          }
+                        }}
+                        data-testid="button-select-all-manifiestos"
+                      >
+                        {selectedManifestosForPdf.size === generatedManifiestos.filter(m => m.status === "success").length ? (
+                          <><CheckSquare className="h-4 w-4 mr-1" /> Deseleccionar</>
+                        ) : (
+                          <><Square className="h-4 w-4 mr-1" /> Seleccionar Todos</>
+                        )}
+                      </Button>
+                      {selectedManifestosForPdf.size > 0 && (
+                        <Button
+                          className="bg-purple-600 hover:bg-purple-700"
+                          size="sm"
+                          onClick={generateBulkPdfs}
+                          disabled={isGeneratingBulkPdfs}
+                          data-testid="button-generate-bulk-pdfs"
+                        >
+                          {isGeneratingBulkPdfs ? (
+                            <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Generando...</>
+                          ) : (
+                            <><Download className="h-4 w-4 mr-1" /> Descargar {selectedManifestosForPdf.size} PDFs (ZIP)</>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10"></TableHead>
                           <TableHead>Consecutivo</TableHead>
                           <TableHead>Placa</TableHead>
                           <TableHead>Mun. Origen</TableHead>
@@ -2284,6 +2550,21 @@ export default function Despachos() {
                       <TableBody>
                         {generatedManifiestos.map((manifiesto, i) => (
                           <TableRow key={i} data-testid={`row-manifiesto-${i}`}>
+                            <TableCell>
+                              {manifiesto.status === "success" && (
+                                <button
+                                  onClick={() => toggleManifestoSelection(i)}
+                                  className="p-1"
+                                  data-testid={`checkbox-manifiesto-${i}`}
+                                >
+                                  {selectedManifestosForPdf.has(i) ? (
+                                    <CheckSquare className="h-4 w-4 text-purple-600" />
+                                  ) : (
+                                    <Square className="h-4 w-4 text-gray-400" />
+                                  )}
+                                </button>
+                              )}
+                            </TableCell>
                             <TableCell className="font-mono">{manifiesto.consecutivo}</TableCell>
                             <TableCell>{manifiesto.placa}</TableCell>
                             <TableCell className="font-mono text-xs">{manifiesto.codMunicipioOrigen}</TableCell>
