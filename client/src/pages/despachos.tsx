@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText, RotateCcw, RefreshCcw, Pencil } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText, RotateCcw, RefreshCcw, Pencil, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -109,6 +109,9 @@ export default function Despachos() {
   const [isRetryingAllFailed, setIsRetryingAllFailed] = useState(false);
   const [manualUpdateDialog, setManualUpdateDialog] = useState<{ open: boolean; index: number | null; consecutivo: number | null }>({ open: false, index: null, consecutivo: null });
   const [manualUpdateXml, setManualUpdateXml] = useState("");
+  const [despachoSearch, setDespachoSearch] = useState("");
+  const [despachoPage, setDespachoPage] = useState(1);
+  const despachosPerPage = 10;
 
   const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
     queryKey: ["/api/rndc/remesas/history"],
@@ -130,6 +133,22 @@ export default function Despachos() {
   });
 
   const savedDespachos = savedDespachosData?.despachos || [];
+
+  // Filter and paginate saved despachos
+  const filteredDespachos = savedDespachos.filter((d: any) => {
+    if (!despachoSearch.trim()) return true;
+    const search = despachoSearch.toLowerCase();
+    return (
+      d.nombre?.toLowerCase().includes(search) ||
+      d.fecha?.toLowerCase().includes(search) ||
+      d.status?.toLowerCase().includes(search)
+    );
+  });
+  const totalDespachoPages = Math.ceil(filteredDespachos.length / despachosPerPage);
+  const paginatedDespachos = filteredDespachos.slice(
+    (despachoPage - 1) * despachosPerPage,
+    despachoPage * despachosPerPage
+  );
 
   const saveDespachoMutation = useMutation({
     mutationFn: async () => {
@@ -2344,11 +2363,23 @@ export default function Despachos() {
               {showSavedDespachos && savedDespachos.length > 0 && (
                 <Card className="border-dashed mb-4">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm">Despachos Guardados ({savedDespachos.length})</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm">Despachos Guardados ({filteredDespachos.length} de {savedDespachos.length})</CardTitle>
+                    </div>
+                    <div className="relative mt-2">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por nombre, fecha o estado..."
+                        value={despachoSearch}
+                        onChange={(e) => { setDespachoSearch(e.target.value); setDespachoPage(1); }}
+                        className="pl-8 h-9"
+                        data-testid="input-search-despachos"
+                      />
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <div className="divide-y max-h-48 overflow-y-auto">
-                      {savedDespachos.map((d: any) => (
+                    <div className="divide-y max-h-64 overflow-y-auto">
+                      {paginatedDespachos.map((d: any) => (
                         <div key={d.id} className="flex items-center justify-between px-4 py-2 hover:bg-muted/50">
                           <div className="flex-1">
                             <span className="font-medium text-sm">{d.nombre}</span>
@@ -2386,7 +2417,39 @@ export default function Despachos() {
                           </div>
                         </div>
                       ))}
+                      {filteredDespachos.length === 0 && despachoSearch && (
+                        <div className="text-center text-muted-foreground py-4">
+                          No se encontraron despachos para "{despachoSearch}"
+                        </div>
+                      )}
                     </div>
+                    {totalDespachoPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-2 border-t bg-muted/30">
+                        <span className="text-xs text-muted-foreground">
+                          Página {despachoPage} de {totalDespachoPages}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDespachoPage(p => Math.max(1, p - 1))}
+                            disabled={despachoPage === 1}
+                            data-testid="button-prev-page"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDespachoPage(p => Math.min(totalDespachoPages, p + 1))}
+                            disabled={despachoPage === totalDespachoPages}
+                            data-testid="button-next-page"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -2676,11 +2739,23 @@ export default function Despachos() {
               {showSavedDespachos && savedDespachos.length > 0 && (
                 <Card className="border-dashed">
                   <CardHeader className="py-3">
-                    <CardTitle className="text-sm">Despachos Guardados</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm">Despachos Guardados ({filteredDespachos.length} de {savedDespachos.length})</CardTitle>
+                    </div>
+                    <div className="relative mt-2">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por nombre, fecha o estado..."
+                        value={despachoSearch}
+                        onChange={(e) => { setDespachoSearch(e.target.value); setDespachoPage(1); }}
+                        className="pl-8 h-9"
+                        data-testid="input-search-despachos-2"
+                      />
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <div className="divide-y max-h-48 overflow-y-auto">
-                      {savedDespachos.map((d: any) => (
+                    <div className="divide-y max-h-64 overflow-y-auto">
+                      {paginatedDespachos.map((d: any) => (
                         <div key={d.id} className="flex items-center justify-between px-4 py-2 hover:bg-muted/50">
                           <div className="flex-1">
                             <span className="font-medium text-sm">{d.nombre}</span>
@@ -2718,7 +2793,39 @@ export default function Despachos() {
                           </div>
                         </div>
                       ))}
+                      {filteredDespachos.length === 0 && despachoSearch && (
+                        <div className="text-center text-muted-foreground py-4">
+                          No se encontraron despachos para "{despachoSearch}"
+                        </div>
+                      )}
                     </div>
+                    {totalDespachoPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-2 border-t bg-muted/30">
+                        <span className="text-xs text-muted-foreground">
+                          Página {despachoPage} de {totalDespachoPages}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDespachoPage(p => Math.max(1, p - 1))}
+                            disabled={despachoPage === 1}
+                            data-testid="button-prev-page-2"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDespachoPage(p => Math.min(totalDespachoPages, p + 1))}
+                            disabled={despachoPage === totalDespachoPages}
+                            data-testid="button-next-page-2"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
