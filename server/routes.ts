@@ -2673,7 +2673,16 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
   });
 
   // Database backup endpoint - uses pg_dump with environment variable for security
+  // Access control: Only available when BACKUP_ENABLED=true (feature flag for security)
   app.get("/api/system/backup", requireAuth, async (req, res) => {
+    // Feature flag check - backup must be explicitly enabled
+    if (process.env.BACKUP_ENABLED !== "true") {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Función de respaldo deshabilitada. Configure BACKUP_ENABLED=true para habilitar." 
+      });
+    }
+
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
       return res.status(500).json({ success: false, message: "DATABASE_URL no configurada" });
