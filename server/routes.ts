@@ -1493,6 +1493,36 @@ export async function registerRoutes(
     }
   });
 
+  // Lookup municipality name by DANE code from destinos table
+  app.get("/api/destinos/municipio/:codMunicipioRndc", requireAuth, async (req, res) => {
+    try {
+      const codMunicipioRndc = req.params.codMunicipioRndc;
+      const municipioName = await storage.getMunicipioNameByCode(codMunicipioRndc);
+      res.json({ success: true, codMunicipioRndc, municipioName });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar municipio" });
+    }
+  });
+
+  // Batch lookup multiple municipality names by DANE codes
+  app.post("/api/destinos/municipios-batch", requireAuth, async (req, res) => {
+    try {
+      const { codes } = req.body as { codes: string[] };
+      if (!codes || !Array.isArray(codes)) {
+        return res.status(400).json({ success: false, message: "Se requiere un array de códigos" });
+      }
+      const results: Record<string, string> = {};
+      for (const code of codes) {
+        if (code) {
+          results[code] = await storage.getMunicipioNameByCode(code);
+        }
+      }
+      res.json({ success: true, municipios: results });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al buscar municipios" });
+    }
+  });
+
   app.get("/api/destinos/:id", requireAuth, async (req, res) => {
     try {
       const destino = await storage.getDestino(req.params.id);

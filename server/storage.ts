@@ -177,6 +177,8 @@ export interface IStorage {
   getDestino(id: string): Promise<Destino | undefined>;
   getDestinoByCodSede(numIdTercero: string, codSede: string): Promise<Destino | undefined>;
   getDestinoByNombreSede(nombreSede: string): Promise<Destino | undefined>;
+  getDestinoByCodMunicipioRndc(codMunicipioRndc: string): Promise<Destino | undefined>;
+  getMunicipioNameByCode(codMunicipioRndc: string): Promise<string>;
   updateDestino(id: string, updates: Partial<Destino>): Promise<Destino | undefined>;
   deleteDestino(id: string): Promise<void>;
   getDestinos(limit?: number): Promise<Destino[]>;
@@ -777,6 +779,21 @@ export class DatabaseStorage implements IStorage {
     const [destino] = await db.select().from(destinos)
       .where(sql`LOWER(${destinos.nombreSede}) = LOWER(${nombreSede})`);
     return destino;
+  }
+
+  async getDestinoByCodMunicipioRndc(codMunicipioRndc: string): Promise<Destino | undefined> {
+    const [destino] = await db.select().from(destinos)
+      .where(eq(destinos.codMunicipioRndc, codMunicipioRndc));
+    return destino;
+  }
+
+  async getMunicipioNameByCode(codMunicipioRndc: string): Promise<string> {
+    if (!codMunicipioRndc) return "";
+    const [destino] = await db.select({ municipioRndc: destinos.municipioRndc })
+      .from(destinos)
+      .where(eq(destinos.codMunicipioRndc, codMunicipioRndc))
+      .limit(1);
+    return destino?.municipioRndc || codMunicipioRndc;
   }
 
   async updateDestino(id: string, updates: Partial<Destino>): Promise<Destino | undefined> {

@@ -1541,11 +1541,27 @@ export default function Despachos() {
         normalizeCedula(r.cedula) === normalizedManifiestoCedula
       );
       
-      // Convert municipality codes to names (e.g., "25286000" -> "FUNZA CUNDINAMARCA")
+      // Convert municipality codes to names from database (destinos table)
       const origCode = details.CODMUNICIPIOORIGENMANIFIESTO || manifiesto.codMunicipioOrigen || "";
       const destCode = details.CODMUNICIPIODESTINOMANIFIESTO || manifiesto.codMunicipioDestino || "";
-      const origName = getMunicipioName(origCode);
-      const destName = getMunicipioName(destCode);
+      
+      // Lookup municipality names from database destinos table
+      let origName = origCode;
+      let destName = destCode;
+      try {
+        const municipiosRes = await apiRequest("POST", "/api/destinos/municipios-batch", {
+          codes: [origCode, destCode].filter(Boolean)
+        });
+        const municipiosData = await municipiosRes.json();
+        if (municipiosData.success && municipiosData.municipios) {
+          origName = municipiosData.municipios[origCode] || getMunicipioName(origCode);
+          destName = municipiosData.municipios[destCode] || getMunicipioName(destCode);
+        }
+      } catch {
+        // Fallback to static mapping if database lookup fails
+        origName = getMunicipioName(origCode);
+        destName = getMunicipioName(destCode);
+      }
       const cargoDesc = "ALIMENTO PARA AVES DE CORRAL";
       
       const buildNombreConductor = () => {
