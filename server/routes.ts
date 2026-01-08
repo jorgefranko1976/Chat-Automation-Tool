@@ -1239,21 +1239,27 @@ export async function registerRoutes(
       }
 
       // Build QR data string according to RNDC official specs
+      // IMPORTANT: Use CRLF (\r\n) line endings to match RNDC official format
       // Fields: MEC, Fecha, Placa, Config, Orig (MUNICIPALITY DEPARTMENT), Dest (MUNICIPALITY DEPARTMENT), 
       //         Mercancia, Conductor, Empresa, Valor (comma-formatted), Obs (optional), Seguro
-      let qrData = `MEC:${mec}\n`;
-      qrData += `Fecha:${fecha}\n`;
-      qrData += `Placa:${placa}\n`;
-      if (remolque) qrData += `Remolque:${remolque}\n`;
-      qrData += `Config:${config || "2"}\n`;
-      qrData += `Orig:${(orig || "").substring(0, 25)}\n`;
-      qrData += `Dest:${(dest || "").substring(0, 25)}\n`;
-      qrData += `Mercancia:${(mercancia || "").substring(0, 30)}\n`;
-      qrData += `Conductor:${conductor || ""}\n`;
-      qrData += `Empresa:${(empresa || "").substring(0, 30)}\n`;
-      qrData += `Valor:${valor || "0"}\n`;
-      if (obs) qrData += `Obs:${obs.substring(0, 120)}\n`;
-      qrData += `Seguro:${seguro}`;
+      const CRLF = "\r\n";
+      const lines: string[] = [];
+      lines.push(`MEC:${mec}`);
+      lines.push(`Fecha:${fecha}`);
+      lines.push(`Placa:${placa}`);
+      if (remolque) lines.push(`Remolque:${remolque}`);
+      lines.push(`Config:${config || "2"}`);
+      lines.push(`Orig:${(orig || "").substring(0, 25)}`);
+      lines.push(`Dest:${(dest || "").substring(0, 25)}`);
+      lines.push(`Mercancia:${(mercancia || "").substring(0, 30)}`);
+      lines.push(`Conductor:${conductor || ""}`);
+      lines.push(`Empresa:${(empresa || "").substring(0, 30)}`);
+      lines.push(`Valor:${valor || "0"}`);
+      if (obs) lines.push(`Obs:${obs.substring(0, 120)}`);
+      lines.push(`Seguro:${seguro}`);
+      
+      // Join with CRLF (no trailing newline)
+      const qrData = lines.join(CRLF);
 
       // Generate QR as base64 data URL (high quality, 3cm at 300dpi ~ 354px)
       const qrDataUrl = await QRCode.toDataURL(qrData, {
