@@ -1128,21 +1128,25 @@ export default function Despachos() {
         });
       };
 
-      const [templateP1, templateP2, qrImg] = await Promise.all([
-        loadImage("/manifiesto_template_p1.jpg"),
-        loadImage("/manifiesto_template_p2.png"),
-        loadImage(qrResult.qrDataUrl),
-      ]);
+      // Fetch saved template
+      let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string } | null = null;
+      try {
+        const templateRes = await apiRequest("GET", "/api/pdf-templates/default/manifiesto");
+        const templateData = await templateRes.json();
+        if (templateData.success && templateData.template) {
+          pdfTemplate = templateData.template;
+        }
+      } catch {
+        console.log("No template found, using default positions");
+      }
 
-      pdf.addImage(templateP1, "JPEG", 0, 0, pageWidth, pageHeight);
-
+      // Build data dictionary for field mapping
       const titularNombre = buildNombreTitular();
       const titularTelefono = titular?.NUMTELEFONOCONTACTO || "";
       const titularDireccion = titular?.NOMENCLATURADIRECCION || "";
       const titularCiudad = titular?.CODMUNICIPIORNDC || settings.companyCity || "";
       const marcaVehiculo = vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "";
       const pesoVacio = vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "";
-      const pesoVacioRemolque = "";
       const configVehiculo = vehiculoExtra?.CODCONFIGURACION || (details.NUMPLACAREMOLQUE ? "3S2" : "C2");
       const aseguradoraSoat = vehiculo?.NUMNITASEGURADORASOAT || "";
       const polizaSoat = vehiculo?.NUMSEGUROSOAT || "";
@@ -1151,122 +1155,190 @@ export default function Despachos() {
       const conductorTelefono = conductor?.NUMTELEFONOCONTACTO || "";
       const conductorDireccion = conductor?.NOMENCLATURADIRECCION || "";
       const conductorLicencia = conductor?.NUMLICENCIACONDUCCION || "";
-      const conductorVenceLic = conductor?.FECHAVENCIMIENTOLICENCIA || associatedRow?.cedulaData?.venceLicencia || "";
-      const conductorCiudad = conductor?.CODMUNICIPIORNDC || "";
       const tenedorId = vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular;
       const tenedorTipo = vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular;
       const cantidadKg = associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : "");
+      const valorTotal = parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0");
       const retencionFuente = Math.round(manifiesto.valorFlete * 0.01);
       const valorNeto = manifiesto.valorFlete - retencionFuente;
       const anticipo = parseInt(details.VALORANTICIPOMANIFIESTO || "0");
       const saldo = valorNeto - anticipo;
-
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(7);
-      pdf.setTextColor(0, 0, 0);
-
-      pdf.text(String(manifiesto.consecutivo), 238, 29);
-      pdf.text(details.INGRESOID || "", 238, 36);
-
-      pdf.text(details.FECHAEXPEDICIONMANIFIESTO || "", 20, 52);
-      pdf.text(details.FECHAEXPEDICIONMANIFIESTO || "", 60, 52);
-      pdf.text("General", 107, 52);
-      pdf.text(origName.substring(0, 25), 145, 52);
-      pdf.text(destName.substring(0, 25), 202, 52);
-
-      pdf.setFontSize(6);
-      pdf.text(titularNombre.substring(0, 35), 20, 66);
-      pdf.text(`${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`, 90, 66);
-      pdf.text(titularDireccion.substring(0, 35), 140, 66);
-      pdf.text(titularTelefono, 202, 66);
-      pdf.text(titularCiudad.substring(0, 18), 252, 66);
-
-      pdf.text(details.NUMPLACA || "", 20, 77);
-      pdf.text(marcaVehiculo.substring(0, 12), 50, 77);
-      pdf.text(details.NUMPLACAREMOLQUE || "", 82, 77);
-      pdf.text("", 115, 77);
-      pdf.text(configVehiculo, 130, 77);
-      pdf.text(pesoVacio, 152, 77);
-      pdf.text(pesoVacioRemolque, 175, 77);
-      pdf.text(aseguradoraSoat.substring(0, 18), 195, 77);
-      pdf.text(polizaSoat.substring(0, 12), 237, 77);
-      pdf.text(venceSoat, 259, 77);
-
-      pdf.text(conductorNombre.substring(0, 30), 20, 87);
-      pdf.text(`CC: ${manifiesto.cedula}`, 80, 87);
-      pdf.text(conductorDireccion.substring(0, 35), 130, 87);
-      pdf.text(conductorTelefono, 195, 87);
-      pdf.text(conductorLicencia, 225, 87);
-      pdf.text(conductorCiudad.substring(0, 18), 255, 87);
-
-      pdf.text("", 20, 97);
-      pdf.text("", 80, 97);
-      pdf.text("", 130, 97);
-      pdf.text("", 195, 97);
-      pdf.text("", 225, 97);
-      pdf.text("", 255, 97);
-
-      pdf.text(`${tenedorTipo}: ${tenedorId}`, 20, 107);
-      pdf.text(`${tenedorTipo}: ${tenedorId}`, 80, 107);
-      pdf.text(titularDireccion.substring(0, 30), 130, 107);
-      pdf.text(titularTelefono, 205, 107);
-      pdf.text(titularCiudad.substring(0, 15), 255, 107);
-
-      pdf.setFontSize(5);
-      pdf.text(String(manifiesto.consecutivoRemesa), 15, 126);
-      pdf.text("Kilogramos", 37, 126);
-      pdf.text(cantidadKg, 57, 126);
-      pdf.text("Carga Normal", 75, 126);
-      pdf.text("Paquetes.", 101, 126);
-      pdf.text("002309", 118, 126);
-      pdf.text("ALIMENTOPARAAVESDECORRAL", 101, 131);
-      pdf.text(associatedRow?.granja?.substring(0, 25) || "", 155, 126);
-      pdf.text(associatedRow?.planta?.substring(0, 25) || "", 205, 126);
-      pdf.text("No existe poliza", 255, 126);
-
-      pdf.setFontSize(6);
-      const valorTotal = parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0");
-      pdf.text(`$${valorTotal.toLocaleString()}`, 53, 150);
-      pdf.text(`$${retencionFuente.toLocaleString()}`, 53, 157);
-      pdf.text(`$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`, 53, 163);
-      pdf.text(`$${valorNeto.toLocaleString()}`, 53, 170);
-      pdf.text(`$${anticipo.toLocaleString()}`, 53, 177);
-      pdf.text(`$${saldo.toLocaleString()}`, 53, 183);
-
-      pdf.text(settings.companyCity || "BOGOTA D.C.", 143, 150);
-      pdf.text(manifiesto.fechaPagoSaldo || "", 170, 150);
-      pdf.text("DESTINATARIO", 162, 160);
-      pdf.text("DESTINATARIO", 162, 170);
-
       const valorEnLetras = `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`;
-      pdf.setFontSize(5);
-      pdf.text(valorEnLetras, 53, 191);
 
+      const dataDict: Record<string, string> = {
+        consecutivo: String(manifiesto.consecutivo),
+        ingresoId: details.INGRESOID || "",
+        fechaExpedicion: details.FECHAEXPEDICIONMANIFIESTO || "",
+        fechaRadicacion: details.FECHAEXPEDICIONMANIFIESTO || "",
+        tipoManifiesto: "General",
+        origen: origName.substring(0, 25),
+        destino: destName.substring(0, 25),
+        titularNombre: titularNombre.substring(0, 35),
+        titularDocumento: `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`,
+        titularDireccion: titularDireccion.substring(0, 35),
+        titularTelefono: titularTelefono,
+        titularCiudad: titularCiudad.substring(0, 18),
+        placa: details.NUMPLACA || "",
+        marca: marcaVehiculo.substring(0, 12),
+        placaRemolque: details.NUMPLACAREMOLQUE || "",
+        configuracion: configVehiculo,
+        pesoVacio: pesoVacio,
+        aseguradoraSoat: aseguradoraSoat.substring(0, 18),
+        polizaSoat: polizaSoat.substring(0, 12),
+        venceSoat: venceSoat,
+        conductorNombre: conductorNombre.substring(0, 40),
+        conductorDocumento: `CC: ${manifiesto.cedula}`,
+        conductorDireccion: conductorDireccion.substring(0, 35),
+        conductorTelefono: conductorTelefono,
+        conductorLicencia: conductorLicencia,
+        cedula: manifiesto.cedula,
+        tenedorDocumento: `${tenedorTipo}: ${tenedorId}`,
+        tenedorDireccion: titularDireccion.substring(0, 30),
+        tenedorTelefono: titularTelefono,
+        remesaNumero: String(manifiesto.consecutivoRemesa),
+        unidadMedida: "Kilogramos",
+        cantidad: cantidadKg,
+        naturaleza: "Carga Normal",
+        producto: "ALIMENTO PARA AVES DE CORRAL",
+        remitente: associatedRow?.granja?.substring(0, 25) || "",
+        destinatario: associatedRow?.planta?.substring(0, 25) || "",
+        valorTotal: `$${valorTotal.toLocaleString()}`,
+        retencionFuente: `$${retencionFuente.toLocaleString()}`,
+        retencionIca: `$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`,
+        valorNeto: `$${valorNeto.toLocaleString()}`,
+        anticipo: `$${anticipo.toLocaleString()}`,
+        saldo: `$${saldo.toLocaleString()}`,
+        lugarPago: settings.companyCity || "BOGOTA D.C.",
+        fechaPago: manifiesto.fechaPagoSaldo || "",
+        valorEnLetras: valorEnLetras,
+        hrsCargue: "0.00",
+        hrsDescargue: "2.00",
+        fechaCargue: associatedRemesa?.fechaCargue || "",
+        horaCargue: associatedRemesa?.horaCargue || "",
+        fechaDescargue: associatedRemesa?.fechaDescargue || "",
+        horaDescargue: associatedRemesa?.horaDescargue || "",
+      };
+
+      // Load background images (from template or defaults)
+      const bgSrc1 = pdfTemplate?.backgroundImage1 || "/manifiesto_template_p1.jpg";
+      const bgSrc2 = pdfTemplate?.backgroundImage2 || "/manifiesto_template_p2.png";
+      
+      const [templateP1, templateP2, qrImg] = await Promise.all([
+        loadImage(bgSrc1),
+        loadImage(bgSrc2),
+        loadImage(qrResult.qrDataUrl),
+      ]);
+
+      // Page 1
+      pdf.addImage(templateP1, "JPEG", 0, 0, pageWidth, pageHeight);
       pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
 
+      // Render fields using template or default positions
+      const templateFields = pdfTemplate?.fields || [];
+      const page1Fields = templateFields.filter((f: any) => f.page === 1);
+      const page2Fields = templateFields.filter((f: any) => f.page === 2);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(0, 0, 0);
+
+      const renderField = (field: any) => {
+        const fontSize = field.fontSize || 6;
+        pdf.setFontSize(fontSize);
+        if (field.fontWeight === "bold") {
+          pdf.setFont("helvetica", "bold");
+        } else {
+          pdf.setFont("helvetica", "normal");
+        }
+        
+        let value = "";
+        if (field.isCustom && field.bindingType === "static") {
+          value = field.defaultValue || "";
+        } else {
+          value = dataDict[field.dataKey] || field.defaultValue || "";
+        }
+        
+        pdf.text(value, field.x, field.y);
+      };
+
+      if (page1Fields.length > 0) {
+        page1Fields.forEach(renderField);
+      } else {
+        // Fallback to hardcoded positions if no template
+        pdf.setFontSize(7);
+        pdf.text(dataDict.consecutivo, 238, 29);
+        pdf.text(dataDict.ingresoId, 238, 36);
+        pdf.setFontSize(6);
+        pdf.text(dataDict.fechaExpedicion, 20, 52);
+        pdf.text(dataDict.fechaRadicacion, 60, 52);
+        pdf.text(dataDict.tipoManifiesto, 107, 52);
+        pdf.text(dataDict.origen, 145, 52);
+        pdf.text(dataDict.destino, 202, 52);
+        pdf.text(dataDict.titularNombre, 20, 66);
+        pdf.text(dataDict.titularDocumento, 90, 66);
+        pdf.text(dataDict.titularDireccion, 140, 66);
+        pdf.text(dataDict.titularTelefono, 202, 66);
+        pdf.text(dataDict.titularCiudad, 252, 66);
+        pdf.text(dataDict.placa, 20, 77);
+        pdf.text(dataDict.marca, 50, 77);
+        pdf.text(dataDict.placaRemolque, 82, 77);
+        pdf.text(dataDict.configuracion, 130, 77);
+        pdf.text(dataDict.pesoVacio, 152, 77);
+        pdf.text(dataDict.aseguradoraSoat, 195, 77);
+        pdf.text(dataDict.polizaSoat, 237, 77);
+        pdf.text(dataDict.venceSoat, 259, 77);
+        pdf.text(dataDict.conductorNombre, 20, 87);
+        pdf.text(dataDict.conductorDocumento, 80, 87);
+        pdf.text(dataDict.conductorDireccion, 130, 87);
+        pdf.text(dataDict.conductorTelefono, 195, 87);
+        pdf.text(dataDict.conductorLicencia, 225, 87);
+        pdf.text(dataDict.tenedorDocumento, 20, 107);
+        pdf.text(dataDict.tenedorDireccion, 130, 107);
+        pdf.text(dataDict.tenedorTelefono, 205, 107);
+        pdf.setFontSize(5);
+        pdf.text(dataDict.remesaNumero, 15, 126);
+        pdf.text(dataDict.unidadMedida, 37, 126);
+        pdf.text(dataDict.cantidad, 57, 126);
+        pdf.text(dataDict.naturaleza, 75, 126);
+        pdf.text(dataDict.producto, 101, 131);
+        pdf.text(dataDict.remitente, 155, 126);
+        pdf.text(dataDict.destinatario, 205, 126);
+        pdf.setFontSize(6);
+        pdf.text(dataDict.valorTotal, 53, 150);
+        pdf.text(dataDict.retencionFuente, 53, 157);
+        pdf.text(dataDict.retencionIca, 53, 163);
+        pdf.text(dataDict.valorNeto, 53, 170);
+        pdf.text(dataDict.anticipo, 53, 177);
+        pdf.text(dataDict.saldo, 53, 183);
+        pdf.text(dataDict.lugarPago, 143, 150);
+        pdf.text(dataDict.fechaPago, 170, 150);
+        pdf.setFontSize(5);
+        pdf.text(dataDict.valorEnLetras, 53, 191);
+      }
+
+      // Page 2
       pdf.addPage("letter", "landscape");
       pdf.addImage(templateP2, "PNG", 0, 0, pageWidth, pageHeight);
 
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(7);
-      pdf.text(String(manifiesto.consecutivo), 238, 45);
-      pdf.text(details.INGRESOID || "", 238, 52);
-
-      pdf.setFontSize(6);
-      pdf.text(details.NUMPLACA || "", 42, 70);
-      pdf.text(conductorNombre.substring(0, 40), 110, 70);
-      pdf.text(manifiesto.cedula, 240, 70);
-
-      pdf.setFontSize(5);
-      pdf.text(String(manifiesto.consecutivoRemesa), 17, 90);
-      pdf.text("0.00", 52, 90);
-      pdf.text("2.00", 67, 90);
-      pdf.text(associatedRemesa?.fechaCargue || "", 88, 90);
-      pdf.text(associatedRemesa?.horaCargue || "", 105, 90);
-      pdf.text("", 125, 90);
-      pdf.text("", 140, 90);
-      pdf.text(associatedRemesa?.fechaDescargue || "", 198, 90);
-      pdf.text(associatedRemesa?.horaDescargue || "", 218, 90);
+      if (page2Fields.length > 0) {
+        page2Fields.forEach(renderField);
+      } else {
+        // Fallback to hardcoded positions
+        pdf.setFontSize(7);
+        pdf.text(dataDict.consecutivo, 238, 45);
+        pdf.text(dataDict.ingresoId, 238, 52);
+        pdf.setFontSize(6);
+        pdf.text(dataDict.placa, 42, 70);
+        pdf.text(dataDict.conductorNombre, 110, 70);
+        pdf.text(dataDict.cedula, 240, 70);
+        pdf.setFontSize(5);
+        pdf.text(dataDict.remesaNumero, 17, 90);
+        pdf.text(dataDict.hrsCargue, 52, 90);
+        pdf.text(dataDict.hrsDescargue, 67, 90);
+        pdf.text(dataDict.fechaCargue, 88, 90);
+        pdf.text(dataDict.horaCargue, 105, 90);
+        pdf.text(dataDict.fechaDescargue, 198, 90);
+        pdf.text(dataDict.horaDescargue, 218, 90);
+      }
 
       pdf.save(`Manifiesto_${manifiesto.consecutivo}_${details.INGRESOID}.pdf`);
       toast({ title: "PDF Generado", description: `Manifiesto ${manifiesto.consecutivo} descargado` });
