@@ -1226,28 +1226,32 @@ export async function registerRoutes(
   });
 
   // Generate QR code data URL for manifiesto
+  // Format matches RNDC official QR: MEC, Fecha, Placa, Config, Orig, Dest, Mercancia, Conductor, Empresa, Valor, Seguro
   app.post("/api/rndc/manifiesto-qr", async (req, res) => {
     try {
       const { 
         mec, fecha, placa, remolque, config, 
-        orig, dest, mercancia, conductor, empresa, obs, seguro 
+        orig, dest, mercancia, conductor, empresa, valor, obs, seguro 
       } = req.body;
 
       if (!mec || !fecha || !placa || !seguro) {
         return res.status(400).json({ success: false, message: "Faltan datos requeridos para el QR" });
       }
 
-      // Build QR data string according to RNDC specs
+      // Build QR data string according to RNDC official specs
+      // Fields: MEC, Fecha, Placa, Config, Orig (MUNICIPALITY DEPARTMENT), Dest (MUNICIPALITY DEPARTMENT), 
+      //         Mercancia, Conductor, Empresa, Valor (comma-formatted), Obs (optional), Seguro
       let qrData = `MEC:${mec}\n`;
       qrData += `Fecha:${fecha}\n`;
       qrData += `Placa:${placa}\n`;
       if (remolque) qrData += `Remolque:${remolque}\n`;
       qrData += `Config:${config || "2"}\n`;
-      qrData += `Orig:${(orig || "").substring(0, 20)}\n`;
-      qrData += `Dest:${(dest || "").substring(0, 20)}\n`;
-      if (mercancia) qrData += `Mercancia:${mercancia.substring(0, 30)}\n`;
+      qrData += `Orig:${(orig || "").substring(0, 25)}\n`;
+      qrData += `Dest:${(dest || "").substring(0, 25)}\n`;
+      qrData += `Mercancia:${(mercancia || "").substring(0, 30)}\n`;
       qrData += `Conductor:${conductor || ""}\n`;
       qrData += `Empresa:${(empresa || "").substring(0, 30)}\n`;
+      qrData += `Valor:${valor || "0"}\n`;
       if (obs) qrData += `Obs:${obs.substring(0, 120)}\n`;
       qrData += `Seguro:${seguro}`;
 

@@ -16,6 +16,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import JSZip from "jszip";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getMunicipioName, formatValorQR } from "@/lib/municipios";
 
 interface DespachoRow {
   granja: string;
@@ -1540,8 +1541,11 @@ export default function Despachos() {
         normalizeCedula(r.cedula) === normalizedManifiestoCedula
       );
       
-      const origName = manifiesto.codMunicipioOrigen || "";
-      const destName = manifiesto.codMunicipioDestino || "";
+      // Convert municipality codes to names (e.g., "25286000" -> "FUNZA CUNDINAMARCA")
+      const origCode = details.CODMUNICIPIOORIGENMANIFIESTO || manifiesto.codMunicipioOrigen || "";
+      const destCode = details.CODMUNICIPIODESTINOMANIFIESTO || manifiesto.codMunicipioDestino || "";
+      const origName = getMunicipioName(origCode);
+      const destName = getMunicipioName(destCode);
       const cargoDesc = "ALIMENTO PARA AVES DE CORRAL";
       
       const buildNombreConductor = () => {
@@ -1563,17 +1567,22 @@ export default function Despachos() {
         return details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular;
       };
 
+      // Format valor with comma separator (e.g., 829440 -> "829,440")
+      const valorFlete = parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0");
+      const valorFormateado = formatValorQR(valorFlete);
+      
       const qrResponse = await apiRequest("POST", "/api/rndc/manifiesto-qr", {
         mec: details.INGRESOID,
         fecha: details.FECHAEXPEDICIONMANIFIESTO,
         placa: details.NUMPLACA,
         remolque: details.NUMPLACAREMOLQUE || undefined,
         config: details.NUMPLACAREMOLQUE ? "3S2" : "2",
-        orig: origName.substring(0, 20),
-        dest: destName.substring(0, 20),
+        orig: origName.substring(0, 25),
+        dest: destName.substring(0, 25),
         mercancia: cargoDesc.substring(0, 30),
         conductor: details.NUMIDCONDUCTOR,
         empresa: (settings.companyName || "TRANSPETROMIRA S.A.S").substring(0, 30),
+        valor: valorFormateado,
         obs: details.ACEPTACIONELECTRONICA === "S" ? "ACEPTACION ELECTRONICA" : "",
         seguro: details.SEGURIDADQR,
       });
