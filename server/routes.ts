@@ -1240,9 +1240,8 @@ export async function registerRoutes(
 
       // Build QR data string according to RNDC official specs
       // IMPORTANT: Use CRLF (\r\n) line endings after each field EXCEPT the last one (Seguro)
-      // Official RNDC QR format has exactly 12 fields in this order:
-      // MEC, Fecha, Placa, Remolque(optional), Config, Orig(max 20), Dest(max 20), 
-      // Mercancia(max 30), Conductor, Empresa(max 30), Obs(optional, max 120), Seguro(28 chars)
+      // Fields order: MEC, Fecha, Placa, Remolque(optional), Config, Orig(max 20), Dest(max 20), 
+      // Mercancia(max 30), Conductor, Empresa(max 30), Valor(comma-formatted), Obs(optional), Seguro(28 chars)
       const CRLF = "\r\n";
       const lines: string[] = [];
       lines.push(`MEC:${mec}`);
@@ -1255,7 +1254,8 @@ export async function registerRoutes(
       lines.push(`Mercancia:${(mercancia || "").substring(0, 30)}`);
       lines.push(`Conductor:${conductor || ""}`);
       lines.push(`Empresa:${(empresa || "").substring(0, 30)}`);
-      // Obs: Only include if RNDC provides observations in the acceptance XML (not for regular manifests)
+      lines.push(`Valor:${valor || "0"}`);
+      // Obs: Only include if RNDC provides observations in the acceptance XML
       if (obs) lines.push(`Obs:${obs.substring(0, 120)}`);
       lines.push(`Seguro:${seguro}`);
       
