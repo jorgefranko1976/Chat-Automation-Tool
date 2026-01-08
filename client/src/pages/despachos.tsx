@@ -1128,6 +1128,32 @@ export default function Despachos() {
         });
       };
 
+      const compressImageForPdf = (img: HTMLImageElement, maxWidth: number, maxHeight: number, quality: number): string => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return img.src;
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        return canvas.toDataURL('image/jpeg', quality);
+      };
+
       // Fetch saved template
       let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string } | null = null;
       try {
@@ -1223,14 +1249,18 @@ export default function Despachos() {
       const bgSrc1 = pdfTemplate?.backgroundImage1 || "/manifiesto_template_p1.jpg";
       const bgSrc2 = pdfTemplate?.backgroundImage2 || "/manifiesto_template_p2.png";
       
-      const [templateP1, templateP2, qrImg] = await Promise.all([
+      const [rawTemplateP1, rawTemplateP2, qrImg] = await Promise.all([
         loadImage(bgSrc1),
         loadImage(bgSrc2),
         loadImage(qrResult.qrDataUrl),
       ]);
 
+      // Compress background images for PDF (1400x1080 at 70% quality)
+      const compressedBg1 = compressImageForPdf(rawTemplateP1, 1400, 1080, 0.7);
+      const compressedBg2 = compressImageForPdf(rawTemplateP2, 1400, 1080, 0.7);
+
       // Page 1
-      pdf.addImage(templateP1, "JPEG", 0, 0, pageWidth, pageHeight);
+      pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
       pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
 
       // Render fields using template or default positions
@@ -1317,7 +1347,7 @@ export default function Despachos() {
 
       // Page 2
       pdf.addPage("letter", "landscape");
-      pdf.addImage(templateP2, "PNG", 0, 0, pageWidth, pageHeight);
+      pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
 
       if (page2Fields.length > 0) {
         page2Fields.forEach(renderField);
