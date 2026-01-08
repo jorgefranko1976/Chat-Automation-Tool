@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText, RotateCcw, RefreshCcw } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText, RotateCcw, RefreshCcw, Pencil } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -107,6 +107,8 @@ export default function Despachos() {
   const [isGeneratingBulkPdfs, setIsGeneratingBulkPdfs] = useState(false);
   const [retryingManifiestoIndex, setRetryingManifiestoIndex] = useState<number | null>(null);
   const [isRetryingAllFailed, setIsRetryingAllFailed] = useState(false);
+  const [manualUpdateDialog, setManualUpdateDialog] = useState<{ open: boolean; index: number | null; consecutivo: number | null }>({ open: false, index: null, consecutivo: null });
+  const [manualUpdateXml, setManualUpdateXml] = useState("");
 
   const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
     queryKey: ["/api/rndc/remesas/history"],
@@ -1386,6 +1388,55 @@ export default function Despachos() {
       title: "XML Regenerado", 
       description: `Manifiesto ${manifiesto.consecutivo} actualizado. Titular: ${tipoIdTitular} ${numIdTitular}, Flete: $${valorFlete.toLocaleString()}. Listo para reintentar.` 
     });
+  };
+
+  const handleManualUpdateManifiesto = () => {
+    if (manualUpdateDialog.index === null) return;
+    
+    try {
+      // Parse the XML to extract ingresoid and seguridadqr
+      let ingresoId = "";
+      let seguridadQr = "";
+      
+      // Try to extract from XML
+      const ingresoMatch = manualUpdateXml.match(/<ingresoid>(\d+)<\/ingresoid>/i);
+      const qrMatch = manualUpdateXml.match(/<seguridadqr>([^<]+)<\/seguridadqr>/i);
+      
+      if (ingresoMatch) {
+        ingresoId = ingresoMatch[1];
+      }
+      if (qrMatch) {
+        seguridadQr = qrMatch[1];
+      }
+      
+      if (!ingresoId) {
+        toast({ title: "Error", description: "No se pudo extraer el ID del manifiesto del XML", variant: "destructive" });
+        return;
+      }
+      
+      // Update the manifest to success status
+      setGeneratedManifiestos(prev => {
+        const updated = [...prev];
+        updated[manualUpdateDialog.index!] = {
+          ...prev[manualUpdateDialog.index!],
+          status: "success" as const,
+          responseCode: ingresoId,
+          responseMessage: `Actualizado manualmente. IngresoID: ${ingresoId}${seguridadQr ? `, QR: ${seguridadQr}` : ""}`,
+          idManifiesto: ingresoId,
+        };
+        return updated;
+      });
+      
+      toast({ 
+        title: "Manifiesto Actualizado", 
+        description: `Manifiesto ${manualUpdateDialog.consecutivo} actualizado exitosamente con ID: ${ingresoId}` 
+      });
+      
+      setManualUpdateDialog({ open: false, index: null, consecutivo: null });
+      setManualUpdateXml("");
+    } catch (error) {
+      toast({ title: "Error", description: "Error al procesar el XML", variant: "destructive" });
+    }
   };
 
   const generateManifiestoPdf = async (manifiesto: GeneratedManifiesto) => {
@@ -3182,6 +3233,21 @@ export default function Despachos() {
                                     )}
                                   </Button>
                                 )}
+                                {manifiesto.status === "error" && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => {
+                                      setManualUpdateDialog({ open: true, index: i, consecutivo: manifiesto.consecutivo });
+                                      setManualUpdateXml("");
+                                    }}
+                                    data-testid={`button-manual-update-${i}`}
+                                    title="Actualizar manualmente con XML de consultas"
+                                    className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 {manifiesto.status === "processing" && (
                                   <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                                 )}
@@ -3346,6 +3412,46 @@ export default function Despachos() {
           </Card>
         </div>
       </main>
+
+      <Dialog open={manualUpdateDialog.open} onOpenChange={(open) => setManualUpdateDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Actualizar Manifiesto {manualUpdateDialog.consecutivo} Manualmente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Pegue el XML de respuesta obtenido del módulo de consultas del RNDC. 
+              El sistema extraerá automáticamente el ID del manifiesto y marcará el envío como exitoso.
+            </p>
+            <textarea
+              className="w-full h-40 p-3 font-mono text-xs border rounded-lg bg-muted"
+              placeholder={`Ejemplo:\n<?xml version="1.0" encoding="ISO-8859-1" ?>\n<root>\n  <ingresoid>113114521</ingresoid>\n  <seguridadqr>2XCSrcFDNcmaCQzEW57Fu5jsubY=</seguridadqr>\n</root>`}
+              value={manualUpdateXml}
+              onChange={(e) => setManualUpdateXml(e.target.value)}
+              data-testid="textarea-manual-xml"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setManualUpdateDialog({ open: false, index: null, consecutivo: null });
+                  setManualUpdateXml("");
+                }}
+                data-testid="button-cancel-manual-update"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleManualUpdateManifiesto}
+                disabled={!manualUpdateXml.trim()}
+                data-testid="button-confirm-manual-update"
+              >
+                Actualizar Manifiesto
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
