@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText, RotateCcw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -105,6 +105,8 @@ export default function Despachos() {
   const [selectedHistoryRemesas, setSelectedHistoryRemesas] = useState<Set<string>>(new Set());
   const [selectedManifestosForPdf, setSelectedManifestosForPdf] = useState<Set<number>>(new Set());
   const [isGeneratingBulkPdfs, setIsGeneratingBulkPdfs] = useState(false);
+  const [retryingManifiestoIndex, setRetryingManifiestoIndex] = useState<number | null>(null);
+  const [isRetryingAllFailed, setIsRetryingAllFailed] = useState(false);
 
   const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
     queryKey: ["/api/rndc/remesas/history"],
@@ -1016,6 +1018,266 @@ export default function Despachos() {
       setIsSendingManifiestos(false);
     }
   };
+
+  const retrySingleManifiesto = async (index: number) => {
+    setRetryingManifiestoIndex(index);
+    
+    // Get current manifest state using functional approach
+    let currentManifiesto: GeneratedManifiesto | null = null;
+    setGeneratedManifiestos(prev => {
+      currentManifiesto = prev[index];
+      if (!currentManifiesto || currentManifiesto.status !== "error") return prev;
+      const updated = [...prev];
+      updated[index] = { ...currentManifiesto, status: "processing" as const };
+      return updated;
+    });
+    
+    if (!currentManifiesto) {
+      setRetryingManifiestoIndex(null);
+      return;
+    }
+    
+    const manifiesto = currentManifiesto as GeneratedManifiesto;
+    
+    try {
+      const wsUrl = settings.wsEnvironment === "production"
+        ? settings.wsUrlProd
+        : settings.wsUrlTest;
+
+      const response = await apiRequest("POST", "/api/rndc/manifiesto-batch", {
+        submissions: [{
+          consecutivoManifiesto: String(manifiesto.consecutivo),
+          numNitEmpresa: settings.companyNit,
+          numPlaca: manifiesto.placa,
+          xmlRequest: manifiesto.xmlRequest,
+        }],
+        wsUrl,
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.batchId) {
+        await pollSingleManifiestoResult(result.batchId, index, manifiesto.consecutivo);
+      } else {
+        setGeneratedManifiestos(prev => {
+          const updated = [...prev];
+          updated[index] = { ...prev[index], status: "error" as const, responseMessage: result.message || "Error al reintentar" };
+          return updated;
+        });
+        toast({ title: "Error", description: result.message || "Error al reintentar manifiesto", variant: "destructive" });
+      }
+    } catch (error) {
+      setGeneratedManifiestos(prev => {
+        const updated = [...prev];
+        updated[index] = { ...prev[index], status: "error" as const, responseMessage: "Error de conexión al reintentar" };
+        return updated;
+      });
+      toast({ title: "Error", description: "Error al reintentar manifiesto", variant: "destructive" });
+    } finally {
+      setRetryingManifiestoIndex(null);
+    }
+  };
+
+  const pollSingleManifiestoResult = async (batchId: string, index: number, consecutivo: number, attempts = 0): Promise<void> => {
+    if (attempts >= 30) {
+      setGeneratedManifiestos(prev => {
+        const updated = [...prev];
+        updated[index] = { ...prev[index], status: "error" as const, responseMessage: "Tiempo de espera agotado" };
+        return updated;
+      });
+      toast({ title: "Error", description: "Tiempo de espera agotado para el reintento", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const response = await apiRequest("GET", `/api/rndc/manifiesto-batch/${batchId}/results`);
+      const result = await response.json();
+
+      if (result.completed) {
+        const submissionResult = result.results?.[0];
+        
+        if (submissionResult) {
+          let extractedId = submissionResult.idManifiesto;
+          if (!extractedId && submissionResult.responseMessage) {
+            const idMatch = submissionResult.responseMessage.match(/IngresoID:\s*(\d+)/i);
+            if (idMatch) extractedId = idMatch[1];
+          }
+          if (!extractedId && submissionResult.responseCode && /^\d+$/.test(submissionResult.responseCode)) {
+            extractedId = submissionResult.responseCode;
+          }
+          
+          setGeneratedManifiestos(prev => {
+            const updated = [...prev];
+            updated[index] = {
+              ...prev[index],
+              status: submissionResult.success ? "success" as const : "error" as const,
+              responseCode: submissionResult.responseCode,
+              responseMessage: submissionResult.responseMessage,
+              idManifiesto: extractedId,
+            };
+            return updated;
+          });
+          
+          if (submissionResult.success) {
+            toast({ title: "Reintento Exitoso", description: `Manifiesto ${consecutivo} enviado correctamente` });
+          } else {
+            toast({ title: "Error", description: submissionResult.responseMessage || "El reintento falló", variant: "destructive" });
+          }
+        } else {
+          setGeneratedManifiestos(prev => {
+            const updated = [...prev];
+            updated[index] = { ...prev[index], status: "error" as const, responseMessage: "No se recibió respuesta del servidor" };
+            return updated;
+          });
+        }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await pollSingleManifiestoResult(batchId, index, consecutivo, attempts + 1);
+      }
+    } catch {
+      setGeneratedManifiestos(prev => {
+        const updated = [...prev];
+        updated[index] = { ...prev[index], status: "error" as const, responseMessage: "Error consultando resultado" };
+        return updated;
+      });
+      toast({ title: "Error", description: "Error consultando resultado del reintento", variant: "destructive" });
+    }
+  };
+
+  const retryAllFailedManifiestos = async () => {
+    // Capture failed indices and their data at the start
+    const failedManifestosSnapshot: Array<{ index: number; manifiesto: GeneratedManifiesto }> = [];
+    generatedManifiestos.forEach((m, i) => {
+      if (m.status === "error") {
+        failedManifestosSnapshot.push({ index: i, manifiesto: { ...m } });
+      }
+    });
+    
+    if (failedManifestosSnapshot.length === 0) {
+      toast({ title: "Info", description: "No hay manifiestos fallidos para reintentar" });
+      return;
+    }
+    
+    setIsRetryingAllFailed(true);
+    toast({ title: "Reintentando", description: `Reenviando ${failedManifestosSnapshot.length} manifiestos fallidos...` });
+    
+    let successCount = 0;
+    let errorCount = 0;
+    const wsUrl = settings.wsEnvironment === "production"
+      ? settings.wsUrlProd
+      : settings.wsUrlTest;
+    
+    for (const { index, manifiesto } of failedManifestosSnapshot) {
+      try {
+        // Mark as processing using functional setter
+        setGeneratedManifiestos(prev => {
+          const updated = [...prev];
+          updated[index] = { ...prev[index], status: "processing" as const };
+          return updated;
+        });
+
+        const response = await apiRequest("POST", "/api/rndc/manifiesto-batch", {
+          submissions: [{
+            consecutivoManifiesto: String(manifiesto.consecutivo),
+            numNitEmpresa: settings.companyNit,
+            numPlaca: manifiesto.placa,
+            xmlRequest: manifiesto.xmlRequest,
+          }],
+          wsUrl,
+        });
+
+        const result = await response.json();
+        
+        if (result.success && result.batchId) {
+          // Poll for result with timeout
+          let completed = false;
+          let attempts = 0;
+          while (!completed && attempts < 30) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            try {
+              const pollRes = await apiRequest("GET", `/api/rndc/manifiesto-batch/${result.batchId}/results`);
+              const pollResult = await pollRes.json();
+              
+              if (pollResult.completed) {
+                completed = true;
+                const submissionResult = pollResult.results?.[0];
+                if (submissionResult) {
+                  let extractedId = submissionResult.idManifiesto;
+                  if (!extractedId && submissionResult.responseMessage) {
+                    const idMatch = submissionResult.responseMessage.match(/IngresoID:\s*(\d+)/i);
+                    if (idMatch) extractedId = idMatch[1];
+                  }
+                  if (!extractedId && submissionResult.responseCode && /^\d+$/.test(submissionResult.responseCode)) {
+                    extractedId = submissionResult.responseCode;
+                  }
+                  
+                  setGeneratedManifiestos(prev => {
+                    const updated = [...prev];
+                    updated[index] = {
+                      ...prev[index],
+                      status: submissionResult.success ? "success" as const : "error" as const,
+                      responseCode: submissionResult.responseCode,
+                      responseMessage: submissionResult.responseMessage,
+                      idManifiesto: extractedId,
+                    };
+                    return updated;
+                  });
+                  
+                  if (submissionResult.success) successCount++;
+                  else errorCount++;
+                } else {
+                  // No submission result
+                  setGeneratedManifiestos(prev => {
+                    const updated = [...prev];
+                    updated[index] = { ...prev[index], status: "error" as const, responseMessage: "Sin respuesta del servidor" };
+                    return updated;
+                  });
+                  errorCount++;
+                }
+              }
+            } catch {
+              // Polling error - continue trying
+            }
+            attempts++;
+          }
+          
+          // Timeout - reset to error
+          if (!completed) {
+            setGeneratedManifiestos(prev => {
+              const updated = [...prev];
+              updated[index] = { ...prev[index], status: "error" as const, responseMessage: "Tiempo de espera agotado" };
+              return updated;
+            });
+            errorCount++;
+          }
+        } else {
+          // Batch creation failed
+          setGeneratedManifiestos(prev => {
+            const updated = [...prev];
+            updated[index] = { ...prev[index], status: "error" as const, responseMessage: result.message || "Error al reintentar" };
+            return updated;
+          });
+          errorCount++;
+        }
+      } catch {
+        // Request failed - reset to error
+        setGeneratedManifiestos(prev => {
+          const updated = [...prev];
+          updated[index] = { ...prev[index], status: "error" as const, responseMessage: "Error de conexión" };
+          return updated;
+        });
+        errorCount++;
+      }
+    }
+    
+    setIsRetryingAllFailed(false);
+    toast({
+      title: "Reintento Completado",
+      description: `${successCount} exitosos, ${errorCount} fallidos de ${failedManifestosSnapshot.length} reintentos`
+    });
+  };
+
+  const failedManifiestosCount = generatedManifiestos.filter(m => m.status === "error").length;
 
   const generateManifiestoPdf = async (manifiesto: GeneratedManifiesto) => {
     let manifiestoId = manifiesto.idManifiesto;
@@ -2680,6 +2942,22 @@ export default function Despachos() {
                           )}
                         </Button>
                       )}
+                      {failedManifiestosCount > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={retryAllFailedManifiestos}
+                          disabled={isRetryingAllFailed}
+                          className="border-red-300 text-red-700 hover:bg-red-50"
+                          data-testid="button-retry-all-failed"
+                        >
+                          {isRetryingAllFailed ? (
+                            <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Reintentando...</>
+                          ) : (
+                            <><RotateCcw className="h-4 w-4 mr-1" /> Reintentar Fallidos ({failedManifiestosCount})</>
+                          )}
+                        </Button>
+                      )}
                     </div>
                     <Table>
                       <TableHeader>
@@ -2749,21 +3027,43 @@ export default function Despachos() {
                               </Dialog>
                             </TableCell>
                             <TableCell>
-                              {manifiesto.status === "success" && (
-                                manifiesto.idManifiesto || 
-                                manifiesto.responseMessage?.match(/IngresoID:\s*(\d+)/i) ||
-                                (manifiesto.responseCode && /^\d+$/.test(manifiesto.responseCode))
-                              ) && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => generateManifiestoPdf(manifiesto)}
-                                  data-testid={`button-generate-pdf-${i}`}
-                                  title="Generar PDF con QR"
-                                >
-                                  <FileText className="h-4 w-4 text-blue-600" />
-                                </Button>
-                              )}
+                              <div className="flex items-center gap-1">
+                                {manifiesto.status === "success" && (
+                                  manifiesto.idManifiesto || 
+                                  manifiesto.responseMessage?.match(/IngresoID:\s*(\d+)/i) ||
+                                  (manifiesto.responseCode && /^\d+$/.test(manifiesto.responseCode))
+                                ) && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => generateManifiestoPdf(manifiesto)}
+                                    data-testid={`button-generate-pdf-${i}`}
+                                    title="Generar PDF con QR"
+                                  >
+                                    <FileText className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                )}
+                                {manifiesto.status === "error" && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => retrySingleManifiesto(i)}
+                                    disabled={retryingManifiestoIndex === i || isRetryingAllFailed}
+                                    data-testid={`button-retry-manifiesto-${i}`}
+                                    title="Reintentar envío"
+                                    className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                  >
+                                    {retryingManifiestoIndex === i ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <RotateCcw className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )}
+                                {manifiesto.status === "processing" && (
+                                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
