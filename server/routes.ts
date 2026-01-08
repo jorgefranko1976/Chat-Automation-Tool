@@ -1585,7 +1585,7 @@ export async function registerRoutes(
   // PDF Template routes
   app.get("/api/pdf-templates", requireAuth, async (req, res) => {
     try {
-      const userId = (req.user as any)?.id;
+      const userId = req.session.userId;
       if (!userId) {
         return res.status(401).json({ success: false, message: "No autenticado" });
       }
@@ -1598,7 +1598,7 @@ export async function registerRoutes(
 
   app.get("/api/pdf-templates/default/:templateType", requireAuth, async (req, res) => {
     try {
-      const userId = (req.user as any)?.id;
+      const userId = req.session.userId;
       if (!userId) {
         return res.status(401).json({ success: false, message: "No autenticado" });
       }
@@ -1623,7 +1623,7 @@ export async function registerRoutes(
 
   app.post("/api/pdf-templates", requireAuth, async (req, res) => {
     try {
-      const userId = (req.user as any)?.id;
+      const userId = req.session.userId;
       if (!userId) {
         return res.status(401).json({ success: false, message: "No autenticado" });
       }
@@ -1649,7 +1649,7 @@ export async function registerRoutes(
 
   app.post("/api/pdf-templates/:id/set-default", requireAuth, async (req, res) => {
     try {
-      const userId = (req.user as any)?.id;
+      const userId = req.session.userId;
       if (!userId) {
         return res.status(401).json({ success: false, message: "No autenticado" });
       }
