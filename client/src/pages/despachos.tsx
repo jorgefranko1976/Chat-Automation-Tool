@@ -1583,23 +1583,20 @@ export default function Despachos() {
         return details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular;
       };
 
-      // Format valor with comma separator (e.g., 829440 -> "829,440")
-      const valorFlete = parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0");
-      const valorFormateado = formatValorQR(valorFlete);
-      
+      // Build QR data according to official RNDC specification
+      // Note: "Valor" field is NOT part of the official QR spec
+      // Obs: Only include if RNDC provides observations in the acceptance XML
       const qrResponse = await apiRequest("POST", "/api/rndc/manifiesto-qr", {
         mec: details.INGRESOID,
         fecha: details.FECHAEXPEDICIONMANIFIESTO,
         placa: details.NUMPLACA,
         remolque: details.NUMPLACAREMOLQUE || undefined,
         config: details.NUMPLACAREMOLQUE ? "3S2" : "2",
-        orig: origName.substring(0, 25),
-        dest: destName.substring(0, 25),
+        orig: origName.substring(0, 20),
+        dest: destName.substring(0, 20),
         mercancia: cargoDesc.substring(0, 30),
         conductor: details.NUMIDCONDUCTOR,
         empresa: (settings.companyName || "TRANSPETROMIRA S.A.S").substring(0, 30),
-        valor: valorFormateado,
-        obs: details.ACEPTACIONELECTRONICA === "S" ? "ACEPTACION ELECTRONICA" : "",
         seguro: details.SEGURIDADQR,
       });
 

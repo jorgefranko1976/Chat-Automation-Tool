@@ -1239,9 +1239,10 @@ export async function registerRoutes(
       }
 
       // Build QR data string according to RNDC official specs
-      // IMPORTANT: Use CRLF (\r\n) line endings to match RNDC official format
-      // Fields: MEC, Fecha, Placa, Config, Orig (MUNICIPALITY DEPARTMENT), Dest (MUNICIPALITY DEPARTMENT), 
-      //         Mercancia, Conductor, Empresa, Valor (comma-formatted), Obs (optional), Seguro
+      // IMPORTANT: Use CRLF (\r\n) line endings after each field EXCEPT the last one (Seguro)
+      // Official RNDC QR format has exactly 12 fields in this order:
+      // MEC, Fecha, Placa, Remolque(optional), Config, Orig(max 20), Dest(max 20), 
+      // Mercancia(max 30), Conductor, Empresa(max 30), Obs(optional, max 120), Seguro(28 chars)
       const CRLF = "\r\n";
       const lines: string[] = [];
       lines.push(`MEC:${mec}`);
@@ -1249,16 +1250,16 @@ export async function registerRoutes(
       lines.push(`Placa:${placa}`);
       if (remolque) lines.push(`Remolque:${remolque}`);
       lines.push(`Config:${config || "2"}`);
-      lines.push(`Orig:${(orig || "").substring(0, 25)}`);
-      lines.push(`Dest:${(dest || "").substring(0, 25)}`);
+      lines.push(`Orig:${(orig || "").substring(0, 20)}`);
+      lines.push(`Dest:${(dest || "").substring(0, 20)}`);
       lines.push(`Mercancia:${(mercancia || "").substring(0, 30)}`);
       lines.push(`Conductor:${conductor || ""}`);
       lines.push(`Empresa:${(empresa || "").substring(0, 30)}`);
-      lines.push(`Valor:${valor || "0"}`);
+      // Obs: Only include if RNDC provides observations in the acceptance XML (not for regular manifests)
       if (obs) lines.push(`Obs:${obs.substring(0, 120)}`);
       lines.push(`Seguro:${seguro}`);
       
-      // Join with CRLF (no trailing newline)
+      // Join with CRLF - no trailing newline after last field (Seguro)
       const qrData = lines.join(CRLF);
 
       // Generate QR as base64 data URL (high quality, 3cm at 300dpi ~ 354px)
