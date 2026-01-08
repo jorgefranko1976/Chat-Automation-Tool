@@ -334,10 +334,10 @@ export function ReportDesigner() {
 
   const deleteField = (fieldId: string) => {
     const field = fields.find(f => f.id === fieldId);
-    if (field?.isCustom) {
+    if (field) {
       setFields(prev => prev.filter(f => f.id !== fieldId));
       if (selectedField === fieldId) setSelectedField(null);
-      toast({ title: "Campo eliminado", description: "Campo personalizado eliminado" });
+      toast({ title: "Campo eliminado", description: `Campo "${field.label}" eliminado de la plantilla` });
     }
   };
 
@@ -417,23 +417,22 @@ export function ReportDesigner() {
                     onClick={() => setSelectedField(f.id)}
                     className={`p-2 rounded cursor-pointer text-xs flex items-center justify-between ${selectedField === f.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       {f.isCustom ? (
-                        f.bindingType === "static" ? <Type className="h-3 w-3" /> : <Database className="h-3 w-3" />
+                        f.bindingType === "static" ? <Type className="h-3 w-3 flex-shrink-0" /> : <Database className="h-3 w-3 flex-shrink-0" />
                       ) : null}
-                      <span>{f.label}</span>
-                      <span className={`ml-1 ${selectedField === f.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>({f.x}, {f.y})</span>
+                      <span className="truncate">{f.label}</span>
+                      <span className={`ml-1 flex-shrink-0 ${selectedField === f.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>({f.x}, {f.y})</span>
                     </div>
-                    {f.isCustom && (
-                      <Button
-                        onClick={e => { e.stopPropagation(); deleteField(f.id); }}
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
+                    <Button
+                      onClick={e => { e.stopPropagation(); deleteField(f.id); }}
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 hover:bg-destructive hover:text-destructive-foreground flex-shrink-0"
+                      title="Eliminar campo"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 ))}
               </div>
