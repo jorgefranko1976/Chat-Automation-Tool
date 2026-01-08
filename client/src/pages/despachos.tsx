@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/hooks/use-settings";
-import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText, RotateCcw } from "lucide-react";
+import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, Loader2, X, Database, Car, User, RefreshCw, Save, FolderOpen, Trash2, ArrowUpDown, CheckSquare, Square, FileCode, Eye, History, FileText, RotateCcw, RefreshCcw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1278,6 +1278,115 @@ export default function Despachos() {
   };
 
   const failedManifiestosCount = generatedManifiestos.filter(m => m.status === "error").length;
+
+  const regenerateManifiestoXml = (index: number) => {
+    const manifiesto = generatedManifiestos[index];
+    if (!manifiesto) return;
+    
+    // Find the corresponding row in the Excel data by placa and cedula
+    const normalizeCedula = (val: string) => val?.replace(/[.\-\s]/g, "") || "";
+    const normalizedCedula = normalizeCedula(manifiesto.cedula);
+    
+    const matchingRow = rows.find(r => 
+      r.placa?.toUpperCase() === manifiesto.placa?.toUpperCase() && 
+      normalizeCedula(r.cedula) === normalizedCedula
+    );
+    
+    if (!matchingRow) {
+      toast({ 
+        title: "Error", 
+        description: "No se encontró la fila correspondiente en el Excel. Verifique que el Excel esté cargado con los datos actualizados.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    if (!matchingRow.placaData) {
+      toast({ 
+        title: "Error", 
+        description: "Falta validar la placa. Ejecute la validación antes de regenerar.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    // Get updated data from the row
+    const tipoIdTitular = matchingRow.placaData.tipoIdPropietario || "C";
+    const numIdTitular = matchingRow.placaData.propietarioId || "";
+    
+    // Find associated remesa for additional data
+    const associatedRemesa = generatedRemesas.find(r => r.consecutivo === manifiesto.consecutivoRemesa);
+    
+    // Calculate valorFlete from row data - same logic as remesa generation (line 677-678)
+    let valorFlete = associatedRemesa?.valorFlete || manifiesto.valorFlete;
+    if (!valorFlete && matchingRow.granjaData?.flete) {
+      // Use exact same normalization as remesa generation: keep digits, dots, minus
+      const fletePerTon = parseFloat((matchingRow.granjaData.flete || "").replace(/[^\d.-]/g, "")) || 0;
+      const toneladas = parseFloat(matchingRow.toneladas?.replace(",", ".") || "0") || 0;
+      valorFlete = Math.round(toneladas * fletePerTon);
+    }
+    if (!valorFlete) valorFlete = 0;
+    
+    // Regenerate the XML with updated titular info
+    const xml = `<?xml version="1.0" encoding="ISO-8859-1"?>
+<root>
+  <acceso>
+    <username>${settings.usernameRndc}</username>
+    <password>${settings.passwordRndc}</password>
+  </acceso>
+  <solicitud>
+    <tipo>1</tipo>
+    <procesoid>4</procesoid>
+  </solicitud>
+  <variables>
+    <NUMNITEMPRESATRANSPORTE>${settings.companyNit}</NUMNITEMPRESATRANSPORTE>
+    <NUMMANIFIESTOCARGA>${manifiesto.consecutivo}</NUMMANIFIESTOCARGA>
+    <CODOPERACIONTRANSPORTE>G</CODOPERACIONTRANSPORTE>
+    <FECHAEXPEDICIONMANIFIESTO>${manifiesto.fechaExpedicion}</FECHAEXPEDICIONMANIFIESTO>
+    <CODMUNICIPIOORIGENMANIFIESTO>${manifiesto.codMunicipioOrigen}</CODMUNICIPIOORIGENMANIFIESTO>
+    <CODMUNICIPIODESTINOMANIFIESTO>${manifiesto.codMunicipioDestino}</CODMUNICIPIODESTINOMANIFIESTO>
+    <CODIDTITULARMANIFIESTO>${tipoIdTitular}</CODIDTITULARMANIFIESTO>
+    <NUMIDTITULARMANIFIESTO>${numIdTitular}</NUMIDTITULARMANIFIESTO>
+    <NUMPLACA>${manifiesto.placa}</NUMPLACA>
+    <CODIDCONDUCTOR>C</CODIDCONDUCTOR>
+    <NUMIDCONDUCTOR>${manifiesto.cedula}</NUMIDCONDUCTOR>
+    <VALORFLETEPACTADOVIAJE>${valorFlete}</VALORFLETEPACTADOVIAJE>
+    <RETENCIONICAMANIFIESTOCARGA>0</RETENCIONICAMANIFIESTOCARGA>
+    <VALORANTICIPOMANIFIESTO>0</VALORANTICIPOMANIFIESTO>
+    <CODMUNICIPIOPAGOSALDO>11001000</CODMUNICIPIOPAGOSALDO>
+    <FECHAPAGOSALDOMANIFIESTO>${manifiesto.fechaPagoSaldo}</FECHAPAGOSALDOMANIFIESTO>
+    <CODRESPONSABLEPAGOCARGUE>D</CODRESPONSABLEPAGOCARGUE>
+    <CODRESPONSABLEPAGODESCARGUE>D</CODRESPONSABLEPAGODESCARGUE>
+    <ACEPTACIONELECTRONICA>SI</ACEPTACIONELECTRONICA>
+    <REMESASMAN procesoid="43">
+      <REMESA>
+        <CONSECUTIVOREMESA>${manifiesto.consecutivoRemesa}</CONSECUTIVOREMESA>
+      </REMESA>
+    </REMESASMAN>
+  </variables>
+</root>`;
+
+    // Update the manifest with regenerated XML
+    setGeneratedManifiestos(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...prev[index],
+        tipoIdTitular,
+        numIdTitular,
+        valorFlete,
+        xmlRequest: xml,
+        status: "pending" as const,
+        responseCode: undefined,
+        responseMessage: undefined,
+      };
+      return updated;
+    });
+    
+    toast({ 
+      title: "XML Regenerado", 
+      description: `Manifiesto ${manifiesto.consecutivo} actualizado. Titular: ${tipoIdTitular} ${numIdTitular}, Flete: $${valorFlete.toLocaleString()}. Listo para reintentar.` 
+    });
+  };
 
   const generateManifiestoPdf = async (manifiesto: GeneratedManifiesto) => {
     let manifiestoId = manifiesto.idManifiesto;
@@ -3041,6 +3150,19 @@ export default function Despachos() {
                                     title="Generar PDF con QR"
                                   >
                                     <FileText className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                )}
+                                {(manifiesto.status === "error" || manifiesto.status === "pending") && rows.length > 0 && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => regenerateManifiestoXml(i)}
+                                    disabled={retryingManifiestoIndex === i || isRetryingAllFailed}
+                                    data-testid={`button-regenerate-xml-${i}`}
+                                    title="Regenerar XML desde Excel actualizado"
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  >
+                                    <RefreshCcw className="h-4 w-4" />
                                   </Button>
                                 )}
                                 {manifiesto.status === "error" && (
