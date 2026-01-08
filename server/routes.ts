@@ -1742,6 +1742,23 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/generate-qr", requireAuth, async (req, res) => {
+    try {
+      const { content } = req.body;
+      if (!content || typeof content !== "string") {
+        return res.status(400).json({ success: false, message: "Contenido requerido" });
+      }
+      const qrImage = await QRCode.toDataURL(content, {
+        width: 354,
+        margin: 1,
+        errorCorrectionLevel: "M",
+      });
+      res.json({ success: true, qrImage });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al generar código QR" });
+    }
+  });
+
   app.get("/api/conductores", requireAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 500;

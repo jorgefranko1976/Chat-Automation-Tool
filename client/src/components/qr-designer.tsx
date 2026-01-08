@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, GripVertical, RotateCcw, QrCode, Eye } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Save, GripVertical, RotateCcw, QrCode, Eye, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -43,6 +44,9 @@ export function QRDesigner() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [qrPreview, setQrPreview] = useState<string>("");
+  const [customText, setCustomText] = useState<string>("");
+  const [generatedQrImage, setGeneratedQrImage] = useState<string>("");
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
   const mergeWithDefaults = useCallback((storedFields: QRFieldConfig[]): QRFieldConfig[] => {
@@ -144,6 +148,27 @@ export function QRDesigner() {
       const resetFields = DEFAULT_QR_FIELDS.map((f, idx) => ({ ...f, order: idx + 1 }));
       setFields(resetFields);
       toast({ title: "Restablecido", description: "Configuración por defecto restaurada" });
+    }
+  };
+
+  const handleGenerateQr = async () => {
+    if (!customText.trim()) {
+      toast({ title: "Error", description: "Ingrese el contenido para generar el QR", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingQr(true);
+    try {
+      const res = await apiRequest("POST", "/api/generate-qr", { content: customText });
+      const data = await res.json();
+      if (data.success && data.qrImage) {
+        setGeneratedQrImage(data.qrImage);
+      } else {
+        toast({ title: "Error", description: data.message || "No se pudo generar el QR", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error al generar el código QR", variant: "destructive" });
+    } finally {
+      setIsGeneratingQr(false);
     }
   };
 
@@ -307,6 +332,74 @@ export function QRDesigner() {
           </Card>
         </div>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader className="py-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <QrCode className="h-4 w-4" />
+            Generador de Código QR
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <Label>Contenido del QR</Label>
+              <Textarea
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                placeholder={"Pegue aquí el contenido para generar el QR.\nEjemplo:\nMEC:12345678\nFecha:2025-01-08\nPlaca:ABC123"}
+                rows={8}
+                className="font-mono text-sm"
+                data-testid="textarea-qr-content"
+              />
+              <Button 
+                onClick={handleGenerateQr} 
+                disabled={isGeneratingQr || !customText.trim()}
+                className="w-full"
+                data-testid="button-generate-qr"
+              >
+                {isGeneratingQr ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <QrCode className="h-4 w-4 mr-2" />
+                    Generar QR
+                  </>
+                )}
+              </Button>
+            </div>
+            <div className="flex flex-col items-center justify-center">
+              {generatedQrImage ? (
+                <div className="space-y-3 text-center">
+                  <img 
+                    src={generatedQrImage} 
+                    alt="Código QR Generado" 
+                    className="border rounded-lg shadow-sm"
+                    style={{ width: "200px", height: "200px" }}
+                    data-testid="img-generated-qr"
+                  />
+                  <a
+                    href={generatedQrImage}
+                    download="codigo-qr.png"
+                    className="text-sm text-primary hover:underline"
+                    data-testid="link-download-qr"
+                  >
+                    Descargar QR
+                  </a>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg w-full">
+                  <QrCode className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">El código QR aparecerá aquí</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
