@@ -99,6 +99,7 @@ export default function Despachos() {
   const [generatedManifiestos, setGeneratedManifiestos] = useState<GeneratedManifiesto[]>([]);
   const [isSendingRemesas, setIsSendingRemesas] = useState(false);
   const [isSendingManifiestos, setIsSendingManifiestos] = useState(false);
+  const [manifestoProgress, setManifiestoProgress] = useState({ total: 0, processed: 0, success: 0, error: 0 });
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   const [showRemesasHistory, setShowRemesasHistory] = useState(false);
   const [stepDComplete, setStepDComplete] = useState(false);
@@ -969,6 +970,9 @@ export default function Despachos() {
     if (generatedManifiestos.length === 0) return;
 
     setIsSendingManifiestos(true);
+    // Initialize progress tracking
+    const pendingCount = generatedManifiestos.filter(m => m.status === "pending").length;
+    setManifiestoProgress({ total: pendingCount, processed: 0, success: 0, error: 0 });
 
     try {
       const wsUrl = settings.wsEnvironment === "production"
@@ -1007,19 +1011,27 @@ export default function Despachos() {
       const response = await apiRequest("GET", `/api/rndc/manifiesto-batch/${batchId}/results`);
       const result = await response.json();
 
-      if (result.completed) {
-        const updatedManifiestos = generatedManifiestos.map(m => {
+      // Update progress with partial results if available
+      if (result.results && result.results.length > 0) {
+        const processed = result.results.length;
+        const successCount = result.results.filter((r: any) => r.success).length;
+        const errorCount = result.results.filter((r: any) => !r.success && r.responseCode).length;
+        setManifiestoProgress(prev => ({
+          ...prev,
+          processed,
+          success: successCount,
+          error: errorCount
+        }));
+
+        // Update individual manifest statuses in real-time
+        setGeneratedManifiestos(prev => prev.map(m => {
           const submissionResult = result.results?.find((r: any) => String(r.consecutivoManifiesto) === String(m.consecutivo));
-          if (submissionResult) {
-            // Extract idManifiesto from response message if not provided directly
+          if (submissionResult && submissionResult.responseCode) {
             let extractedId = submissionResult.idManifiesto;
             if (!extractedId && submissionResult.responseMessage) {
               const idMatch = submissionResult.responseMessage.match(/IngresoID:\s*(\d+)/i);
-              if (idMatch) {
-                extractedId = idMatch[1];
-              }
+              if (idMatch) extractedId = idMatch[1];
             }
-            // Also try responseCode for numeric IDs
             if (!extractedId && submissionResult.responseCode && /^\d+$/.test(submissionResult.responseCode)) {
               extractedId = submissionResult.responseCode;
             }
@@ -1032,15 +1044,18 @@ export default function Despachos() {
             };
           }
           return m;
-        });
-        setGeneratedManifiestos(updatedManifiestos);
+        }));
+      }
+
+      if (result.completed) {
         setIsSendingManifiestos(false);
         setStepDComplete(true);
 
-        const successCount = updatedManifiestos.filter(m => m.status === "success").length;
+        const finalSuccess = result.results?.filter((r: any) => r.success).length || 0;
+        const finalTotal = result.results?.length || 0;
         toast({
           title: "Manifiestos Procesados",
-          description: `${successCount}/${updatedManifiestos.length} manifiestos enviados exitosamente`
+          description: `${finalSuccess}/${finalTotal} manifiestos enviados exitosamente`
         });
       } else {
         setTimeout(() => pollManifiestoResults(batchId), 2000);
@@ -3159,11 +3174,24 @@ export default function Despachos() {
                         data-testid="button-send-manifiestos"
                       >
                         {isSendingManifiestos ? (
-                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</>
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando {manifestoProgress.processed}/{manifestoProgress.total}...</>
                         ) : (
                           <>Enviar al RNDC <CheckCircle className="ml-2 h-4 w-4" /></>
                         )}
                       </Button>
+                      {isSendingManifiestos && manifestoProgress.total > 0 && (
+                        <div className="flex items-center gap-3 px-3 py-1.5 bg-muted rounded-md text-sm">
+                          <span className="text-green-600 font-medium" data-testid="progress-success">
+                            <CheckCircle className="h-4 w-4 inline mr-1" />{manifestoProgress.success} OK
+                          </span>
+                          <span className="text-red-600 font-medium" data-testid="progress-error">
+                            <AlertCircle className="h-4 w-4 inline mr-1" />{manifestoProgress.error} Error
+                          </span>
+                          <span className="text-muted-foreground">
+                            {manifestoProgress.total - manifestoProgress.processed} pendientes
+                          </span>
+                        </div>
+                      )}
                       {generatedManifiestos.some(m => m.status === "success") && (
                         <Button
                           className="bg-green-600 hover:bg-green-700"
