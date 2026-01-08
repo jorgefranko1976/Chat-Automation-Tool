@@ -751,9 +751,18 @@ export default function Despachos() {
       return;
     }
 
-    const manifiestos: GeneratedManifiesto[] = [];
+    // Find remesas that don't already have a manifest
+    const existingConsecutivos = new Set(generatedManifiestos.map(m => m.consecutivoRemesa));
+    const remesasWithoutManifest = successRemesas.filter(r => !existingConsecutivos.has(r.consecutivo));
+    
+    if (remesasWithoutManifest.length === 0) {
+      toast({ title: "Info", description: "Todas las remesas exitosas ya tienen manifiesto generado" });
+      return;
+    }
 
-    for (const remesa of successRemesas) {
+    const newManifiestos: GeneratedManifiesto[] = [];
+
+    for (const remesa of remesasWithoutManifest) {
       const fechaPagoSaldo = addDays(remesa.fecha || remesa.fechaCargue, 5);
       
       const xml = `<?xml version="1.0" encoding="ISO-8859-1"?>
@@ -794,7 +803,7 @@ export default function Despachos() {
   </variables>
 </root>`;
 
-      manifiestos.push({
+      newManifiestos.push({
         consecutivo: remesa.consecutivo,
         placa: remesa.placa,
         fechaExpedicion: remesa.fecha || remesa.fechaCargue,
@@ -811,10 +820,11 @@ export default function Despachos() {
       });
     }
 
-    setGeneratedManifiestos(manifiestos);
+    // Append new manifests to existing ones
+    setGeneratedManifiestos(prev => [...prev, ...newManifiestos]);
     toast({
       title: "Manifiestos Generados",
-      description: `${manifiestos.length} manifiestos listos para enviar`
+      description: `${newManifiestos.length} nuevo(s) manifiesto(s) agregado(s). Total: ${generatedManifiestos.length + newManifiestos.length}`
     });
   };
 
