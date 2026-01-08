@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSettings, RndcSettings, WsEnvironment } from "@/hooks/use-settings";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
-import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server, User, Lock, Loader2, LogOut, FileText } from "lucide-react";
+import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server, User, Lock, Loader2, LogOut, FileText, Download, Database } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { ReportDesigner } from "@/components/report-designer";
@@ -21,6 +21,7 @@ export default function Settings() {
   const [isRestarting, setIsRestarting] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
   
   const [profileData, setProfileData] = useState({
     name: user?.name || "",
@@ -133,6 +134,49 @@ export default function Settings() {
         variant: "destructive",
       });
       setIsRestarting(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    if (!confirm("¿Desea descargar un respaldo completo de la base de datos? Esto incluirá todo el esquema y los datos.")) {
+      return;
+    }
+
+    setIsBackingUp(true);
+    try {
+      const response = await fetch("/api/system/backup", {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al generar backup");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const contentDisposition = response.headers.get("Content-Disposition");
+      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || `rndc-backup-${new Date().toISOString().slice(0, 10)}.sql`;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Respaldo Descargado",
+        description: "El archivo de respaldo se ha descargado correctamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo generar el respaldo de la base de datos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBackingUp(false);
     }
   };
 
@@ -583,6 +627,45 @@ export default function Settings() {
                   <p className="text-amber-800">
                     <strong>Nota:</strong> Al reiniciar el servidor, la aplicación estará temporalmente no disponible. 
                     El servidor se reiniciará automáticamente si está configurado con PM2.
+                  </p>
+                </div>
+
+                <div className="border-t pt-6 mt-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-5 w-5 text-primary" />
+                      <Label className="text-base font-medium">Respaldo de Base de Datos</Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Descargue un respaldo completo de la base de datos incluyendo el esquema y todos los datos. 
+                      El archivo generado es compatible con PostgreSQL y puede ser restaurado usando <code className="bg-muted px-1 rounded">pg_restore</code> o <code className="bg-muted px-1 rounded">psql</code>.
+                    </p>
+                    <Button 
+                      onClick={handleBackup} 
+                      variant="outline"
+                      disabled={isBackingUp}
+                      className="w-full sm:w-auto"
+                      data-testid="button-backup-database"
+                    >
+                      {isBackingUp ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generando respaldo...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Descargar Respaldo
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 mt-4">
+                  <p className="text-blue-800 text-sm">
+                    <strong>Para restaurar:</strong> Use el comando <code className="bg-blue-100 px-1 rounded">psql -d DATABASE_URL -f backup.sql</code> 
+                    para restaurar el respaldo en una base de datos PostgreSQL.
                   </p>
                 </div>
               </CardContent>

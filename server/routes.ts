@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import { spawn } from "child_process";
 import { storage } from "./storage";
 import { sendXmlToRndc, queryManifiestoDetails, queryTerceroDetails, queryVehiculoDetails, queryVehiculoExtraDetails } from "./rndc-service";
 import QRCode from "qrcode";
@@ -2668,6 +2669,75 @@ INGRESOID,FECHAING,NUMLICENCIACONDUCCION,CODCATEGORIALICENCIACONDUCCION,FECHAVEN
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al eliminar despacho" });
+    }
+  });
+
+  // Database backup endpoint - uses pg_dump with environment variable for security
+  app.get("/api/system/backup", requireAuth, async (req, res) => {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      return res.status(500).json({ success: false, message: "DATABASE_URL no configurada" });
+    }
+
+    try {
+      // Parse DATABASE_URL to extract connection parameters
+      const url = new URL(databaseUrl);
+      const host = url.hostname;
+      const port = url.port || "5432";
+      const database = url.pathname.slice(1);
+      const username = url.username;
+      const password = decodeURIComponent(url.password);
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `rndc-backup-${timestamp}.sql`;
+
+      res.setHeader("Content-Type", "application/sql");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+      // Use environment variable for password (more secure than command line)
+      const pgDump = spawn("pg_dump", [
+        "-h", host,
+        "-p", port,
+        "-U", username,
+        "-d", database,
+        "--no-owner",
+        "--no-acl",
+        "--clean",
+        "--if-exists",
+      ], {
+        env: {
+          ...process.env,
+          PGPASSWORD: password,
+        },
+      });
+
+      let hasError = false;
+
+      pgDump.stdout.pipe(res);
+
+      pgDump.stderr.on("data", (data) => {
+        console.error("pg_dump stderr:", data.toString());
+      });
+
+      pgDump.on("error", (error) => {
+        hasError = true;
+        console.error("pg_dump error:", error);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, message: "Error ejecutando backup" });
+        }
+      });
+
+      pgDump.on("close", (code) => {
+        if (code !== 0 && !hasError) {
+          console.error(`pg_dump exited with code ${code}`);
+          if (!res.headersSent) {
+            res.status(500).json({ success: false, message: `pg_dump falló con código ${code}` });
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Backup error:", error);
+      res.status(500).json({ success: false, message: "Error generando backup" });
     }
   });
 
