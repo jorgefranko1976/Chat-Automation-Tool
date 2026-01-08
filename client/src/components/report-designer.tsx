@@ -603,15 +603,14 @@ export function ReportDesigner() {
             <div className="overflow-auto border rounded" style={{ maxHeight: "70vh" }}>
               <div
                 ref={canvasRef}
-                className="relative bg-white"
+                className="relative"
                 style={{
                   width: 279 * SCALE,
                   height: 216 * SCALE,
-                  backgroundImage: `url(${
-                    activePage === 1 
-                      ? (backgroundImage1 || "/manifiesto_template_p1.jpg") 
-                      : (backgroundImage2 || "/manifiesto_template_p2.png")
-                  })`,
+                  backgroundColor: '#f5f5f5',
+                  backgroundImage: (activePage === 1 ? backgroundImage1 : backgroundImage2) 
+                    ? `url(${activePage === 1 ? backgroundImage1 : backgroundImage2})` 
+                    : 'none',
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}

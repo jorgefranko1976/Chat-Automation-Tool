@@ -1245,22 +1245,28 @@ export default function Despachos() {
         horaDescargue: associatedRemesa?.horaDescargue || "",
       };
 
-      // Load background images (from template or defaults)
-      const bgSrc1 = pdfTemplate?.backgroundImage1 || "/manifiesto_template_p1.jpg";
-      const bgSrc2 = pdfTemplate?.backgroundImage2 || "/manifiesto_template_p2.png";
+      // Load background images (from template if available, otherwise use defaults)
+      const bgSrc1 = pdfTemplate?.backgroundImage1 || (pdfTemplate ? null : "/manifiesto_template_p1.jpg");
+      const bgSrc2 = pdfTemplate?.backgroundImage2 || (pdfTemplate ? null : "/manifiesto_template_p2.png");
       
-      const [rawTemplateP1, rawTemplateP2, qrImg] = await Promise.all([
-        loadImage(bgSrc1),
-        loadImage(bgSrc2),
-        loadImage(qrResult.qrDataUrl),
-      ]);
-
-      // Compress background images for PDF (1400x1080 at 70% quality)
-      const compressedBg1 = compressImageForPdf(rawTemplateP1, 1400, 1080, 0.7);
-      const compressedBg2 = compressImageForPdf(rawTemplateP2, 1400, 1080, 0.7);
+      const qrImg = await loadImage(qrResult.qrDataUrl);
+      
+      let compressedBg1: string | null = null;
+      let compressedBg2: string | null = null;
+      
+      if (bgSrc1) {
+        const rawTemplateP1 = await loadImage(bgSrc1);
+        compressedBg1 = compressImageForPdf(rawTemplateP1, 1400, 1080, 0.7);
+      }
+      if (bgSrc2) {
+        const rawTemplateP2 = await loadImage(bgSrc2);
+        compressedBg2 = compressImageForPdf(rawTemplateP2, 1400, 1080, 0.7);
+      }
 
       // Page 1
-      pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
+      if (compressedBg1) {
+        pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
+      }
       pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
 
       // Render fields using template or default positions
@@ -1347,7 +1353,9 @@ export default function Despachos() {
 
       // Page 2
       pdf.addPage("letter", "landscape");
-      pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
+      if (compressedBg2) {
+        pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
+      }
 
       if (page2Fields.length > 0) {
         page2Fields.forEach(renderField);
