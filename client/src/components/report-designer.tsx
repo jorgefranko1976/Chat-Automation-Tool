@@ -198,7 +198,45 @@ export function ReportDesigner() {
     ));
   };
 
-  const handleImageUpload = (page: 1 | 2) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedBase64);
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageUpload = (page: 1 | 2) => async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     
@@ -207,22 +245,30 @@ export function ReportDesigner() {
       return;
     }
     
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Error", description: "La imagen no debe superar 5MB", variant: "destructive" });
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Error", description: "La imagen no debe superar 10MB", variant: "destructive" });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
+    try {
+      toast({ title: "Procesando", description: "Optimizando imagen..." });
+      const compressedBase64 = await compressImage(file, 1800, 1400, 0.75);
+      
       if (page === 1) {
-        setBackgroundImage1(base64);
+        setBackgroundImage1(compressedBase64);
       } else {
-        setBackgroundImage2(base64);
+        setBackgroundImage2(compressedBase64);
       }
-      toast({ title: "Imagen cargada", description: `Fondo de página ${page} actualizado` });
-    };
-    reader.readAsDataURL(file);
+      
+      const originalKB = Math.round(file.size / 1024);
+      const compressedKB = Math.round((compressedBase64.length * 3) / 4 / 1024);
+      toast({ 
+        title: "Imagen cargada", 
+        description: `Fondo de página ${page} actualizado (${originalKB}KB → ${compressedKB}KB)` 
+      });
+    } catch (error) {
+      toast({ title: "Error", description: "Error al procesar la imagen", variant: "destructive" });
+    }
   };
 
   const saveTemplate = async () => {
