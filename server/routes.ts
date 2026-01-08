@@ -4,7 +4,7 @@ import { spawn } from "child_process";
 import { storage } from "./storage";
 import { sendXmlToRndc, queryManifiestoDetails, queryTerceroDetails, queryVehiculoDetails, queryVehiculoExtraDetails } from "./rndc-service";
 import QRCode from "qrcode";
-import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema, insertTerceroSchema, insertVehiculoSchema } from "@shared/schema";
+import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema, insertTerceroSchema, insertVehiculoSchema, qrFieldConfigSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import session from "express-session";
@@ -1707,6 +1707,38 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al eliminar plantilla" });
+    }
+  });
+
+  app.get("/api/qr-config", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "No autenticado" });
+      }
+      const config = await storage.getQrConfig(userId);
+      res.json({ success: true, config });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener configuración QR" });
+    }
+  });
+
+  app.post("/api/qr-config", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "No autenticado" });
+      }
+      const { fields } = req.body;
+      const fieldsSchema = z.array(qrFieldConfigSchema);
+      const validatedFields = fieldsSchema.parse(fields);
+      const config = await storage.upsertQrConfig(userId, validatedFields);
+      res.json({ success: true, config });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, message: "Datos de configuración inválidos", errors: error.errors });
+      }
+      res.status(500).json({ success: false, message: "Error al guardar configuración QR" });
     }
   });
 

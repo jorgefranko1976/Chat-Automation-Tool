@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSettings, RndcSettings, WsEnvironment } from "@/hooks/use-settings";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
-import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server, User, Lock, Loader2, LogOut, FileText, Download, Database } from "lucide-react";
+import { Save, KeyRound, Building2, Globe, CheckCircle2, RotateCcw, Server, User, Lock, Loader2, LogOut, FileText, Download, Database, QrCode } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { ReportDesigner } from "@/components/report-designer";
+import { QRDesigner } from "@/components/qr-designer";
 
 export default function Settings() {
   const { settings, saveSettings } = useSettings();
@@ -209,7 +210,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="user" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="user" data-testid="tab-user">
               <User className="mr-2 h-4 w-4" /> Usuario
             </TabsTrigger>
@@ -227,6 +228,9 @@ export default function Settings() {
             </TabsTrigger>
             <TabsTrigger value="reports" data-testid="tab-reports">
               <FileText className="mr-2 h-4 w-4" /> Reportes
+            </TabsTrigger>
+            <TabsTrigger value="qr" data-testid="tab-qr">
+              <QrCode className="mr-2 h-4 w-4" /> QR
             </TabsTrigger>
           </TabsList>
 
@@ -683,6 +687,21 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <ReportDesigner />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="qr">
+            <Card>
+              <CardHeader>
+                <CardTitle>Diseñador de Código QR</CardTitle>
+                <CardDescription>
+                  Configure los campos incluidos en el código QR de los manifiestos.
+                  Arrastre para reordenar, active/desactive campos y defina valores fijos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <QRDesigner />
               </CardContent>
             </Card>
           </TabsContent>

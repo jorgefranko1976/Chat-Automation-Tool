@@ -517,3 +517,33 @@ export const insertPdfTemplateSchema = createInsertSchema(pdfTemplates).omit({
 
 export type InsertPdfTemplate = z.infer<typeof insertPdfTemplateSchema>;
 export type PdfTemplate = typeof pdfTemplates.$inferSelect;
+
+export const qrFieldConfigSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  dataKey: z.string(),
+  enabled: z.boolean(),
+  maxLength: z.number(),
+  order: z.number(),
+  valueType: z.enum(["dynamic", "fixed"]),
+  fixedValue: z.string(),
+});
+
+export type QRFieldConfig = z.infer<typeof qrFieldConfigSchema>;
+
+export const qrConfigs = pgTable("qr_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  fields: jsonb("fields").notNull().$type<QRFieldConfig[]>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertQrConfigSchema = createInsertSchema(qrConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertQrConfig = z.infer<typeof insertQrConfigSchema>;
+export type QrConfig = typeof qrConfigs.$inferSelect;

@@ -19,6 +19,7 @@ import {
   despachos,
   destinos,
   pdfTemplates,
+  qrConfigs,
   type User,
   type InsertUser,
   type UpdateUserProfile,
@@ -56,6 +57,9 @@ import {
   type InsertDestino,
   type PdfTemplate,
   type InsertPdfTemplate,
+  type QrConfig,
+  type InsertQrConfig,
+  type QRFieldConfig,
 } from "@shared/schema";
 
 export interface DashboardStats {
@@ -192,6 +196,9 @@ export interface IStorage {
   updatePdfTemplate(id: string, updates: Partial<PdfTemplate>): Promise<PdfTemplate | undefined>;
   deletePdfTemplate(id: string): Promise<void>;
   setDefaultPdfTemplate(id: string, userId: string): Promise<void>;
+  
+  getQrConfig(userId: string): Promise<QrConfig | undefined>;
+  upsertQrConfig(userId: string, fields: QRFieldConfig[]): Promise<QrConfig>;
 }
 
 export interface ManifestSearchFilters {
@@ -876,6 +883,27 @@ export class DatabaseStorage implements IStorage {
     await db.update(pdfTemplates)
       .set({ isDefault: 1 })
       .where(eq(pdfTemplates.id, id));
+  }
+
+  async getQrConfig(userId: string): Promise<QrConfig | undefined> {
+    const [config] = await db.select().from(qrConfigs).where(eq(qrConfigs.userId, userId));
+    return config;
+  }
+
+  async upsertQrConfig(userId: string, fields: QRFieldConfig[]): Promise<QrConfig> {
+    const existing = await this.getQrConfig(userId);
+    if (existing) {
+      const [updated] = await db.update(qrConfigs)
+        .set({ fields, updatedAt: new Date() })
+        .where(eq(qrConfigs.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(qrConfigs)
+        .values({ userId, fields })
+        .returning();
+      return created;
+    }
   }
 }
 
