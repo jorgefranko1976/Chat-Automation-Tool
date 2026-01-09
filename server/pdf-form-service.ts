@@ -166,11 +166,12 @@ export async function fillFormPdf(
     
     if (targetPage) {
       const { width, height } = targetPage.getSize();
-      // Position: top-right corner of first page
-      const qrSize = 80;
-      const margin = 20;
-      const x = width - qrSize - margin;  // Right side
-      const y = height - qrSize - margin; // Top
+      // Position: top-right area, moved left and down per user request
+      const qrSize = 112; // 80 * 1.4 = 112 (40% larger)
+      const marginRight = 20 + 57; // 20mm left = ~57 points
+      const marginTop = 20 + 57;   // 20mm down = ~57 points
+      const x = width - qrSize - marginRight;
+      const y = height - qrSize - marginTop;
       
       console.log(`[QR] Page size: ${width}x${height}, Drawing QR at: x=${x}, y=${y}, size=${qrSize}`);
       
