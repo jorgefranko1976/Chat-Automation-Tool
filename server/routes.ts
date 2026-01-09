@@ -1768,10 +1768,14 @@ export async function registerRoutes(
   app.post("/api/pdf-form-templates/fill", requireAuth, async (req, res) => {
     try {
       const { templateName, data, qrDataUrl, qrPosition } = req.body;
+      console.log(`[PDF-FILL] Template: ${templateName}`);
+      console.log(`[PDF-FILL] QR DataUrl present: ${!!qrDataUrl}, length: ${qrDataUrl?.length || 0}`);
+      console.log(`[PDF-FILL] QR Position from request:`, qrPosition);
       if (!templateName || !data) {
         return res.status(400).json({ success: false, message: "Faltan datos requeridos" });
       }
       const qrPos = qrPosition || getDefaultQrPosition();
+      console.log(`[PDF-FILL] Final QR Position:`, qrPos);
       const pdfBytes = await fillFormPdfFromBase64(templateName, data as ManifiestoData, qrDataUrl, qrPos);
       const base64 = Buffer.from(pdfBytes).toString('base64');
       res.json({ success: true, pdfBase64: base64 });
