@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image, QrCode, Settings, Square, RectangleHorizontal, Download, FileUp } from "lucide-react";
+import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image, QrCode, Settings, Square, RectangleHorizontal, Download, FileUp, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { PdfTemplateField, PdfTemplate, QRTemplateConfig } from "@shared/schema";
@@ -128,9 +128,14 @@ export function ReportDesigner() {
   });
   const [isDraggingQr, setIsDraggingQr] = useState(false);
   const [qrDragOffset, setQrDragOffset] = useState({ x: 0, y: 0 });
+  const [formTemplates, setFormTemplates] = useState<string[]>([]);
+  const [activeFormTemplate, setActiveFormTemplate] = useState<string | null>(null);
+  const [formTemplateFields, setFormTemplateFields] = useState<string[]>([]);
+  const [isUploadingForm, setIsUploadingForm] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef1 = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
+  const formTemplateInputRef = useRef<HTMLInputElement>(null);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -161,6 +166,69 @@ export function ReportDesigner() {
     }
   }, []);
 
+  const loadFormTemplates = useCallback(async () => {
+    try {
+      const res = await apiRequest("GET", "/api/pdf-form-templates");
+      const data = await res.json();
+      if (data.success) {
+        setFormTemplates(data.templates);
+        if (data.templates.length > 0 && !activeFormTemplate) {
+          setActiveFormTemplate(data.templates[0]);
+          loadFormTemplateFields(data.templates[0]);
+        }
+      }
+    } catch (e) {
+      console.error("Error loading form templates:", e);
+    }
+  }, [activeFormTemplate]);
+
+  const loadFormTemplateFields = async (templateName: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/pdf-form-templates/${encodeURIComponent(templateName)}/fields`);
+      const data = await res.json();
+      if (data.success) {
+        setFormTemplateFields(data.fields);
+      }
+    } catch (e) {
+      console.error("Error loading form template fields:", e);
+    }
+  };
+
+  const handleFormTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploadingForm(true);
+    try {
+      const formData = new FormData();
+      formData.append("template", file);
+      formData.append("name", file.name.replace(/\.pdf$/i, ""));
+      
+      const res = await fetch("/api/pdf-form-templates/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        toast({ title: "Formulario cargado", description: `Plantilla "${data.fileName}" guardada correctamente` });
+        loadFormTemplates();
+        setActiveFormTemplate(data.fileName);
+        loadFormTemplateFields(data.fileName);
+      } else {
+        toast({ title: "Error", description: data.message || "Error al cargar plantilla", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error al cargar plantilla de formulario", variant: "destructive" });
+    } finally {
+      setIsUploadingForm(false);
+      if (formTemplateInputRef.current) {
+        formTemplateInputRef.current.value = "";
+      }
+    }
+  };
+
   const initializeDefaultFields = () => {
     const defaultFields: PdfTemplateField[] = MANIFEST_FIELDS.map(f => ({
       id: f.id,
@@ -181,7 +249,8 @@ export function ReportDesigner() {
 
   useEffect(() => {
     loadTemplates();
-  }, [loadTemplates]);
+    loadFormTemplates();
+  }, [loadTemplates, loadFormTemplates]);
 
   const handleMouseDown = (e: React.MouseEvent, fieldId: string) => {
     e.preventDefault();
@@ -725,6 +794,71 @@ export function ReportDesigner() {
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Formulario Acrobat
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <input
+              ref={formTemplateInputRef}
+              type="file"
+              accept=".pdf"
+              onChange={handleFormTemplateUpload}
+              className="hidden"
+            />
+            <Button 
+              onClick={() => formTemplateInputRef.current?.click()} 
+              size="sm" 
+              variant="outline" 
+              className="w-full"
+              disabled={isUploadingForm}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {isUploadingForm ? "Cargando..." : "Subir Formulario PDF"}
+            </Button>
+            {formTemplates.length > 0 && (
+              <>
+                <div>
+                  <Label className="text-xs">Plantilla Activa</Label>
+                  <Select
+                    value={activeFormTemplate || ""}
+                    onValueChange={v => {
+                      setActiveFormTemplate(v);
+                      loadFormTemplateFields(v);
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs">
+                      <SelectValue placeholder="Seleccionar plantilla" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formTemplates.map(t => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formTemplateFields.length > 0 && (
+                  <div>
+                    <Label className="text-xs">Campos detectados: {formTemplateFields.length}</Label>
+                    <ScrollArea className="h-24 border rounded p-1 mt-1">
+                      <div className="space-y-0.5">
+                        {formTemplateFields.map(f => (
+                          <div key={f} className="text-[10px] px-1 py-0.5 bg-muted rounded">{f}</div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              Sube un PDF creado en Acrobat con campos de formulario. Los campos se llenarán automáticamente con los datos del manifiesto.
+            </p>
           </CardContent>
         </Card>
 
