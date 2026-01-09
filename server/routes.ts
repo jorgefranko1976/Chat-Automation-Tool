@@ -1238,17 +1238,21 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Faltan datos requeridos para el QR" });
       }
 
-      // Convert date from DD/MM/YYYY to YYYY/MM/DD format for QR
+      // Convert date from DD/MM/YYYY or D/MM/YYYY to YYYY/MM/DD format for QR
       const convertDateFormat = (dateStr: string): string => {
         if (!dateStr) return "";
         // Check if already in YYYY/MM/DD or YYYY-MM-DD format
-        if (/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(dateStr)) {
-          return dateStr.replace(/-/g, "/");
+        if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(dateStr)) {
+          const parts = dateStr.replace(/-/g, "/").split("/");
+          return `${parts[0]}/${parts[1].padStart(2, "0")}/${parts[2].padStart(2, "0")}`;
         }
-        // Convert from DD/MM/YYYY to YYYY/MM/DD
+        // Convert from DD/MM/YYYY or D/MM/YYYY to YYYY/MM/DD with zero-padding
         const parts = dateStr.split("/");
         if (parts.length === 3) {
-          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          const day = parts[0].padStart(2, "0");
+          const month = parts[1].padStart(2, "0");
+          const year = parts[2];
+          return `${year}/${month}/${day}`;
         }
         return dateStr;
       };
