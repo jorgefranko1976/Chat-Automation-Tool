@@ -133,7 +133,7 @@ export async function fillFormPdf(
   templateName: string, 
   data: ManifiestoData,
   qrImageBytes?: Uint8Array,
-  qrPosition?: { rightMargin: number; topMargin: number; sizeMm: number; page: number }
+  qrPosition?: { x: number; y: number; size: number; page: number }
 ): Promise<Uint8Array> {
   const filePath = path.join(TEMPLATE_PATH, templateName);
   if (!fs.existsSync(filePath)) {
@@ -165,32 +165,19 @@ export async function fillFormPdf(
     const targetPage = pages[qrPosition.page - 1];
     
     if (targetPage) {
-      const { width, height } = targetPage.getSize();
-      console.log(`PDF page size: ${width} x ${height} points`);
+      const { height } = targetPage.getSize();
+      // x, y, size are in points (72 points per inch)
+      // y in PDF is from bottom, so we convert from top
+      const x = qrPosition.x;
+      const y = height - qrPosition.y - qrPosition.size;
       
-      // Convert mm to points (72 points per inch, 25.4 mm per inch)
-      const mmToPoints = 72 / 25.4; // = 2.8346...
-      const qrSizeMm = qrPosition.sizeMm || 40; // Default 4cm
-      const rightMarginMm = qrPosition.rightMargin || 20; // Default 2cm
-      const topMarginMm = qrPosition.topMargin || 20; // Default 2cm
-      
-      const qrSizePoints = qrSizeMm * mmToPoints;
-      const rightMarginPoints = rightMarginMm * mmToPoints;
-      const topMarginPoints = topMarginMm * mmToPoints;
-      
-      // Calculate x from right edge (x increases left to right)
-      // Calculate y from top edge (y=0 is at bottom in PDF, so we subtract from height)
-      const x = width - rightMarginPoints - qrSizePoints;
-      const y = height - topMarginPoints - qrSizePoints;
-      
-      console.log(`QR drawing at: x=${x.toFixed(2)}, y=${y.toFixed(2)}, size=${qrSizePoints.toFixed(2)} pts`);
-      console.log(`Margins: right=${rightMarginMm}mm, top=${topMarginMm}mm, qrSize=${qrSizeMm}mm`);
+      console.log(`QR drawing at: x=${x}, y=${y}, size=${qrPosition.size} pts`);
       
       targetPage.drawImage(qrImage, {
         x: x,
         y: y,
-        width: qrSizePoints,
-        height: qrSizePoints,
+        width: qrPosition.size,
+        height: qrPosition.size,
       });
     }
   }
