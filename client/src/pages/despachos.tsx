@@ -1631,6 +1631,105 @@ export default function Despachos() {
         return;
       }
 
+      // Check if Acrobat form template is available
+      let formTemplates: string[] = [];
+      try {
+        const formRes = await apiRequest("GET", "/api/pdf-form-templates");
+        const formData = await formRes.json();
+        if (formData.success && formData.templates && formData.templates.length > 0) {
+          formTemplates = formData.templates;
+        }
+      } catch {
+        console.log("No form templates found");
+      }
+
+      // If Acrobat form template exists, use server-side form filling
+      if (formTemplates.length > 0) {
+        const formTemplateName = formTemplates[0];
+        toast({ title: "Generando PDF", description: "Usando plantilla de formulario Acrobat..." });
+        
+        // Build data for form filling using the same data we gathered
+        const formData = {
+          numManifiesto: String(manifiesto.consecutivo),
+          idManifiesto: details.INGRESOID || "",
+          fechaExpedicion: details.FECHAEXPEDICIONMANIFIESTO || "",
+          fechaRadicacion: details.FECHAEXPEDICIONMANIFIESTO || "",
+          origenViaje: origName.substring(0, 25),
+          destinoViaje: destName.substring(0, 25),
+          titularNombre: buildNombreTitular().substring(0, 35),
+          docTitular: `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`,
+          dirTitular: (titular?.NOMENCLATURADIRECCION || "").substring(0, 35),
+          telTitular: titular?.NUMTELEFONOCONTACTO || "",
+          ciudadTitular: (titular?.CODMUNICIPIORNDC || settings.companyCity || "").substring(0, 18),
+          placa: details.NUMPLACA || "",
+          marca: (vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "").substring(0, 12),
+          placaRemolque: details.NUMPLACAREMOLQUE || "",
+          configuracion: vehiculoExtra?.CODCONFIGURACION || (details.NUMPLACAREMOLQUE ? "3S2" : "C2"),
+          pesoVacio: vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "",
+          compSoat: (vehiculo?.NUMNITASEGURADORASOAT || "").substring(0, 18),
+          nPoliza: (vehiculo?.NUMSEGUROSOAT || "").substring(0, 12),
+          venceSoat: vehiculo?.FECHAVENCIMIENTOSOAT || vehiculoExtra?.FECHAVENCE_SOAT || associatedRow?.placaData?.venceSoat || "",
+          nombreConductor: buildNombreConductor().substring(0, 40),
+          identConductor: `CC: ${manifiesto.cedula}`,
+          dirConductor: (conductor?.NOMENCLATURADIRECCION || "").substring(0, 35),
+          telConductor: conductor?.NUMTELEFONOCONTACTO || "",
+          numLicencia: conductor?.NUMLICENCIACONDUCCION || "",
+          ciudadConductor: conductor?.CODMUNICIPIORNDC || "",
+          poseedorNombre: buildNombreTitular().substring(0, 35),
+          docPoseedor: `${vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular}: ${vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular}`,
+          direccionPoseedor: (titular?.NOMENCLATURADIRECCION || "").substring(0, 30),
+          telPoseedor: titular?.NUMTELEFONOCONTACTO || "",
+          ciudadPoseedor: titular?.CODMUNICIPIORNDC || "",
+          consecutivoRemesa: String(manifiesto.consecutivoRemesa),
+          cantidad: associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : ""),
+          valorTotal: `$${parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0").toLocaleString()}`,
+          reteFuente: `$${Math.round(manifiesto.valorFlete * 0.01).toLocaleString()}`,
+          reteIca: `$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`,
+          netoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01)).toLocaleString()}`,
+          valorAnticipo: `$${parseInt(details.VALORANTICIPOMANIFIESTO || "0").toLocaleString()}`,
+          saldoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01) - parseInt(details.VALORANTICIPOMANIFIESTO || "0")).toLocaleString()}`,
+          valorLetras: `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`,
+          fechaSaldo: manifiesto.fechaPagoSaldo || "",
+        };
+
+        try {
+          const fillRes = await apiRequest("POST", "/api/pdf-form-templates/fill", {
+            templateName: formTemplateName,
+            data: formData,
+            qrDataUrl: qrResult.qrDataUrl,
+            qrPosition: { x: 480, y: 50, size: 80, page: 1 },
+          });
+          const fillResult = await fillRes.json();
+          
+          if (fillResult.success && fillResult.pdfBase64) {
+            const byteCharacters = atob(fillResult.pdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Manifiesto_${details.NUMPLACA}_${manifiesto.consecutivo}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            toast({ title: "PDF Generado", description: `Manifiesto ${manifiesto.consecutivo} descargado exitosamente` });
+            return;
+          } else {
+            console.log("Form fill failed, falling back to jsPDF:", fillResult.message);
+          }
+        } catch (formError) {
+          console.log("Form fill error, falling back to jsPDF:", formError);
+        }
+      }
+
+      // Fallback to jsPDF if no form template or form fill failed
       // Use template page size if available, otherwise use defaults
       let templatePageWidth = 301.6;
       let templatePageHeight = 215.9;
@@ -1944,6 +2043,18 @@ export default function Despachos() {
     
     toast({ title: "Generando PDFs", description: `Procesando ${selectedManifestosForPdf.size} manifiestos...` });
     
+    // Check for Acrobat form templates first
+    let formTemplates: string[] = [];
+    try {
+      const formRes = await apiRequest("GET", "/api/pdf-form-templates");
+      const formData = await formRes.json();
+      if (formData.success && formData.templates && formData.templates.length > 0) {
+        formTemplates = formData.templates;
+      }
+    } catch {}
+    const useFormTemplate = formTemplates.length > 0;
+    const formTemplateName = formTemplates[0] || "";
+
     // Fetch template once for all PDFs (including page size and QR config)
     let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string; pageWidthMm?: string; pageHeightMm?: string; qrConfig?: any } | null = null;
     let templatePageWidth = 301.6;
@@ -2106,6 +2217,79 @@ export default function Despachos() {
           errorCount++;
           errorMessages.push(`${manifiesto.placa}: Error generando QR`);
           continue;
+        }
+        
+        // If using Acrobat form template, generate PDF server-side
+        if (useFormTemplate) {
+          const formDataForFill = {
+            numManifiesto: String(manifiesto.consecutivo),
+            idManifiesto: details.INGRESOID || "",
+            fechaExpedicion: details.FECHAEXPEDICIONMANIFIESTO || "",
+            fechaRadicacion: details.FECHAEXPEDICIONMANIFIESTO || "",
+            origenViaje: origName.substring(0, 25),
+            destinoViaje: destName.substring(0, 25),
+            titularNombre: buildNombreTitular().substring(0, 35),
+            docTitular: `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`,
+            dirTitular: (titular?.NOMENCLATURADIRECCION || "").substring(0, 35),
+            telTitular: titular?.NUMTELEFONOCONTACTO || "",
+            ciudadTitular: (titular?.CODMUNICIPIORNDC || settings.companyCity || "").substring(0, 18),
+            placa: details.NUMPLACA || "",
+            marca: (vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "").substring(0, 12),
+            placaRemolque: details.NUMPLACAREMOLQUE || "",
+            configuracion: vehiculoExtra?.CODCONFIGURACION || (details.NUMPLACAREMOLQUE ? "3S2" : "C2"),
+            pesoVacio: vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "",
+            compSoat: (vehiculo?.NUMNITASEGURADORASOAT || "").substring(0, 18),
+            nPoliza: (vehiculo?.NUMSEGUROSOAT || "").substring(0, 12),
+            venceSoat: vehiculo?.FECHAVENCIMIENTOSOAT || vehiculoExtra?.FECHAVENCE_SOAT || associatedRow?.placaData?.venceSoat || "",
+            nombreConductor: buildNombreConductor().substring(0, 40),
+            identConductor: `CC: ${manifiesto.cedula}`,
+            dirConductor: (conductor?.NOMENCLATURADIRECCION || "").substring(0, 35),
+            telConductor: conductor?.NUMTELEFONOCONTACTO || "",
+            numLicencia: conductor?.NUMLICENCIACONDUCCION || "",
+            ciudadConductor: conductor?.CODMUNICIPIORNDC || "",
+            poseedorNombre: buildNombreTitular().substring(0, 35),
+            docPoseedor: `${vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular}: ${vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular}`,
+            direccionPoseedor: (titular?.NOMENCLATURADIRECCION || "").substring(0, 30),
+            telPoseedor: titular?.NUMTELEFONOCONTACTO || "",
+            ciudadPoseedor: titular?.CODMUNICIPIORNDC || "",
+            consecutivoRemesa: String(manifiesto.consecutivoRemesa),
+            cantidad: associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : ""),
+            valorTotal: `$${parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0").toLocaleString()}`,
+            reteFuente: `$${Math.round(manifiesto.valorFlete * 0.01).toLocaleString()}`,
+            reteIca: `$${parseInt(details.RETENCIONICAMANIFIESTOCARGA || "0").toLocaleString()}`,
+            netoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01)).toLocaleString()}`,
+            valorAnticipo: `$${parseInt(details.VALORANTICIPOMANIFIESTO || "0").toLocaleString()}`,
+            saldoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01) - parseInt(details.VALORANTICIPOMANIFIESTO || "0")).toLocaleString()}`,
+            valorLetras: `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`,
+            fechaSaldo: manifiesto.fechaPagoSaldo || "",
+          };
+          
+          try {
+            const fillRes = await apiRequest("POST", "/api/pdf-form-templates/fill", {
+              templateName: formTemplateName,
+              data: formDataForFill,
+              qrDataUrl: qrResult.qrDataUrl,
+              qrPosition: { x: 480, y: 50, size: 80, page: 1 },
+            });
+            const fillResult = await fillRes.json();
+            
+            if (fillResult.success && fillResult.pdfBase64) {
+              const byteCharacters = atob(fillResult.pdfBase64);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: 'application/pdf' });
+              
+              const fileName = `${details.NUMPLACA}_${manifiesto.consecutivo}.pdf`;
+              zip.file(fileName, blob);
+              successCount++;
+              continue; // Skip jsPDF generation
+            }
+          } catch (formError) {
+            console.log("Form fill error in bulk, falling back to jsPDF:", formError);
+          }
         }
         
         // Build complete data dictionary matching single PDF generation
