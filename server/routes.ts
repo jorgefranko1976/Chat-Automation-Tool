@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { spawn } from "child_process";
 import { storage } from "./storage";
 import { sendXmlToRndc, queryManifiestoDetails, queryTerceroDetails, queryVehiculoDetails, queryVehiculoExtraDetails } from "./rndc-service";
+import { saveFormTemplate, listFormTemplates, getTemplateFields, fillFormPdfFromBase64, getDefaultQrPosition, type ManifiestoData } from "./pdf-form-service";
 import QRCode from "qrcode";
 import { insertRndcSubmissionSchema, loginSchema, updateUserProfileSchema, changePasswordSchema, insertTerceroSchema, insertVehiculoSchema, qrFieldConfigSchema } from "@shared/schema";
 import { z } from "zod";
@@ -10,6 +11,7 @@ import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
+import multer from "multer";
 
 declare module "express-session" {
   interface SessionData {
@@ -1727,6 +1729,55 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, message: "Error al eliminar plantilla" });
+    }
+  });
+
+  const upload = multer({ storage: multer.memoryStorage() });
+
+  app.get("/api/pdf-form-templates", requireAuth, async (req, res) => {
+    try {
+      const templates = await listFormTemplates();
+      res.json({ success: true, templates });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al listar plantillas de formulario" });
+    }
+  });
+
+  app.post("/api/pdf-form-templates/upload", requireAuth, upload.single('template'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "No se proporcionó archivo" });
+      }
+      const templateName = (req.body.name || 'formulario').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = await saveFormTemplate(req.file.buffer, templateName);
+      res.json({ success: true, fileName });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al guardar plantilla de formulario" });
+    }
+  });
+
+  app.get("/api/pdf-form-templates/:name/fields", requireAuth, async (req, res) => {
+    try {
+      const fields = await getTemplateFields(req.params.name);
+      res.json({ success: true, fields });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error al obtener campos del formulario" });
+    }
+  });
+
+  app.post("/api/pdf-form-templates/fill", requireAuth, async (req, res) => {
+    try {
+      const { templateName, data, qrDataUrl, qrPosition } = req.body;
+      if (!templateName || !data) {
+        return res.status(400).json({ success: false, message: "Faltan datos requeridos" });
+      }
+      const qrPos = qrPosition || getDefaultQrPosition();
+      const pdfBytes = await fillFormPdfFromBase64(templateName, data as ManifiestoData, qrDataUrl, qrPos);
+      const base64 = Buffer.from(pdfBytes).toString('base64');
+      res.json({ success: true, pdfBase64: base64 });
+    } catch (error) {
+      console.error('Error filling PDF form:', error);
+      res.status(500).json({ success: false, message: "Error al generar PDF" });
     }
   });
 
