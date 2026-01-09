@@ -493,6 +493,16 @@ export const pdfTemplateFieldSchema = z.object({
 
 export type PdfTemplateField = z.infer<typeof pdfTemplateFieldSchema>;
 
+export const qrTemplateConfigSchema = z.object({
+  x: z.number().default(240),
+  y: z.number().default(20),
+  size: z.number().default(40),
+  page: z.number().default(1),
+  enabled: z.boolean().default(true),
+});
+
+export type QRTemplateConfig = z.infer<typeof qrTemplateConfigSchema>;
+
 export const pdfTemplates = pgTable("pdf_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -501,7 +511,10 @@ export const pdfTemplates = pgTable("pdf_templates", {
   fields: jsonb("fields").notNull().$type<PdfTemplateField[]>(),
   pageWidth: integer("page_width").default(279),
   pageHeight: integer("page_height").default(216),
+  pageWidthMm: text("page_width_mm").default("301.6"),
+  pageHeightMm: text("page_height_mm").default("215.9"),
   orientation: varchar("orientation").default("landscape"),
+  qrConfig: jsonb("qr_config").$type<QRTemplateConfig>(),
   backgroundImage1: text("background_image_1"),
   backgroundImage2: text("background_image_2"),
   isDefault: integer("is_default").default(0),

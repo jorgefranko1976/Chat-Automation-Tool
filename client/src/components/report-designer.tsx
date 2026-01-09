@@ -7,10 +7,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image } from "lucide-react";
+import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image, QrCode, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { PdfTemplateField, PdfTemplate } from "@shared/schema";
+import type { PdfTemplateField, PdfTemplate, QRTemplateConfig } from "@shared/schema";
 
 interface FieldDefinition {
   id: string;
@@ -103,6 +103,17 @@ export function ReportDesigner() {
   });
   const [backgroundImage1, setBackgroundImage1] = useState<string | null>(null);
   const [backgroundImage2, setBackgroundImage2] = useState<string | null>(null);
+  const [pageWidthMm, setPageWidthMm] = useState("301.6");
+  const [pageHeightMm, setPageHeightMm] = useState("215.9");
+  const [qrConfig, setQrConfig] = useState<QRTemplateConfig>({
+    x: 240,
+    y: 20,
+    size: 40,
+    page: 1,
+    enabled: true,
+  });
+  const [isDraggingQr, setIsDraggingQr] = useState(false);
+  const [qrDragOffset, setQrDragOffset] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef1 = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
@@ -120,6 +131,11 @@ export function ReportDesigner() {
           setTemplateName(defaultTemplate.name);
           setBackgroundImage1(defaultTemplate.backgroundImage1 || null);
           setBackgroundImage2(defaultTemplate.backgroundImage2 || null);
+          setPageWidthMm((defaultTemplate as any).pageWidthMm || "301.6");
+          setPageHeightMm((defaultTemplate as any).pageHeightMm || "215.9");
+          if ((defaultTemplate as any).qrConfig) {
+            setQrConfig((defaultTemplate as any).qrConfig);
+          }
         } else {
           initializeDefaultFields();
         }
@@ -179,7 +195,42 @@ export function ReportDesigner() {
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    setIsDraggingQr(false);
   }, []);
+
+  const handleQrMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    setQrDragOffset({
+      x: e.clientX - rect.left - qrConfig.x * SCALE,
+      y: e.clientY - rect.top - qrConfig.y * SCALE,
+    });
+    setIsDraggingQr(true);
+    setSelectedField(null);
+  };
+
+  const handleQrMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDraggingQr || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const pageW = parseFloat(pageWidthMm) || 301.6;
+    const pageH = parseFloat(pageHeightMm) || 215.9;
+    const newX = Math.max(0, Math.min(pageW - qrConfig.size, (e.clientX - rect.left - qrDragOffset.x) / SCALE));
+    const newY = Math.max(0, Math.min(pageH - qrConfig.size, (e.clientY - rect.top - qrDragOffset.y) / SCALE));
+    setQrConfig(prev => ({ ...prev, x: Math.round(newX), y: Math.round(newY) }));
+  }, [isDraggingQr, qrDragOffset, pageWidthMm, pageHeightMm, qrConfig.size]);
+
+  useEffect(() => {
+    if (isDraggingQr) {
+      window.addEventListener("mousemove", handleQrMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleQrMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDraggingQr, handleQrMouseMove, handleMouseUp]);
 
   useEffect(() => {
     if (isDragging) {
@@ -280,7 +331,10 @@ export function ReportDesigner() {
         fields,
         pageWidth: 279,
         pageHeight: 216,
+        pageWidthMm,
+        pageHeightMm,
         orientation: "landscape",
+        qrConfig,
         backgroundImage1,
         backgroundImage2,
       };
@@ -334,6 +388,13 @@ export function ReportDesigner() {
     setTemplateName(template.name);
     setBackgroundImage1(template.backgroundImage1 || null);
     setBackgroundImage2(template.backgroundImage2 || null);
+    setPageWidthMm((template as any).pageWidthMm || "301.6");
+    setPageHeightMm((template as any).pageHeightMm || "215.9");
+    if ((template as any).qrConfig) {
+      setQrConfig((template as any).qrConfig);
+    } else {
+      setQrConfig({ x: 240, y: 20, size: 40, page: 1, enabled: true });
+    }
   };
 
   const clearBackgroundImage = (page: 1 | 2) => {
@@ -433,6 +494,28 @@ export function ReportDesigner() {
                 className="h-8 text-sm"
               />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Ancho (mm)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={pageWidthMm}
+                  onChange={e => setPageWidthMm(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Alto (mm)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={pageHeightMm}
+                  onChange={e => setPageHeightMm(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button onClick={saveTemplate} disabled={isSaving} size="sm" className="flex-1">
                 <Save className="h-4 w-4 mr-1" />
@@ -443,6 +526,74 @@ export function ReportDesigner() {
                   <Star className="h-4 w-4" />
                 </Button>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <QrCode className="h-4 w-4" /> Código QR
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="qr-enabled"
+                checked={qrConfig.enabled}
+                onChange={e => setQrConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="qr-enabled" className="text-xs">Mostrar QR en página {qrConfig.page}</Label>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">X (mm)</Label>
+                <Input
+                  type="number"
+                  value={qrConfig.x}
+                  onChange={e => setQrConfig(prev => ({ ...prev, x: parseInt(e.target.value) || 0 }))}
+                  className="h-7 text-xs"
+                  disabled={!qrConfig.enabled}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Y (mm)</Label>
+                <Input
+                  type="number"
+                  value={qrConfig.y}
+                  onChange={e => setQrConfig(prev => ({ ...prev, y: parseInt(e.target.value) || 0 }))}
+                  className="h-7 text-xs"
+                  disabled={!qrConfig.enabled}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Tamaño</Label>
+                <Input
+                  type="number"
+                  value={qrConfig.size}
+                  onChange={e => setQrConfig(prev => ({ ...prev, size: parseInt(e.target.value) || 40 }))}
+                  className="h-7 text-xs"
+                  disabled={!qrConfig.enabled}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Página</Label>
+              <Select
+                value={String(qrConfig.page)}
+                onValueChange={v => setQrConfig(prev => ({ ...prev, page: parseInt(v) }))}
+                disabled={!qrConfig.enabled}
+              >
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Página 1</SelectItem>
+                  <SelectItem value="2">Página 2</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -605,8 +756,8 @@ export function ReportDesigner() {
                 ref={canvasRef}
                 className="relative"
                 style={{
-                  width: 279 * SCALE,
-                  height: 216 * SCALE,
+                  width: (parseFloat(pageWidthMm) || 301.6) * SCALE,
+                  height: (parseFloat(pageHeightMm) || 215.9) * SCALE,
                   backgroundColor: '#f5f5f5',
                   backgroundImage: (activePage === 1 ? backgroundImage1 : backgroundImage2) 
                     ? `url(${activePage === 1 ? backgroundImage1 : backgroundImage2})` 
@@ -615,6 +766,24 @@ export function ReportDesigner() {
                   backgroundPosition: "center",
                 }}
               >
+                {qrConfig.enabled && qrConfig.page === activePage && (
+                  <div
+                    onMouseDown={handleQrMouseDown}
+                    className={`absolute cursor-move select-none flex items-center justify-center border-2 ${
+                      isDraggingQr ? "border-blue-500 bg-blue-100/50" : "border-purple-500 bg-purple-100/50"
+                    }`}
+                    style={{
+                      left: qrConfig.x * SCALE,
+                      top: qrConfig.y * SCALE,
+                      width: qrConfig.size * SCALE,
+                      height: qrConfig.size * SCALE,
+                    }}
+                    title={`QR Code (${qrConfig.x}, ${qrConfig.y}) - ${qrConfig.size}mm`}
+                  >
+                    <QrCode className="h-8 w-8 text-purple-600" />
+                    <span className="absolute bottom-0 left-0 right-0 text-center text-xs bg-purple-500 text-white">QR</span>
+                  </div>
+                )}
                 {pageFields.map(field => (
                   <div
                     key={field.id}
