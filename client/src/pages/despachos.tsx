@@ -1756,13 +1756,25 @@ export default function Despachos() {
         };
 
         try {
+          console.log("[PDF-FORM] Calling /api/pdf-form-templates/fill with QR data length:", qrResult.qrDataUrl?.length);
           const fillRes = await apiRequest("POST", "/api/pdf-form-templates/fill", {
             templateName: formTemplateName,
             data: formData,
             qrDataUrl: qrResult.qrDataUrl,
             qrPosition: { x: 685, y: 57, size: 113, page: 1 },
           });
+          console.log("[PDF-FORM] Response status:", fillRes.status);
+          
+          if (!fillRes.ok) {
+            const errorText = await fillRes.text();
+            console.error("[PDF-FORM] Server error:", fillRes.status, errorText);
+            toast({ title: "Error PDF", description: `Error del servidor: ${fillRes.status}`, variant: "destructive" });
+            // Don't fallback silently - show the error
+            return;
+          }
+          
           const fillResult = await fillRes.json();
+          console.log("[PDF-FORM] Result success:", fillResult.success);
           
           if (fillResult.success && fillResult.pdfBase64) {
             const byteCharacters = atob(fillResult.pdfBase64);
@@ -1782,13 +1794,17 @@ export default function Despachos() {
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
             
-            toast({ title: "PDF Generado", description: `Manifiesto ${manifiesto.consecutivo} descargado exitosamente` });
+            toast({ title: "PDF Generado", description: `Manifiesto ${manifiesto.consecutivo} descargado exitosamente con QR` });
             return;
           } else {
-            console.log("Form fill failed, falling back to jsPDF:", fillResult.message);
+            console.error("[PDF-FORM] Fill failed:", fillResult.message);
+            toast({ title: "Error PDF", description: fillResult.message || "Error llenando formulario", variant: "destructive" });
+            return;
           }
-        } catch (formError) {
-          console.log("Form fill error, falling back to jsPDF:", formError);
+        } catch (formError: any) {
+          console.error("[PDF-FORM] Exception:", formError);
+          toast({ title: "Error PDF", description: `Error: ${formError.message || formError}`, variant: "destructive" });
+          return;
         }
       }
 
