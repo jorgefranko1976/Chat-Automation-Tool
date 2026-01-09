@@ -1797,11 +1797,11 @@ export default function Despachos() {
       if (compressedBg1) {
         pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
       }
-      // QR: 29mm, top-right corner, 1cm from top and right edges (compressed JPEG)
-      const qrSize = 29;
-      const qrX = pageWidth - 10 - qrSize;
-      const qrY = 10;
-      const compressedQr = compressQrToJpeg(qrImg, 300);
+      // QR: 40mm (4cm), top-right corner, 2cm from edges (compressed JPEG)
+      const qrSize = 40;
+      const qrX = pageWidth - 20 - qrSize;
+      const qrY = 20;
+      const compressedQr = compressQrToJpeg(qrImg, 400);
       pdf.addImage(compressedQr, "JPEG", qrX, qrY, qrSize, qrSize);
 
       // Render fields using template or default positions
@@ -2173,11 +2173,11 @@ export default function Despachos() {
         
         // Page 1
         if (compressedBg1) pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
-        // QR: 29mm, top-right corner, 1cm from edges (compressed JPEG)
-        const qrSize = 29;
-        const qrX = pageWidth - 10 - qrSize;
-        const qrY = 10;
-        const compressedQr = compressQrToJpeg(qrImg, 300);
+        // QR: 40mm (4cm), top-right corner, 2cm from edges (compressed JPEG)
+        const qrSize = 40;
+        const qrX = pageWidth - 20 - qrSize;
+        const qrY = 20;
+        const compressedQr = compressQrToJpeg(qrImg, 400);
         pdf.addImage(compressedQr, "JPEG", qrX, qrY, qrSize, qrSize);
         
         const templateFields = pdfTemplate?.fields || [];
