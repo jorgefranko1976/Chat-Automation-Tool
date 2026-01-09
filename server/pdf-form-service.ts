@@ -168,7 +168,7 @@ export async function fillFormPdf(
       const { width, height } = targetPage.getSize();
       // Position: adjusted per user request
       const qrSize = 112; // 40% larger than original
-      const marginRight = 52 + 11; // moved 4mm left (~11 pts)
+      const marginRight = 63 - 6; // moved 2mm right (~6 pts)
       const marginTop = 77 - 45;   // moved 16mm up (~45 pts)
       const x = width - qrSize - marginRight;
       const y = height - qrSize - marginTop;
