@@ -191,7 +191,7 @@ export async function fillFormPdfFromBase64(
   templateName: string, 
   data: ManifiestoData,
   qrDataUrl?: string,
-  qrPosition?: { rightMargin: number; topMargin: number; sizeMm: number; page: number }
+  qrPosition?: { x?: number; y?: number; size?: number; rightMargin?: number; topMargin?: number; sizeMm?: number; page: number }
 ): Promise<Uint8Array> {
   let qrImageBytes: Uint8Array | undefined;
   
@@ -200,7 +200,37 @@ export async function fillFormPdfFromBase64(
     qrImageBytes = Uint8Array.from(Buffer.from(base64Data, 'base64'));
   }
   
-  return fillFormPdf(templateName, data, qrImageBytes, qrPosition);
+  // Convert to absolute coordinates if using x, y, size format
+  let absolutePosition: { x: number; y: number; size: number; page: number } | undefined;
+  
+  if (qrPosition) {
+    if (qrPosition.x !== undefined && qrPosition.y !== undefined && qrPosition.size !== undefined) {
+      // Already in absolute format
+      absolutePosition = { 
+        x: qrPosition.x, 
+        y: qrPosition.y, 
+        size: qrPosition.size, 
+        page: qrPosition.page 
+      };
+    } else if (qrPosition.rightMargin !== undefined && qrPosition.topMargin !== undefined && qrPosition.sizeMm !== undefined) {
+      // Convert margin format to absolute - will be calculated inside fillFormPdf based on page size
+      // For now, use default page size of 854.55 x 611.91 points (301.6 x 215.9 mm)
+      const mmToPoints = 72 / 25.4;
+      const pageWidth = 854.55;
+      const qrSizePoints = qrPosition.sizeMm * mmToPoints;
+      const rightMarginPoints = qrPosition.rightMargin * mmToPoints;
+      const topMarginPoints = qrPosition.topMargin * mmToPoints;
+      
+      absolutePosition = {
+        x: pageWidth - rightMarginPoints - qrSizePoints,
+        y: topMarginPoints,
+        size: qrSizePoints,
+        page: qrPosition.page
+      };
+    }
+  }
+  
+  return fillFormPdf(templateName, data, qrImageBytes, absolutePosition);
 }
 
 export function getDefaultQrPosition() {
