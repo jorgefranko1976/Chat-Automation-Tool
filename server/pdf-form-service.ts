@@ -166,15 +166,20 @@ export async function fillFormPdf(
     
     if (targetPage) {
       const { width, height } = targetPage.getSize();
-      // Convert mm to points (1mm = 2.835 points)
-      const mmToPoints = 2.835;
+      console.log(`PDF page size: ${width} x ${height} points`);
+      
+      // Convert mm to points (72 points per inch, 25.4 mm per inch)
+      const mmToPoints = 72 / 25.4; // = 2.8346...
       const qrSizePoints = qrPosition.sizeMm * mmToPoints;
       const rightMarginPoints = qrPosition.rightMargin * mmToPoints;
       const topMarginPoints = qrPosition.topMargin * mmToPoints;
       
-      // Calculate x from right edge, y from top edge
+      // Calculate x from right edge (x increases left to right)
+      // Calculate y from top edge (y=0 is at bottom, so we subtract from height)
       const x = width - rightMarginPoints - qrSizePoints;
       const y = height - topMarginPoints - qrSizePoints;
+      
+      console.log(`QR position: x=${x}, y=${y}, size=${qrSizePoints} (from margins: right=${qrPosition.rightMargin}mm, top=${qrPosition.topMargin}mm, qrSize=${qrPosition.sizeMm}mm)`);
       
       targetPage.drawImage(qrImage, {
         x: x,
