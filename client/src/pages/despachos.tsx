@@ -1631,7 +1631,7 @@ export default function Despachos() {
         return;
       }
 
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
       const pageWidth = 279;
       const pageHeight = 216;
 
@@ -1644,6 +1644,7 @@ export default function Despachos() {
         });
       };
 
+      // Aggressive compression for minimal PDF size (target ~100KB)
       const compressImageForPdf = (img: HTMLImageElement, maxWidth: number, maxHeight: number, quality: number): string => {
         const canvas = document.createElement('canvas');
         let width = img.width;
@@ -1668,6 +1669,19 @@ export default function Despachos() {
         ctx.drawImage(img, 0, 0, width, height);
         
         return canvas.toDataURL('image/jpeg', quality);
+      };
+      
+      // Convert QR PNG to compressed JPEG for smaller size
+      const compressQrToJpeg = (img: HTMLImageElement, size: number): string => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return img.src;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+        return canvas.toDataURL('image/jpeg', 0.85);
       };
 
       // Fetch saved template
@@ -1772,22 +1786,23 @@ export default function Despachos() {
       
       if (bgSrc1) {
         const rawTemplateP1 = await loadImage(bgSrc1);
-        compressedBg1 = compressImageForPdf(rawTemplateP1, 1000, 770, 0.5);
+        compressedBg1 = compressImageForPdf(rawTemplateP1, 720, 555, 0.3);
       }
       if (bgSrc2) {
         const rawTemplateP2 = await loadImage(bgSrc2);
-        compressedBg2 = compressImageForPdf(rawTemplateP2, 1000, 770, 0.5);
+        compressedBg2 = compressImageForPdf(rawTemplateP2, 720, 555, 0.3);
       }
 
       // Page 1
       if (compressedBg1) {
         pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
       }
-      // QR: 30% larger (29mm), top-right corner, 1cm from top and right edges
+      // QR: 29mm, top-right corner, 1cm from top and right edges (compressed JPEG)
       const qrSize = 29;
-      const qrX = pageWidth - 10 - qrSize; // 1cm from right edge
-      const qrY = 10; // 1cm from top
-      pdf.addImage(qrImg, "PNG", qrX, qrY, qrSize, qrSize);
+      const qrX = pageWidth - 10 - qrSize;
+      const qrY = 10;
+      const compressedQr = compressQrToJpeg(qrImg, 300);
+      pdf.addImage(compressedQr, "JPEG", qrX, qrY, qrSize, qrSize);
 
       // Render fields using template or default positions
       const templateFields = pdfTemplate?.fields || [];
@@ -1952,6 +1967,18 @@ export default function Despachos() {
       return canvas.toDataURL('image/jpeg', quality);
     };
     
+    const compressQrToJpeg = (img: HTMLImageElement, size: number): string => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return img.src;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    };
+    
     const bgSrc1 = pdfTemplate?.backgroundImage1 || (pdfTemplate ? null : "/manifiesto_template_p1.jpg");
     const bgSrc2 = pdfTemplate?.backgroundImage2 || (pdfTemplate ? null : "/manifiesto_template_p2.png");
     
@@ -1961,13 +1988,13 @@ export default function Despachos() {
     if (bgSrc1) {
       try {
         const rawBg1 = await loadImage(bgSrc1);
-        compressedBg1 = compressImageForPdf(rawBg1, 1000, 770, 0.5);
+        compressedBg1 = compressImageForPdf(rawBg1, 720, 555, 0.3);
       } catch {}
     }
     if (bgSrc2) {
       try {
         const rawBg2 = await loadImage(bgSrc2);
-        compressedBg2 = compressImageForPdf(rawBg2, 1000, 770, 0.5);
+        compressedBg2 = compressImageForPdf(rawBg2, 720, 555, 0.3);
       } catch {}
     }
     
@@ -2141,16 +2168,17 @@ export default function Despachos() {
           horaDescargue: associatedRemesa?.horaDescargue || "",
         };
         
-        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
         const qrImg = await loadImage(qrResult.qrDataUrl);
         
         // Page 1
         if (compressedBg1) pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
-        // QR: 30% larger (29mm), top-right corner, 1cm from top and right edges
+        // QR: 29mm, top-right corner, 1cm from edges (compressed JPEG)
         const qrSize = 29;
         const qrX = pageWidth - 10 - qrSize;
         const qrY = 10;
-        pdf.addImage(qrImg, "PNG", qrX, qrY, qrSize, qrSize);
+        const compressedQr = compressQrToJpeg(qrImg, 300);
+        pdf.addImage(compressedQr, "JPEG", qrX, qrY, qrSize, qrSize);
         
         const templateFields = pdfTemplate?.fields || [];
         const page1Fields = templateFields.filter((f: any) => f.page === 1);
