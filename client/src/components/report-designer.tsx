@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image, QrCode, Settings, Square, RectangleHorizontal } from "lucide-react";
+import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image, QrCode, Settings, Square, RectangleHorizontal, Download, FileUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { PdfTemplateField, PdfTemplate, QRTemplateConfig } from "@shared/schema";
@@ -390,6 +390,68 @@ export function ReportDesigner() {
     }
   };
 
+  const exportTemplate = () => {
+    const exportData = {
+      name: templateName,
+      templateType: "manifiesto",
+      fields,
+      pageWidthMm,
+      pageHeightMm,
+      qrConfig,
+      backgroundImage1,
+      backgroundImage2,
+      exportedAt: new Date().toISOString(),
+      version: "1.0"
+    };
+    
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${templateName.replace(/\s+/g, "_")}_plantilla.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({ title: "Exportado", description: "Plantilla exportada como archivo JSON" });
+  };
+
+  const importTemplateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        
+        if (!data.fields || !Array.isArray(data.fields)) {
+          throw new Error("Formato de plantilla inválido");
+        }
+        
+        setTemplateName(data.name || "Plantilla Importada");
+        setFields(data.fields);
+        setPageWidthMm(data.pageWidthMm || "301.6");
+        setPageHeightMm(data.pageHeightMm || "215.9");
+        if (data.qrConfig) setQrConfig(data.qrConfig);
+        if (data.backgroundImage1) setBackgroundImage1(data.backgroundImage1);
+        if (data.backgroundImage2) setBackgroundImage2(data.backgroundImage2);
+        setCurrentTemplate(null);
+        
+        toast({ title: "Importado", description: "Plantilla cargada correctamente. Recuerda guardarla." });
+      } catch (error) {
+        toast({ title: "Error", description: "El archivo no es una plantilla válida", variant: "destructive" });
+      }
+    };
+    reader.readAsText(file);
+    
+    if (e.target) e.target.value = "";
+  };
+
   const newTemplate = () => {
     setCurrentTemplate(null);
     setTemplateName("Nueva Plantilla");
@@ -573,10 +635,27 @@ export function ReportDesigner() {
                 {isSaving ? "Guardando..." : "Guardar"}
               </Button>
               {currentTemplate && (
-                <Button onClick={setAsDefault} size="sm" variant="outline">
+                <Button onClick={setAsDefault} size="sm" variant="outline" title="Establecer como predeterminada">
                   <Star className="h-4 w-4" />
                 </Button>
               )}
+            </div>
+            <div className="flex gap-2 pt-2 border-t">
+              <input
+                ref={importTemplateInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportTemplate}
+                className="hidden"
+              />
+              <Button onClick={() => importTemplateInputRef.current?.click()} size="sm" variant="outline" className="flex-1">
+                <FileUp className="h-4 w-4 mr-1" />
+                Importar
+              </Button>
+              <Button onClick={exportTemplate} size="sm" variant="outline" className="flex-1">
+                <Download className="h-4 w-4 mr-1" />
+                Exportar
+              </Button>
             </div>
           </CardContent>
         </Card>
