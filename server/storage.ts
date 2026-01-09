@@ -592,7 +592,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(terceros).where(eq(terceros.id, id));
   }
 
-  async getTerceros(tipoTercero?: string, limit = 100): Promise<Tercero[]> {
+  async getTerceros(tipoTercero?: string, limit = 500): Promise<Tercero[]> {
     if (tipoTercero) {
       return db.select().from(terceros).where(eq(terceros.tipoTercero, tipoTercero)).orderBy(desc(terceros.createdAt)).limit(limit);
     }

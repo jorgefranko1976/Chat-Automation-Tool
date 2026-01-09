@@ -1355,7 +1355,7 @@ export async function registerRoutes(
   app.get("/api/terceros", requireAuth, async (req, res) => {
     try {
       const tipoTercero = req.query.tipo as string | undefined;
-      const limit = parseInt(req.query.limit as string) || 100;
+      const limit = parseInt(req.query.limit as string) || 500;
       const terceros = await storage.getTerceros(tipoTercero, limit);
       res.json({ success: true, terceros });
     } catch (error) {
