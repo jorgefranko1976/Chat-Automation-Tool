@@ -18,6 +18,69 @@ import JSZip from "jszip";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getMunicipioName, formatValorQR } from "@/lib/municipios";
 
+// Convert number to Spanish words for Colombian pesos
+function numeroALetras(num: number): string {
+  const unidades = ["", "UN", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"];
+  const especiales = ["DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISEIS", "DIECISIETE", "DIECIOCHO", "DIECINUEVE"];
+  const decenas = ["", "", "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"];
+  const centenas = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS", "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"];
+
+  if (num === 0) return "CERO PESOS M/CTE";
+  if (num === 100) return "CIEN";
+
+  const convertirGrupo = (n: number): string => {
+    if (n === 0) return "";
+    if (n === 100) return "CIEN";
+    
+    let resultado = "";
+    const c = Math.floor(n / 100);
+    const resto = n % 100;
+    
+    if (c > 0) resultado += centenas[c] + " ";
+    
+    if (resto >= 10 && resto <= 19) {
+      resultado += especiales[resto - 10];
+    } else if (resto >= 20 && resto <= 29 && resto !== 20) {
+      resultado += "VEINTI" + unidades[resto - 20];
+    } else {
+      const d = Math.floor(resto / 10);
+      const u = resto % 10;
+      if (d > 0) resultado += decenas[d];
+      if (d > 0 && u > 0) resultado += " Y ";
+      if (u > 0) resultado += unidades[u];
+    }
+    
+    return resultado.trim();
+  };
+
+  let resultado = "";
+  const millones = Math.floor(num / 1000000);
+  const miles = Math.floor((num % 1000000) / 1000);
+  const unidad = num % 1000;
+
+  if (millones > 0) {
+    if (millones === 1) {
+      resultado += "UN MILLON ";
+    } else {
+      resultado += convertirGrupo(millones) + " MILLONES ";
+    }
+  }
+
+  if (miles > 0) {
+    if (miles === 1) {
+      resultado += "MIL ";
+    } else {
+      resultado += convertirGrupo(miles) + " MIL ";
+    }
+  }
+
+  if (unidad > 0) {
+    resultado += convertirGrupo(unidad);
+  }
+
+  return resultado.trim() + " PESOS M/CTE";
+}
+
 interface DespachoRow {
   granja: string;
   planta: string;
@@ -1688,7 +1751,7 @@ export default function Despachos() {
           netoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01)).toLocaleString()}`,
           valorAnticipo: `$${parseInt(details.VALORANTICIPOMANIFIESTO || "0").toLocaleString()}`,
           saldoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01) - parseInt(details.VALORANTICIPOMANIFIESTO || "0")).toLocaleString()}`,
-          valorLetras: `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`,
+          valorLetras: numeroALetras(manifiesto.valorFlete),
           fechaSaldo: manifiesto.fechaPagoSaldo || "",
         };
 
@@ -1826,7 +1889,7 @@ export default function Despachos() {
       const valorNeto = manifiesto.valorFlete - retencionFuente;
       const anticipo = parseInt(details.VALORANTICIPOMANIFIESTO || "0");
       const saldo = valorNeto - anticipo;
-      const valorEnLetras = `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`;
+      const valorEnLetras = numeroALetras(manifiesto.valorFlete);
 
       const dataDict: Record<string, string> = {
         consecutivo: String(manifiesto.consecutivo),
@@ -2260,7 +2323,7 @@ export default function Despachos() {
             netoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01)).toLocaleString()}`,
             valorAnticipo: `$${parseInt(details.VALORANTICIPOMANIFIESTO || "0").toLocaleString()}`,
             saldoPagar: `$${(manifiesto.valorFlete - Math.round(manifiesto.valorFlete * 0.01) - parseInt(details.VALORANTICIPOMANIFIESTO || "0")).toLocaleString()}`,
-            valorLetras: `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`,
+            valorLetras: numeroALetras(manifiesto.valorFlete),
             fechaSaldo: manifiesto.fechaPagoSaldo || "",
           };
           
@@ -2315,7 +2378,7 @@ export default function Despachos() {
         const valorNeto = manifiesto.valorFlete - retencionFuente;
         const anticipo = parseInt(details.VALORANTICIPOMANIFIESTO || "0");
         const saldo = valorNeto - anticipo;
-        const valorEnLetras = `${Math.floor(manifiesto.valorFlete / 1000)} MIL PESOS M/CTE`;
+        const valorEnLetras = numeroALetras(manifiesto.valorFlete);
         
         const dataDict: Record<string, string> = {
           consecutivo: String(manifiesto.consecutivo),
