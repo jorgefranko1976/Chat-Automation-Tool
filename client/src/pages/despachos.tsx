@@ -1631,9 +1631,29 @@ export default function Despachos() {
         return;
       }
 
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [301.6, 215.9], compress: true });
-      const pageWidth = 301.6;
-      const pageHeight = 215.9;
+      // Use template page size if available, otherwise use defaults
+      let templatePageWidth = 301.6;
+      let templatePageHeight = 215.9;
+      let templateQrConfig = { x: 241.6, y: 20, size: 40, page: 1, enabled: true }; // Default: 2cm from right edge
+      
+      // We'll fetch template settings before creating PDF
+      let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string; pageWidthMm?: string; pageHeightMm?: string; qrConfig?: any } | null = null;
+      try {
+        const templateRes = await apiRequest("GET", "/api/pdf-templates/default/manifiesto");
+        const templateData = await templateRes.json();
+        if (templateData.success && templateData.template) {
+          pdfTemplate = templateData.template;
+          if (pdfTemplate?.pageWidthMm) templatePageWidth = parseFloat(pdfTemplate.pageWidthMm);
+          if (pdfTemplate?.pageHeightMm) templatePageHeight = parseFloat(pdfTemplate.pageHeightMm);
+          if (pdfTemplate?.qrConfig) templateQrConfig = pdfTemplate.qrConfig;
+        }
+      } catch {
+        console.log("No template found, using default positions");
+      }
+      
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [templatePageWidth, templatePageHeight], compress: true });
+      const pageWidth = templatePageWidth;
+      const pageHeight = templatePageHeight;
 
       const loadImage = (src: string): Promise<HTMLImageElement> => {
         return new Promise((resolve, reject) => {
@@ -1683,18 +1703,6 @@ export default function Despachos() {
         ctx.drawImage(img, 0, 0, size, size);
         return canvas.toDataURL('image/jpeg', 0.85);
       };
-
-      // Fetch saved template
-      let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string } | null = null;
-      try {
-        const templateRes = await apiRequest("GET", "/api/pdf-templates/default/manifiesto");
-        const templateData = await templateRes.json();
-        if (templateData.success && templateData.template) {
-          pdfTemplate = templateData.template;
-        }
-      } catch {
-        console.log("No template found, using default positions");
-      }
 
       // Build data dictionary for field mapping
       const titularNombre = buildNombreTitular();
@@ -1797,12 +1805,11 @@ export default function Despachos() {
       if (compressedBg1) {
         pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
       }
-      // QR: 40mm (4cm), top-right corner, 2cm from edges (compressed JPEG)
-      const qrSize = 40;
-      const qrX = pageWidth - 20 - qrSize;
-      const qrY = 20;
+      // QR code from template config (compressed JPEG)
       const compressedQr = compressQrToJpeg(qrImg, 400);
-      pdf.addImage(compressedQr, "JPEG", qrX, qrY, qrSize, qrSize);
+      if (templateQrConfig.enabled && templateQrConfig.page === 1) {
+        pdf.addImage(compressedQr, "JPEG", templateQrConfig.x, templateQrConfig.y, templateQrConfig.size, templateQrConfig.size);
+      }
 
       // Render fields using template or default positions
       const templateFields = pdfTemplate?.fields || [];
@@ -1887,9 +1894,13 @@ export default function Despachos() {
       }
 
       // Page 2
-      pdf.addPage([301.6, 215.9], "landscape");
+      pdf.addPage([templatePageWidth, templatePageHeight], "landscape");
       if (compressedBg2) {
         pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
+      }
+      // QR on page 2 if configured
+      if (templateQrConfig.enabled && templateQrConfig.page === 2) {
+        pdf.addImage(compressedQr, "JPEG", templateQrConfig.x, templateQrConfig.y, templateQrConfig.size, templateQrConfig.size);
       }
 
       if (page2Fields.length > 0) {
@@ -1933,12 +1944,20 @@ export default function Despachos() {
     
     toast({ title: "Generando PDFs", description: `Procesando ${selectedManifestosForPdf.size} manifiestos...` });
     
-    // Fetch template once for all PDFs
-    let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string } | null = null;
+    // Fetch template once for all PDFs (including page size and QR config)
+    let pdfTemplate: { fields: any[]; backgroundImage1?: string; backgroundImage2?: string; pageWidthMm?: string; pageHeightMm?: string; qrConfig?: any } | null = null;
+    let templatePageWidth = 301.6;
+    let templatePageHeight = 215.9;
+    let templateQrConfig = { x: 241.6, y: 20, size: 40, page: 1, enabled: true };
     try {
       const templateRes = await apiRequest("GET", "/api/pdf-templates/default/manifiesto");
       const templateData = await templateRes.json();
-      if (templateData.success && templateData.template) pdfTemplate = templateData.template;
+      if (templateData.success && templateData.template) {
+        pdfTemplate = templateData.template;
+        if (pdfTemplate?.pageWidthMm) templatePageWidth = parseFloat(pdfTemplate.pageWidthMm);
+        if (pdfTemplate?.pageHeightMm) templatePageHeight = parseFloat(pdfTemplate.pageHeightMm);
+        if (pdfTemplate?.qrConfig) templateQrConfig = pdfTemplate.qrConfig;
+      }
     } catch {}
     
     // Pre-load and compress background images once
@@ -1999,8 +2018,8 @@ export default function Despachos() {
     }
     
     const wsUrl = settings.wsEnvironment === "production" ? settings.wsUrlProd : settings.wsUrlTest;
-    const pageWidth = 301.6;
-    const pageHeight = 215.9;
+    const pageWidth = templatePageWidth;
+    const pageHeight = templatePageHeight;
     
     const selectedIndices = Array.from(selectedManifestosForPdf);
     for (const index of selectedIndices) {
@@ -2168,17 +2187,16 @@ export default function Despachos() {
           horaDescargue: associatedRemesa?.horaDescargue || "",
         };
         
-        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [301.6, 215.9], compress: true });
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [templatePageWidth, templatePageHeight], compress: true });
         const qrImg = await loadImage(qrResult.qrDataUrl);
+        const compressedQr = compressQrToJpeg(qrImg, 400);
         
         // Page 1
         if (compressedBg1) pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
-        // QR: 40mm (4cm), top-right corner, 2cm from edges (compressed JPEG)
-        const qrSize = 40;
-        const qrX = pageWidth - 20 - qrSize;
-        const qrY = 20;
-        const compressedQr = compressQrToJpeg(qrImg, 400);
-        pdf.addImage(compressedQr, "JPEG", qrX, qrY, qrSize, qrSize);
+        // QR from template config
+        if (templateQrConfig.enabled && templateQrConfig.page === 1) {
+          pdf.addImage(compressedQr, "JPEG", templateQrConfig.x, templateQrConfig.y, templateQrConfig.size, templateQrConfig.size);
+        }
         
         const templateFields = pdfTemplate?.fields || [];
         const page1Fields = templateFields.filter((f: any) => f.page === 1);
@@ -2251,8 +2269,12 @@ export default function Despachos() {
         }
         
         // Page 2
-        pdf.addPage([301.6, 215.9], "landscape");
+        pdf.addPage([templatePageWidth, templatePageHeight], "landscape");
         if (compressedBg2) pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
+        // QR on page 2 if configured
+        if (templateQrConfig.enabled && templateQrConfig.page === 2) {
+          pdf.addImage(compressedQr, "JPEG", templateQrConfig.x, templateQrConfig.y, templateQrConfig.size, templateQrConfig.size);
+        }
         
         if (page2Fields.length > 0) {
           page2Fields.forEach(renderField);
