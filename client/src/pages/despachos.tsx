@@ -1887,7 +1887,7 @@ export default function Despachos() {
       }
 
       // Page 2
-      pdf.addPage("letter", "landscape");
+      pdf.addPage([301.6, 215.9], "landscape");
       if (compressedBg2) {
         pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
       }
@@ -2251,7 +2251,7 @@ export default function Despachos() {
         }
         
         // Page 2
-        pdf.addPage("letter", "landscape");
+        pdf.addPage([301.6, 215.9], "landscape");
         if (compressedBg2) pdf.addImage(compressedBg2, "JPEG", 0, 0, pageWidth, pageHeight);
         
         if (page2Fields.length > 0) {
