@@ -1783,7 +1783,11 @@ export default function Despachos() {
       if (compressedBg1) {
         pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
       }
-      pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
+      // QR: 30% larger (29mm), top-right corner, 1cm from top and right edges
+      const qrSize = 29;
+      const qrX = pageWidth - 10 - qrSize; // 1cm from right edge
+      const qrY = 10; // 1cm from top
+      pdf.addImage(qrImg, "PNG", qrX, qrY, qrSize, qrSize);
 
       // Render fields using template or default positions
       const templateFields = pdfTemplate?.fields || [];
@@ -2142,7 +2146,11 @@ export default function Despachos() {
         
         // Page 1
         if (compressedBg1) pdf.addImage(compressedBg1, "JPEG", 0, 0, pageWidth, pageHeight);
-        pdf.addImage(qrImg, "PNG", 3, 3, 22, 22);
+        // QR: 30% larger (29mm), top-right corner, 1cm from top and right edges
+        const qrSize = 29;
+        const qrX = pageWidth - 10 - qrSize;
+        const qrY = 10;
+        pdf.addImage(qrImg, "PNG", qrX, qrY, qrSize, qrSize);
         
         const templateFields = pdfTemplate?.fields || [];
         const page1Fields = templateFields.filter((f: any) => f.page === 1);

@@ -1282,9 +1282,9 @@ export async function registerRoutes(
       // Join with CRLF - no trailing newline after last field (Seguro)
       const qrData = lines.join(CRLF);
 
-      // Generate QR as base64 data URL (3cm x 3cm at 300dpi = 354px)
+      // Generate QR as base64 data URL (29mm at 300dpi = 343px, rounded to 460px for quality)
       const qrDataUrl = await QRCode.toDataURL(qrData, {
-        width: 354,
+        width: 460,
         margin: 1,
         errorCorrectionLevel: 'M',
       });
