@@ -159,25 +159,27 @@ export async function fillFormPdf(
     }
   }
   
-  if (qrImageBytes && qrPosition) {
+  if (qrImageBytes) {
     const qrImage = await pdfDoc.embedPng(qrImageBytes);
     const pages = pdfDoc.getPages();
-    const targetPage = pages[qrPosition.page - 1];
+    const targetPage = pages[0]; // Always first page
     
     if (targetPage) {
-      const { height } = targetPage.getSize();
-      // x, y, size are in points (72 points per inch)
-      // y in PDF is from bottom, so we convert from top
-      const x = qrPosition.x;
-      const y = height - qrPosition.y - qrPosition.size;
+      const { width, height } = targetPage.getSize();
+      // FIXED VALUES that worked originally (in PDF points)
+      // Position: bottom-right corner of first page
+      const qrSize = 80;
+      const margin = 20;
+      const x = width - qrSize - margin;  // Right side
+      const y = margin;                    // Bottom
       
-      console.log(`QR drawing at: x=${x}, y=${y}, size=${qrPosition.size} pts`);
+      console.log(`[QR] Page size: ${width}x${height}, Drawing QR at: x=${x}, y=${y}, size=${qrSize}`);
       
       targetPage.drawImage(qrImage, {
         x: x,
         y: y,
-        width: qrPosition.size,
-        height: qrPosition.size,
+        width: qrSize,
+        height: qrSize,
       });
     }
   }
