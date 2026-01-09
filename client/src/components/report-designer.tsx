@@ -80,7 +80,7 @@ const MANIFEST_FIELDS: FieldDefinition[] = [
   { id: "p2_horaDescargue", label: "Hora Descargue", dataKey: "horaDescargue", defaultX: 218, defaultY: 90, page: 2 },
 ];
 
-const SCALE = 2.5;
+const SCALE = 3.2;
 
 export function ReportDesigner() {
   const [activePage, setActivePage] = useState<1 | 2>(1);
@@ -569,11 +569,11 @@ export function ReportDesigner() {
   }
 
   return (
-    <div className="grid grid-cols-4 gap-4">
-      <div className="col-span-1 space-y-4">
+    <div className="flex gap-3">
+      <div className="w-56 flex-shrink-0 space-y-2 max-h-[calc(100vh-180px)] overflow-y-auto">
         <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm">Plantillas Guardadas</CardTitle>
+          <CardHeader className="py-2">
+            <CardTitle className="text-xs">Plantillas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <Button onClick={newTemplate} size="sm" variant="outline" className="w-full">
@@ -752,25 +752,22 @@ export function ReportDesigner() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-64">
-              <div className="space-y-1">
+          <CardContent className="p-2">
+            <ScrollArea className="h-40">
+              <div className="space-y-0.5">
                 {pageFields.map(f => (
                   <div
                     key={f.id}
                     onClick={() => setSelectedField(f.id)}
-                    className={`p-2 rounded cursor-pointer text-xs flex items-center justify-between ${selectedField === f.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                    className={`px-1.5 py-1 rounded cursor-pointer text-[10px] flex items-center justify-between ${selectedField === f.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                   >
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                    <div className="flex items-center gap-0.5 flex-1 min-w-0">
                       {f.elementType === "shape" ? (
-                        <RectangleHorizontal className="h-3 w-3 flex-shrink-0 text-blue-500" />
+                        <RectangleHorizontal className="h-2.5 w-2.5 flex-shrink-0 text-blue-500" />
                       ) : f.isCustom ? (
-                        f.bindingType === "static" ? <Type className="h-3 w-3 flex-shrink-0" /> : <Database className="h-3 w-3 flex-shrink-0" />
+                        f.bindingType === "static" ? <Type className="h-2.5 w-2.5 flex-shrink-0" /> : <Database className="h-2.5 w-2.5 flex-shrink-0" />
                       ) : null}
                       <span className="truncate">{f.label}</span>
-                      <span className={`ml-1 flex-shrink-0 ${selectedField === f.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                        ({f.x}, {f.y}){f.elementType === "shape" && ` ${f.width}x${f.height}`}
-                      </span>
                     </div>
                     <Button
                       onClick={e => { e.stopPropagation(); deleteField(f.id); }}
@@ -959,10 +956,10 @@ export function ReportDesigner() {
         )}
       </div>
 
-      <div className="col-span-3">
+      <div className="flex-1 min-w-0">
         <Card>
-          <CardHeader className="py-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Vista Previa de Plantilla</CardTitle>
+          <CardHeader className="py-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm">Vista Previa</CardTitle>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <input
@@ -1066,7 +1063,7 @@ export function ReportDesigner() {
                         height: (field.height || 20) * SCALE,
                         backgroundColor: field.backgroundColor || "#ffffff",
                         border: `${(field.borderWidth || 1) * SCALE}px solid ${field.borderColor || "#000000"}`,
-                        fontSize: field.fontSize * SCALE * 0.6,
+                        fontSize: field.fontSize * SCALE * 0.5,
                         fontWeight: field.fontWeight,
                         color: field.textColor || "#000000",
                         textAlign: field.textAlign || "center",
@@ -1087,7 +1084,7 @@ export function ReportDesigner() {
                       style={{
                         left: field.x * SCALE,
                         top: field.y * SCALE,
-                        fontSize: field.fontSize * SCALE * 0.6,
+                        fontSize: field.fontSize * SCALE * 0.5,
                         fontWeight: field.fontWeight,
                       }}
                     >
