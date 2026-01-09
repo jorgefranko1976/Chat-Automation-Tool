@@ -1772,11 +1772,11 @@ export default function Despachos() {
       
       if (bgSrc1) {
         const rawTemplateP1 = await loadImage(bgSrc1);
-        compressedBg1 = compressImageForPdf(rawTemplateP1, 1400, 1080, 0.7);
+        compressedBg1 = compressImageForPdf(rawTemplateP1, 1000, 770, 0.5);
       }
       if (bgSrc2) {
         const rawTemplateP2 = await loadImage(bgSrc2);
-        compressedBg2 = compressImageForPdf(rawTemplateP2, 1400, 1080, 0.7);
+        compressedBg2 = compressImageForPdf(rawTemplateP2, 1000, 770, 0.5);
       }
 
       // Page 1
@@ -1961,13 +1961,13 @@ export default function Despachos() {
     if (bgSrc1) {
       try {
         const rawBg1 = await loadImage(bgSrc1);
-        compressedBg1 = compressImageForPdf(rawBg1, 1400, 1080, 0.7);
+        compressedBg1 = compressImageForPdf(rawBg1, 1000, 770, 0.5);
       } catch {}
     }
     if (bgSrc2) {
       try {
         const rawBg2 = await loadImage(bgSrc2);
-        compressedBg2 = compressImageForPdf(rawBg2, 1400, 1080, 0.7);
+        compressedBg2 = compressImageForPdf(rawBg2, 1000, 770, 0.5);
       } catch {}
     }
     
