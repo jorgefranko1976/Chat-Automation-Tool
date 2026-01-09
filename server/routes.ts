@@ -1238,6 +1238,22 @@ export async function registerRoutes(
         return res.status(400).json({ success: false, message: "Faltan datos requeridos para el QR" });
       }
 
+      // Convert date from DD/MM/YYYY to YYYY/MM/DD format for QR
+      const convertDateFormat = (dateStr: string): string => {
+        if (!dateStr) return "";
+        // Check if already in YYYY/MM/DD or YYYY-MM-DD format
+        if (/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(dateStr)) {
+          return dateStr.replace(/-/g, "/");
+        }
+        // Convert from DD/MM/YYYY to YYYY/MM/DD
+        const parts = dateStr.split("/");
+        if (parts.length === 3) {
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return dateStr;
+      };
+      const fechaFormatted = convertDateFormat(fecha);
+
       // Build QR data string according to RNDC official specs
       // IMPORTANT: Use CRLF (\r\n) line endings after each field EXCEPT the last one (Seguro)
       // Fields order: MEC, Fecha, Placa, Remolque(optional), Config, Orig(max 20), Dest(max 20), 
@@ -1245,7 +1261,7 @@ export async function registerRoutes(
       const CRLF = "\r\n";
       const lines: string[] = [];
       lines.push(`MEC:${mec}`);
-      lines.push(`Fecha:${fecha}`);
+      lines.push(`Fecha:${fechaFormatted}`);
       lines.push(`Placa:${placa}`);
       if (remolque) lines.push(`Remolque:${remolque}`);
       lines.push(`Config:${config || "2"}`);
