@@ -2205,7 +2205,61 @@ export default function Despachos() {
         pdf.setFont("helvetica", "normal");
         pdf.setTextColor(0, 0, 0);
         
+        const hexToRgb = (hex: string): [number, number, number] => {
+          const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+          return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
+        };
+        
         const renderField = (field: any) => {
+          if (field.elementType === "shape") {
+            const w = field.width || 50;
+            const h = field.height || 20;
+            const bgColor = field.backgroundColor || "#ffffff";
+            const borderColor = field.borderColor || "#000000";
+            const borderWidth = field.borderWidth || 1;
+            const textColor = field.textColor || "#000000";
+            const textAlign = field.textAlign || "center";
+            const text = field.defaultValue || "";
+            
+            // Draw filled rectangle
+            const [bgR, bgG, bgB] = hexToRgb(bgColor);
+            pdf.setFillColor(bgR, bgG, bgB);
+            pdf.rect(field.x, field.y, w, h, "F");
+            
+            // Draw border
+            if (borderWidth > 0) {
+              const [brR, brG, brB] = hexToRgb(borderColor);
+              pdf.setDrawColor(brR, brG, brB);
+              pdf.setLineWidth(borderWidth);
+              pdf.rect(field.x, field.y, w, h, "S");
+            }
+            
+            // Draw text inside
+            if (text) {
+              const fontSize = field.fontSize || 6;
+              pdf.setFontSize(fontSize);
+              pdf.setFont("helvetica", field.fontWeight === "bold" ? "bold" : "normal");
+              const [txR, txG, txB] = hexToRgb(textColor);
+              pdf.setTextColor(txR, txG, txB);
+              
+              let textX = field.x + 1;
+              let align: "left" | "center" | "right" = "left";
+              if (textAlign === "center") {
+                textX = field.x + w / 2;
+                align = "center";
+              } else if (textAlign === "right") {
+                textX = field.x + w - 1;
+                align = "right";
+              }
+              const textY = field.y + h / 2 + fontSize * 0.35;
+              pdf.text(text, textX, textY, { align });
+            }
+            
+            // Reset text color
+            pdf.setTextColor(0, 0, 0);
+            return;
+          }
+          
           const fontSize = field.fontSize || 6;
           pdf.setFontSize(fontSize);
           pdf.setFont("helvetica", field.fontWeight === "bold" ? "bold" : "normal");
