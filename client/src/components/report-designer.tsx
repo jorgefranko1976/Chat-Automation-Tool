@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image, QrCode, Settings } from "lucide-react";
+import { Save, GripVertical, Trash2, Plus, Star, Type, Database, Upload, Image, QrCode, Settings, Square, RectangleHorizontal } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { PdfTemplateField, PdfTemplate, QRTemplateConfig } from "@shared/schema";
@@ -94,11 +94,25 @@ export function ReportDesigner() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showAddFieldDialog, setShowAddFieldDialog] = useState(false);
+  const [showAddShapeDialog, setShowAddShapeDialog] = useState(false);
   const [newFieldData, setNewFieldData] = useState({
     label: "",
     bindingType: "static" as "data" | "static",
     dataKey: "",
     defaultValue: "",
+    page: 1,
+  });
+  const [newShapeData, setNewShapeData] = useState({
+    label: "",
+    width: 50,
+    height: 20,
+    backgroundColor: "#ffffff",
+    borderColor: "#000000",
+    borderWidth: 1,
+    text: "",
+    fontSize: 6,
+    textColor: "#000000",
+    textAlign: "center" as "left" | "center" | "right",
     page: 1,
   });
   const [backgroundImage1, setBackgroundImage1] = useState<string | null>(null);
@@ -159,6 +173,8 @@ export function ReportDesigner() {
       page: f.page,
       isCustom: false,
       bindingType: "data" as const,
+      elementType: "text" as const,
+      textAlign: "left" as const,
     }));
     setFields(defaultFields);
   };
@@ -432,11 +448,46 @@ export function ReportDesigner() {
       isCustom: true,
       bindingType: newFieldData.bindingType,
       defaultValue: newFieldData.defaultValue,
+      elementType: "text" as const,
+      textAlign: "left" as const,
     };
     setFields(prev => [...prev, newField]);
     setShowAddFieldDialog(false);
     setNewFieldData({ label: "", bindingType: "static", dataKey: "", defaultValue: "", page: activePage });
     toast({ title: "Campo agregado", description: `Campo "${newFieldData.label}" creado` });
+  };
+
+  const addShape = () => {
+    if (!newShapeData.label.trim()) {
+      toast({ title: "Error", description: "Ingrese un nombre para la forma", variant: "destructive" });
+      return;
+    }
+    const shapeId = `shape_${Date.now()}`;
+    const newShape: PdfTemplateField = {
+      id: shapeId,
+      label: newShapeData.label,
+      dataKey: shapeId,
+      x: 50,
+      y: 50 + (fields.filter(f => f.page === newShapeData.page && f.elementType === "shape").length * 25),
+      fontSize: newShapeData.fontSize,
+      fontWeight: "normal",
+      page: newShapeData.page,
+      isCustom: true,
+      bindingType: "static" as const,
+      defaultValue: newShapeData.text,
+      elementType: "shape" as const,
+      width: newShapeData.width,
+      height: newShapeData.height,
+      backgroundColor: newShapeData.backgroundColor,
+      borderColor: newShapeData.borderColor,
+      borderWidth: newShapeData.borderWidth,
+      textColor: newShapeData.textColor,
+      textAlign: newShapeData.textAlign,
+    };
+    setFields(prev => [...prev, newShape]);
+    setShowAddShapeDialog(false);
+    setNewShapeData({ label: "", width: 50, height: 20, backgroundColor: "#ffffff", borderColor: "#000000", borderWidth: 1, text: "", fontSize: 6, textColor: "#000000", textAlign: "center", page: activePage });
+    toast({ title: "Forma agregada", description: `Forma "${newShapeData.label}" creada` });
   };
 
   const deleteField = (fieldId: string) => {
@@ -600,10 +651,27 @@ export function ReportDesigner() {
 
         <Card>
           <CardHeader className="py-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Campos Disponibles</CardTitle>
-            <Button onClick={() => { setNewFieldData(prev => ({ ...prev, page: activePage })); setShowAddFieldDialog(true); }} size="sm" variant="ghost" className="h-6 w-6 p-0">
-              <Plus className="h-4 w-4" />
-            </Button>
+            <CardTitle className="text-sm">Campos y Formas</CardTitle>
+            <div className="flex gap-1">
+              <Button 
+                onClick={() => { setNewFieldData(prev => ({ ...prev, page: activePage })); setShowAddFieldDialog(true); }} 
+                size="sm" 
+                variant="ghost" 
+                className="h-6 w-6 p-0"
+                title="Agregar campo de texto"
+              >
+                <Type className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={() => { setNewShapeData(prev => ({ ...prev, page: activePage })); setShowAddShapeDialog(true); }} 
+                size="sm" 
+                variant="ghost" 
+                className="h-6 w-6 p-0"
+                title="Agregar forma (rectángulo)"
+              >
+                <RectangleHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-64">
@@ -615,11 +683,15 @@ export function ReportDesigner() {
                     className={`p-2 rounded cursor-pointer text-xs flex items-center justify-between ${selectedField === f.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                   >
                     <div className="flex items-center gap-1 flex-1 min-w-0">
-                      {f.isCustom ? (
+                      {f.elementType === "shape" ? (
+                        <RectangleHorizontal className="h-3 w-3 flex-shrink-0 text-blue-500" />
+                      ) : f.isCustom ? (
                         f.bindingType === "static" ? <Type className="h-3 w-3 flex-shrink-0" /> : <Database className="h-3 w-3 flex-shrink-0" />
                       ) : null}
                       <span className="truncate">{f.label}</span>
-                      <span className={`ml-1 flex-shrink-0 ${selectedField === f.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>({f.x}, {f.y})</span>
+                      <span className={`ml-1 flex-shrink-0 ${selectedField === f.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        ({f.x}, {f.y}){f.elementType === "shape" && ` ${f.width}x${f.height}`}
+                      </span>
                     </div>
                     <Button
                       onClick={e => { e.stopPropagation(); deleteField(f.id); }}
@@ -640,7 +712,13 @@ export function ReportDesigner() {
         {selectedFieldData && (
           <Card>
             <CardHeader className="py-3">
-              <CardTitle className="text-sm">Propiedades del Campo</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">
+                {selectedFieldData.elementType === "shape" ? (
+                  <><RectangleHorizontal className="h-4 w-4" /> Propiedades de Forma</>
+                ) : (
+                  <>Propiedades del Campo</>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
@@ -663,30 +741,140 @@ export function ReportDesigner() {
                   />
                 </div>
               </div>
-              <div>
-                <Label className="text-xs">Tamaño Fuente</Label>
-                <Input
-                  type="number"
-                  value={selectedFieldData.fontSize}
-                  onChange={e => updateFieldProperty(selectedFieldData.id, "fontSize", parseInt(e.target.value) || 6)}
-                  className="h-7 text-xs"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Peso Fuente</Label>
-                <Select
-                  value={selectedFieldData.fontWeight}
-                  onValueChange={v => updateFieldProperty(selectedFieldData.id, "fontWeight", v)}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="bold">Negrita</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {selectedFieldData.elementType === "shape" && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Ancho (mm)</Label>
+                      <Input
+                        type="number"
+                        value={selectedFieldData.width || 50}
+                        onChange={e => updateFieldProperty(selectedFieldData.id, "width", parseFloat(e.target.value) || 50)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Alto (mm)</Label>
+                      <Input
+                        type="number"
+                        value={selectedFieldData.height || 20}
+                        onChange={e => updateFieldProperty(selectedFieldData.id, "height", parseFloat(e.target.value) || 20)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Fondo</Label>
+                      <div className="flex gap-1">
+                        <input
+                          type="color"
+                          value={selectedFieldData.backgroundColor || "#ffffff"}
+                          onChange={e => updateFieldProperty(selectedFieldData.id, "backgroundColor", e.target.value)}
+                          className="h-7 w-8 cursor-pointer border rounded"
+                        />
+                        <Input
+                          value={selectedFieldData.backgroundColor || "#ffffff"}
+                          onChange={e => updateFieldProperty(selectedFieldData.id, "backgroundColor", e.target.value)}
+                          className="h-7 text-xs flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Borde</Label>
+                      <div className="flex gap-1">
+                        <input
+                          type="color"
+                          value={selectedFieldData.borderColor || "#000000"}
+                          onChange={e => updateFieldProperty(selectedFieldData.id, "borderColor", e.target.value)}
+                          className="h-7 w-8 cursor-pointer border rounded"
+                        />
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={selectedFieldData.borderWidth || 1}
+                          onChange={e => updateFieldProperty(selectedFieldData.id, "borderWidth", parseFloat(e.target.value) || 1)}
+                          className="h-7 text-xs w-14"
+                          title="Grosor de borde (mm)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Texto Interno</Label>
+                    <Input
+                      value={selectedFieldData.defaultValue || ""}
+                      onChange={e => updateFieldProperty(selectedFieldData.id, "defaultValue", e.target.value)}
+                      className="h-7 text-xs"
+                      placeholder="Texto dentro de la forma"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <div>
+                      <Label className="text-xs">Color Texto</Label>
+                      <input
+                        type="color"
+                        value={selectedFieldData.textColor || "#000000"}
+                        onChange={e => updateFieldProperty(selectedFieldData.id, "textColor", e.target.value)}
+                        className="h-7 w-full cursor-pointer border rounded"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Tamaño</Label>
+                      <Input
+                        type="number"
+                        value={selectedFieldData.fontSize}
+                        onChange={e => updateFieldProperty(selectedFieldData.id, "fontSize", parseInt(e.target.value) || 6)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Alinear</Label>
+                      <Select
+                        value={selectedFieldData.textAlign || "center"}
+                        onValueChange={v => updateFieldProperty(selectedFieldData.id, "textAlign", v)}
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">Izq</SelectItem>
+                          <SelectItem value="center">Centro</SelectItem>
+                          <SelectItem value="right">Der</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
+              )}
+              {selectedFieldData.elementType !== "shape" && (
+                <>
+                  <div>
+                    <Label className="text-xs">Tamaño Fuente</Label>
+                    <Input
+                      type="number"
+                      value={selectedFieldData.fontSize}
+                      onChange={e => updateFieldProperty(selectedFieldData.id, "fontSize", parseInt(e.target.value) || 6)}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Peso Fuente</Label>
+                    <Select
+                      value={selectedFieldData.fontWeight}
+                      onValueChange={v => updateFieldProperty(selectedFieldData.id, "fontWeight", v)}
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="bold">Negrita</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
@@ -785,24 +973,49 @@ export function ReportDesigner() {
                   </div>
                 )}
                 {pageFields.map(field => (
-                  <div
-                    key={field.id}
-                    onMouseDown={e => handleMouseDown(e, field.id)}
-                    className={`absolute cursor-move select-none px-1 rounded text-xs whitespace-nowrap ${
-                      selectedField === field.id
-                        ? "bg-blue-500 text-white ring-2 ring-blue-300"
-                        : "bg-yellow-300/80 text-black hover:bg-yellow-400/80"
-                    }`}
-                    style={{
-                      left: field.x * SCALE,
-                      top: field.y * SCALE,
-                      fontSize: field.fontSize * SCALE * 0.6,
-                      fontWeight: field.fontWeight,
-                    }}
-                  >
-                    <GripVertical className="inline h-3 w-3 mr-1 opacity-50" />
-                    {field.label}
-                  </div>
+                  field.elementType === "shape" ? (
+                    <div
+                      key={field.id}
+                      onMouseDown={e => handleMouseDown(e, field.id)}
+                      className={`absolute cursor-move select-none flex items-center justify-center overflow-hidden ${
+                        selectedField === field.id ? "ring-2 ring-blue-500" : ""
+                      }`}
+                      style={{
+                        left: field.x * SCALE,
+                        top: field.y * SCALE,
+                        width: (field.width || 50) * SCALE,
+                        height: (field.height || 20) * SCALE,
+                        backgroundColor: field.backgroundColor || "#ffffff",
+                        border: `${(field.borderWidth || 1) * SCALE}px solid ${field.borderColor || "#000000"}`,
+                        fontSize: field.fontSize * SCALE * 0.6,
+                        fontWeight: field.fontWeight,
+                        color: field.textColor || "#000000",
+                        textAlign: field.textAlign || "center",
+                      }}
+                      title={`${field.label} (${field.x}, ${field.y}) ${field.width}x${field.height}mm`}
+                    >
+                      {field.defaultValue || field.label}
+                    </div>
+                  ) : (
+                    <div
+                      key={field.id}
+                      onMouseDown={e => handleMouseDown(e, field.id)}
+                      className={`absolute cursor-move select-none px-1 rounded text-xs whitespace-nowrap ${
+                        selectedField === field.id
+                          ? "bg-blue-500 text-white ring-2 ring-blue-300"
+                          : "bg-yellow-300/80 text-black hover:bg-yellow-400/80"
+                      }`}
+                      style={{
+                        left: field.x * SCALE,
+                        top: field.y * SCALE,
+                        fontSize: field.fontSize * SCALE * 0.6,
+                        fontWeight: field.fontWeight,
+                      }}
+                    >
+                      <GripVertical className="inline h-3 w-3 mr-1 opacity-50" />
+                      {field.label}
+                    </div>
+                  )
                 ))}
               </div>
             </div>
@@ -894,6 +1107,165 @@ export function ReportDesigner() {
             </Button>
             <Button onClick={addCustomField} data-testid="button-add-field">
               <Plus className="h-4 w-4 mr-2" /> Agregar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddShapeDialog} onOpenChange={setShowAddShapeDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RectangleHorizontal className="h-5 w-5" />
+              Agregar Forma (Rectángulo/Cuadro de Texto)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nombre de la Forma</Label>
+              <Input
+                value={newShapeData.label}
+                onChange={e => setNewShapeData(prev => ({ ...prev, label: e.target.value }))}
+                placeholder="Ej: Cuadro de Observaciones"
+                data-testid="input-shape-name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Ancho (mm)</Label>
+                <Input
+                  type="number"
+                  value={newShapeData.width}
+                  onChange={e => setNewShapeData(prev => ({ ...prev, width: parseFloat(e.target.value) || 50 }))}
+                  data-testid="input-shape-width"
+                />
+              </div>
+              <div>
+                <Label>Alto (mm)</Label>
+                <Input
+                  type="number"
+                  value={newShapeData.height}
+                  onChange={e => setNewShapeData(prev => ({ ...prev, height: parseFloat(e.target.value) || 20 }))}
+                  data-testid="input-shape-height"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Color de Fondo</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={newShapeData.backgroundColor}
+                    onChange={e => setNewShapeData(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                    className="h-9 w-12 cursor-pointer border rounded"
+                    data-testid="input-shape-bg-color"
+                  />
+                  <Input
+                    value={newShapeData.backgroundColor}
+                    onChange={e => setNewShapeData(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Color de Borde</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={newShapeData.borderColor}
+                    onChange={e => setNewShapeData(prev => ({ ...prev, borderColor: e.target.value }))}
+                    className="h-9 w-12 cursor-pointer border rounded"
+                    data-testid="input-shape-border-color"
+                  />
+                  <Input
+                    value={newShapeData.borderColor}
+                    onChange={e => setNewShapeData(prev => ({ ...prev, borderColor: e.target.value }))}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+            <div>
+              <Label>Grosor de Borde (mm)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                value={newShapeData.borderWidth}
+                onChange={e => setNewShapeData(prev => ({ ...prev, borderWidth: parseFloat(e.target.value) || 1 }))}
+                data-testid="input-shape-border-width"
+              />
+            </div>
+            <div>
+              <Label>Texto (opcional)</Label>
+              <Input
+                value={newShapeData.text}
+                onChange={e => setNewShapeData(prev => ({ ...prev, text: e.target.value }))}
+                placeholder="Texto dentro de la forma"
+                data-testid="input-shape-text"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Tamaño Texto</Label>
+                <Input
+                  type="number"
+                  value={newShapeData.fontSize}
+                  onChange={e => setNewShapeData(prev => ({ ...prev, fontSize: parseInt(e.target.value) || 6 }))}
+                  data-testid="input-shape-font-size"
+                />
+              </div>
+              <div>
+                <Label>Color Texto</Label>
+                <div className="flex gap-1">
+                  <input
+                    type="color"
+                    value={newShapeData.textColor}
+                    onChange={e => setNewShapeData(prev => ({ ...prev, textColor: e.target.value }))}
+                    className="h-9 w-10 cursor-pointer border rounded"
+                    data-testid="input-shape-text-color"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Alineación</Label>
+                <Select
+                  value={newShapeData.textAlign}
+                  onValueChange={v => setNewShapeData(prev => ({ ...prev, textAlign: v as "left" | "center" | "right" }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="left">Izquierda</SelectItem>
+                    <SelectItem value="center">Centro</SelectItem>
+                    <SelectItem value="right">Derecha</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Página</Label>
+              <Select
+                value={String(newShapeData.page)}
+                onValueChange={v => setNewShapeData(prev => ({ ...prev, page: parseInt(v) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Página 1</SelectItem>
+                  <SelectItem value="2">Página 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddShapeDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={addShape} data-testid="button-add-shape">
+              <RectangleHorizontal className="h-4 w-4 mr-2" /> Agregar Forma
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -489,6 +489,14 @@ export const pdfTemplateFieldSchema = z.object({
   isCustom: z.boolean().optional().default(false),
   bindingType: z.enum(["data", "static"]).optional().default("data"),
   defaultValue: z.string().optional(),
+  elementType: z.enum(["text", "shape"]).optional().default("text"),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  backgroundColor: z.string().optional(),
+  borderColor: z.string().optional(),
+  borderWidth: z.number().optional(),
+  textColor: z.string().optional(),
+  textAlign: z.enum(["left", "center", "right"]).optional().default("left"),
 });
 
 export type PdfTemplateField = z.infer<typeof pdfTemplateFieldSchema>;
