@@ -166,12 +166,11 @@ export async function fillFormPdf(
     
     if (targetPage) {
       const { width, height } = targetPage.getSize();
-      // FIXED VALUES that worked originally (in PDF points)
-      // Position: bottom-right corner of first page
+      // Position: top-right corner of first page
       const qrSize = 80;
       const margin = 20;
       const x = width - qrSize - margin;  // Right side
-      const y = margin;                    // Bottom
+      const y = height - qrSize - margin; // Top
       
       console.log(`[QR] Page size: ${width}x${height}, Drawing QR at: x=${x}, y=${y}, size=${qrSize}`);
       
