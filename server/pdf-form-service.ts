@@ -193,11 +193,21 @@ export async function fillFormPdfFromBase64(
   qrDataUrl?: string,
   qrPosition?: { x: number; y: number; size: number; page: number }
 ): Promise<Uint8Array> {
+  console.log('[fillFormPdfFromBase64] Called with:', {
+    templateName,
+    hasQrDataUrl: !!qrDataUrl,
+    qrDataUrlLength: qrDataUrl?.length || 0,
+    qrPosition
+  });
+  
   let qrImageBytes: Uint8Array | undefined;
   
   if (qrDataUrl) {
     const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, '');
     qrImageBytes = Uint8Array.from(Buffer.from(base64Data, 'base64'));
+    console.log('[fillFormPdfFromBase64] QR bytes length:', qrImageBytes.length);
+  } else {
+    console.log('[fillFormPdfFromBase64] NO QR DATA URL PROVIDED');
   }
   
   return fillFormPdf(templateName, data, qrImageBytes, qrPosition);
