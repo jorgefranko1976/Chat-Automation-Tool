@@ -1631,9 +1631,9 @@ export default function Despachos() {
         return;
       }
 
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
-      const pageWidth = 279;
-      const pageHeight = 216;
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [301.6, 215.9], compress: true });
+      const pageWidth = 301.6;
+      const pageHeight = 215.9;
 
       const loadImage = (src: string): Promise<HTMLImageElement> => {
         return new Promise((resolve, reject) => {
@@ -1999,8 +1999,8 @@ export default function Despachos() {
     }
     
     const wsUrl = settings.wsEnvironment === "production" ? settings.wsUrlProd : settings.wsUrlTest;
-    const pageWidth = 279;
-    const pageHeight = 216;
+    const pageWidth = 301.6;
+    const pageHeight = 215.9;
     
     const selectedIndices = Array.from(selectedManifestosForPdf);
     for (const index of selectedIndices) {
@@ -2168,7 +2168,7 @@ export default function Despachos() {
           horaDescargue: associatedRemesa?.horaDescargue || "",
         };
         
-        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter", compress: true });
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: [301.6, 215.9], compress: true });
         const qrImg = await loadImage(qrResult.qrDataUrl);
         
         // Page 1
