@@ -133,7 +133,7 @@ export async function fillFormPdf(
   templateName: string, 
   data: ManifiestoData,
   qrImageBytes?: Uint8Array,
-  qrPosition?: { x: number; y: number; size: number; page: number }
+  qrPosition?: { rightMargin: number; topMargin: number; sizeMm: number; page: number }
 ): Promise<Uint8Array> {
   const filePath = path.join(TEMPLATE_PATH, templateName);
   if (!fs.existsSync(filePath)) {
@@ -165,12 +165,22 @@ export async function fillFormPdf(
     const targetPage = pages[qrPosition.page - 1];
     
     if (targetPage) {
-      const { height } = targetPage.getSize();
+      const { width, height } = targetPage.getSize();
+      // Convert mm to points (1mm = 2.835 points)
+      const mmToPoints = 2.835;
+      const qrSizePoints = qrPosition.sizeMm * mmToPoints;
+      const rightMarginPoints = qrPosition.rightMargin * mmToPoints;
+      const topMarginPoints = qrPosition.topMargin * mmToPoints;
+      
+      // Calculate x from right edge, y from top edge
+      const x = width - rightMarginPoints - qrSizePoints;
+      const y = height - topMarginPoints - qrSizePoints;
+      
       targetPage.drawImage(qrImage, {
-        x: qrPosition.x,
-        y: height - qrPosition.y - qrPosition.size,
-        width: qrPosition.size,
-        height: qrPosition.size,
+        x: x,
+        y: y,
+        width: qrSizePoints,
+        height: qrSizePoints,
       });
     }
   }
@@ -184,7 +194,7 @@ export async function fillFormPdfFromBase64(
   templateName: string, 
   data: ManifiestoData,
   qrDataUrl?: string,
-  qrPosition?: { x: number; y: number; size: number; page: number }
+  qrPosition?: { rightMargin: number; topMargin: number; sizeMm: number; page: number }
 ): Promise<Uint8Array> {
   let qrImageBytes: Uint8Array | undefined;
   
@@ -197,5 +207,6 @@ export async function fillFormPdfFromBase64(
 }
 
 export function getDefaultQrPosition() {
-  return { x: 480, y: 50, size: 80, page: 1 };
+  // 4cm x 4cm QR, 2cm from top, 2cm from right edge
+  return { rightMargin: 20, topMargin: 20, sizeMm: 40, page: 1 };
 }

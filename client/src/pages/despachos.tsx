@@ -1697,7 +1697,7 @@ export default function Despachos() {
             templateName: formTemplateName,
             data: formData,
             qrDataUrl: qrResult.qrDataUrl,
-            qrPosition: { x: 480, y: 50, size: 80, page: 1 },
+            qrPosition: { rightMargin: 20, topMargin: 20, sizeMm: 40, page: 1 },
           });
           const fillResult = await fillRes.json();
           
@@ -2269,7 +2269,7 @@ export default function Despachos() {
               templateName: formTemplateName,
               data: formDataForFill,
               qrDataUrl: qrResult.qrDataUrl,
-              qrPosition: { x: 480, y: 50, size: 80, page: 1 },
+              qrPosition: { rightMargin: 20, topMargin: 20, sizeMm: 40, page: 1 },
             });
             const fillResult = await fillRes.json();
             
