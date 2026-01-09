@@ -530,6 +530,28 @@ export default function Despachos() {
     XLSX.writeFile(wb, `despachos_validados_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
+  const handleExportManifiestosExcel = () => {
+    if (generatedManifiestos.length === 0) return;
+    
+    const exportData = generatedManifiestos.map((m) => ({
+      CONSECUTIVO: m.consecutivo,
+      PLACA: m.placa,
+      COD_MUNICIPIO_ORIGEN: m.codMunicipioOrigen,
+      COD_MUNICIPIO_DESTINO: m.codMunicipioDestino,
+      CEDULA_CONDUCTOR: m.cedula,
+      VALOR_FLETE: m.valorFlete,
+      FECHA_PAGO_SALDO: m.fechaPagoSaldo,
+      ESTADO: m.status === "success" ? "EXITOSO" : m.status === "error" ? "ERROR" : "PENDIENTE",
+      ID_MANIFIESTO: m.idManifiesto || "",
+      RESPUESTA: m.responseMessage || "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Manifiestos");
+    XLSX.writeFile(wb, `manifiestos_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
   const clearFile = () => {
     setFile(null);
     setRows([]);
@@ -3272,6 +3294,15 @@ export default function Despachos() {
                           )}
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportManifiestosExcel}
+                        className="border-green-300 text-green-700 hover:bg-green-50"
+                        data-testid="button-export-manifiestos-excel"
+                      >
+                        <FileSpreadsheet className="h-4 w-4 mr-1" /> Exportar Excel
+                      </Button>
                       {failedManifiestosCount > 0 && (
                         <Button
                           variant="outline"
