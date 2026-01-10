@@ -1750,7 +1750,7 @@ export default function Despachos() {
           identConductor: `CC: ${manifiesto.cedula}`,
           dirConductor: (conductor?.NOMENCLATURADIRECCION || "").substring(0, 35),
           telConductor: conductor?.NUMTELEFONOCONTACTO || "",
-          numLicencia: `${conductor?.CODCATEGORIALICENCIACONDUCCION || ""}${manifiesto.cedula}`,
+          numLicencia: `${conductor?.CODCATEGORIALICENCIACONDUCCION || ""}-${manifiesto.cedula}`,
           ciudadConductor: conductorCiudadName,
           poseedorNombre: buildNombreTitular().substring(0, 35),
           docPoseedor: `${vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular}: ${vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular}`,
@@ -2267,8 +2267,35 @@ export default function Despachos() {
         );
         const associatedRemesa = generatedRemesas.find(r => r.consecutivo === manifiesto.consecutivoRemesa);
         
-        const origName = manifiesto.codMunicipioOrigen || "";
-        const destName = manifiesto.codMunicipioDestino || "";
+        // Convert municipality codes to names from database (destinos table)
+        const origCode = details.CODMUNICIPIOORIGENMANIFIESTO || manifiesto.codMunicipioOrigen || "";
+        const destCode = details.CODMUNICIPIODESTINOMANIFIESTO || manifiesto.codMunicipioDestino || "";
+        const titularCiudadCode = titular?.CODMUNICIPIORNDC || "";
+        const conductorCiudadCode = conductor?.CODMUNICIPIORNDC || "";
+        
+        // Lookup municipality names from database destinos table (batch all codes)
+        let origName = origCode;
+        let destName = destCode;
+        let titularCiudadName = titularCiudadCode;
+        let conductorCiudadName = conductorCiudadCode;
+        
+        const allCodes = [origCode, destCode, titularCiudadCode, conductorCiudadCode].filter(Boolean);
+        try {
+          const municipiosRes = await apiRequest("POST", "/api/destinos/municipios-batch", {
+            codes: allCodes
+          });
+          const municipiosData = await municipiosRes.json();
+          if (municipiosData.success && municipiosData.municipios) {
+            origName = municipiosData.municipios[origCode] || getMunicipioName(origCode);
+            destName = municipiosData.municipios[destCode] || getMunicipioName(destCode);
+            titularCiudadName = municipiosData.municipios[titularCiudadCode] || titularCiudadCode;
+            conductorCiudadName = municipiosData.municipios[conductorCiudadCode] || conductorCiudadCode;
+          }
+        } catch {
+          // Fallback to static mapping if database lookup fails
+          origName = getMunicipioName(origCode);
+          destName = getMunicipioName(destCode);
+        }
         const cargoDesc = "ALIMENTO PARA AVES DE CORRAL";
         
         const buildNombreConductor = () => {
@@ -2330,7 +2357,7 @@ export default function Despachos() {
             docTitular: `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`,
             dirTitular: (titular?.NOMENCLATURADIRECCION || "").substring(0, 35),
             telTitular: titular?.NUMTELEFONOCONTACTO || "",
-            ciudadTitular: (titular?.CODMUNICIPIORNDC || settings.companyCity || "").substring(0, 18),
+            ciudadTitular: titularCiudadName.substring(0, 18),
             placa: details.NUMPLACA || "",
             marca: (vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "").substring(0, 12),
             placaRemolque: details.NUMPLACAREMOLQUE || "",
@@ -2343,13 +2370,13 @@ export default function Despachos() {
             identConductor: `CC: ${manifiesto.cedula}`,
             dirConductor: (conductor?.NOMENCLATURADIRECCION || "").substring(0, 35),
             telConductor: conductor?.NUMTELEFONOCONTACTO || "",
-            numLicencia: `${conductor?.CODCATEGORIALICENCIACONDUCCION || ""}${manifiesto.cedula}`,
-            ciudadConductor: conductor?.CODMUNICIPIORNDC || "",
+            numLicencia: `${conductor?.CODCATEGORIALICENCIACONDUCCION || ""}-${manifiesto.cedula}`,
+            ciudadConductor: conductorCiudadName,
             poseedorNombre: buildNombreTitular().substring(0, 35),
             docPoseedor: `${vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular}: ${vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular}`,
             direccionPoseedor: (titular?.NOMENCLATURADIRECCION || "").substring(0, 30),
             telPoseedor: titular?.NUMTELEFONOCONTACTO || "",
-            ciudadPoseedor: titular?.CODMUNICIPIORNDC || "",
+            ciudadPoseedor: titularCiudadName,
             consecutivoRemesa: String(manifiesto.consecutivoRemesa),
             cantidad: associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : ""),
             valorTotal: `$${parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0").toLocaleString()}`,
@@ -2394,7 +2421,7 @@ export default function Despachos() {
         const titularNombre = buildNombreTitular();
         const titularTelefono = titular?.NUMTELEFONOCONTACTO || "";
         const titularDireccion = titular?.NOMENCLATURADIRECCION || "";
-        const titularCiudad = titular?.CODMUNICIPIORNDC || settings.companyCity || "";
+        const titularCiudad = titularCiudadName || settings.companyCity || "";
         const marcaVehiculo = vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "";
         const pesoVacio = vehiculo?.PESOVEHICULOVACIO || associatedRow?.placaData?.pesoVacio || "";
         const configVehiculo = vehiculoExtra?.CODCONFIGURACION || (details.NUMPLACAREMOLQUE ? "3S2" : "C2");
@@ -2404,7 +2431,7 @@ export default function Despachos() {
         const conductorNombre = buildNombreConductor();
         const conductorTelefono = conductor?.NUMTELEFONOCONTACTO || "";
         const conductorDireccion = conductor?.NOMENCLATURADIRECCION || "";
-        const conductorLicencia = conductor?.NUMLICENCIACONDUCCION || "";
+        const conductorLicencia = `${conductor?.CODCATEGORIALICENCIACONDUCCION || ""}-${manifiesto.cedula}`;
         const tenedorId = vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular;
         const tenedorTipo = vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular;
         const cantidadKg = associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : "");
