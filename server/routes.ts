@@ -1196,7 +1196,9 @@ export async function registerRoutes(
       const titularId = numIdTitular || details.NUMIDTITULARMANIFIESTO;
       const placa = numPlaca || details.NUMPLACA;
 
-      console.log("[MANIFIESTO-ENHANCED] conductorId:", conductorId, "titularId:", titularId, "placa:", placa);
+      console.log("[MANIFIESTO-ENHANCED] Request params - numIdConductor:", numIdConductor, "numIdTitular:", numIdTitular, "numPlaca:", numPlaca);
+      console.log("[MANIFIESTO-ENHANCED] From details - NUMIDCONDUCTOR:", details.NUMIDCONDUCTOR, "NUMIDTITULARMANIFIESTO:", details.NUMIDTITULARMANIFIESTO, "NUMPLACA:", details.NUMPLACA);
+      console.log("[MANIFIESTO-ENHANCED] Final IDs - conductorId:", conductorId, "titularId:", titularId, "placa:", placa);
 
       // Query all data from RNDC in parallel
       // Always query titular separately even if same as conductor (to ensure we get the data)
