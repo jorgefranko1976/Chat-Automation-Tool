@@ -1230,7 +1230,11 @@ export async function registerRoutes(
         placa ? queryVehiculoExtraDetails(username, password, placa, wsUrl) : Promise.resolve(null),
       ]);
 
-      console.log("[MANIFIESTO-ENHANCED] conductorResult success:", conductorResult?.success);
+      console.log("[MANIFIESTO-ENHANCED] conductorId:", conductorId, "conductorTipoId:", conductorTipoId);
+      console.log("[MANIFIESTO-ENHANCED] conductorResult:", conductorResult?.success ? "SUCCESS" : "FAILED", conductorResult?.message);
+      if (conductorResult?.success) {
+        console.log("[MANIFIESTO-ENHANCED] conductor data:", JSON.stringify(conductorResult.details, null, 2));
+      }
       console.log("[MANIFIESTO-ENHANCED] titularResult success:", titularResult?.success);
       if (titularResult?.success) {
         console.log("[MANIFIESTO-ENHANCED] titular data:", JSON.stringify(titularResult.details, null, 2));
