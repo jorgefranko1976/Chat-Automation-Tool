@@ -1194,51 +1194,22 @@ export async function registerRoutes(
       // Get conductor and titular IDs from response or parameters
       const conductorId = numIdConductor || details.NUMIDCONDUCTOR;
       const titularId = numIdTitular || details.NUMIDTITULARMANIFIESTO;
-      const tipoIdTitular = details.CODIDTITULARMANIFIESTO || "C"; // C=Cédula, N=NIT
       const placa = numPlaca || details.NUMPLACA;
 
-      // First try to get titular from local DB (terceros table)
-      let titularFromDb: any = null;
-      if (titularId) {
-        titularFromDb = await storage.getTerceroByIdentificacion(tipoIdTitular, titularId);
-      }
-
-      // Query additional data in parallel from RNDC
+      // Query all data from RNDC in parallel
       const [conductorResult, titularResult, vehiculoResult, vehiculoExtraResult] = await Promise.all([
         conductorId ? queryTerceroDetails(username, password, companyNit, conductorId, wsUrl) : Promise.resolve(null),
-        titularId && titularId !== conductorId && !titularFromDb ? queryTerceroDetails(username, password, companyNit, titularId, wsUrl) : Promise.resolve(null),
+        titularId && titularId !== conductorId ? queryTerceroDetails(username, password, companyNit, titularId, wsUrl) : Promise.resolve(null),
         placa ? queryVehiculoDetails(username, password, companyNit, placa, wsUrl) : Promise.resolve(null),
         placa ? queryVehiculoExtraDetails(username, password, placa, wsUrl) : Promise.resolve(null),
       ]);
-
-      // Use local DB titular data if available, otherwise use RNDC response
-      // Map DB fields to RNDC-style field names for consistency
-      let titularData = null;
-      if (titularFromDb) {
-        // terceros table: nombre=primer nombre o razón social, primerApellido, segundoApellido
-        // telefonoFijo, celular, direccion, codMunicipioRndc
-        titularData = {
-          PRIMERNOMBREIDTERCERO: titularFromDb.nombre || "",
-          SEGUNDONOMBREIDTERCERO: "",
-          PRIMERAPELLIDOIDTERCERO: titularFromDb.primerApellido || "",
-          SEGUNDOAPELLIDOIDTERCERO: titularFromDb.segundoApellido || "",
-          NOMBRERAZONSOCIAL: titularFromDb.primerApellido ? "" : (titularFromDb.nombre || ""), // If no apellido, it's a company
-          NOMENCLATURADIRECCION: titularFromDb.direccion || "",
-          NUMTELEFONOCONTACTO: titularFromDb.telefonoFijo || titularFromDb.celular || "",
-          CODMUNICIPIORNDC: titularFromDb.codMunicipioRndc || "",
-        };
-      } else if (titularResult?.success) {
-        titularData = titularResult.details;
-      } else if (conductorResult?.success && titularId === conductorId) {
-        titularData = conductorResult.details;
-      }
 
       // Build enhanced response with all available data
       res.json({ 
         success: true, 
         details,
         conductor: conductorResult?.success ? conductorResult.details : null,
-        titular: titularData,
+        titular: titularResult?.success ? titularResult.details : (conductorResult?.success && titularId === conductorId ? conductorResult.details : null),
         vehiculo: vehiculoResult?.success ? vehiculoResult.details : null,
         vehiculoExtra: vehiculoExtraResult?.success ? vehiculoExtraResult.details : null,
         companyInfo: {
