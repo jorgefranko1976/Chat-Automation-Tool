@@ -1629,18 +1629,26 @@ export default function Despachos() {
       // Convert municipality codes to names from database (destinos table)
       const origCode = details.CODMUNICIPIOORIGENMANIFIESTO || manifiesto.codMunicipioOrigen || "";
       const destCode = details.CODMUNICIPIODESTINOMANIFIESTO || manifiesto.codMunicipioDestino || "";
+      const titularCiudadCode = titular?.CODMUNICIPIORNDC || "";
+      const conductorCiudadCode = conductor?.CODMUNICIPIORNDC || "";
       
-      // Lookup municipality names from database destinos table
+      // Lookup municipality names from database destinos table (batch all codes)
       let origName = origCode;
       let destName = destCode;
+      let titularCiudadName = titularCiudadCode;
+      let conductorCiudadName = conductorCiudadCode;
+      
+      const allCodes = [origCode, destCode, titularCiudadCode, conductorCiudadCode].filter(Boolean);
       try {
         const municipiosRes = await apiRequest("POST", "/api/destinos/municipios-batch", {
-          codes: [origCode, destCode].filter(Boolean)
+          codes: allCodes
         });
         const municipiosData = await municipiosRes.json();
         if (municipiosData.success && municipiosData.municipios) {
           origName = municipiosData.municipios[origCode] || getMunicipioName(origCode);
           destName = municipiosData.municipios[destCode] || getMunicipioName(destCode);
+          titularCiudadName = municipiosData.municipios[titularCiudadCode] || titularCiudadCode;
+          conductorCiudadName = municipiosData.municipios[conductorCiudadCode] || conductorCiudadCode;
         }
       } catch {
         // Fallback to static mapping if database lookup fails
@@ -1660,10 +1668,16 @@ export default function Despachos() {
       
       const buildNombreTitular = () => {
         if (titular) {
-          if (titular.NOMBRERAZONSOCIAL) return titular.NOMBRERAZONSOCIAL;
-          const nombres = [titular.PRIMERNOMBREIDTERCERO, titular.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
-          const apellidos = [titular.PRIMERAPELLIDOIDTERCERO, titular.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
-          return `${nombres} ${apellidos}`.trim();
+          // Usar NOMIDTERCERO (primer nombre) + PRIMERAPELLIDOIDTERCERO como pide el usuario
+          // Si es empresa, usar NOMBRERAZONSOCIAL
+          if (titular.NOMBRERAZONSOCIAL && titular.NOMBRERAZONSOCIAL.trim()) {
+            return titular.NOMBRERAZONSOCIAL;
+          }
+          // Formato: PRIMERNOMBREIDTERCERO PRIMERAPELLIDOIDTERCERO
+          const nombre = titular.PRIMERNOMBREIDTERCERO || "";
+          const apellido = titular.PRIMERAPELLIDOIDTERCERO || "";
+          const nombreCompleto = `${nombre} ${apellido}`.trim();
+          if (nombreCompleto) return nombreCompleto;
         }
         return details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular;
       };
@@ -1723,7 +1737,7 @@ export default function Despachos() {
           docTitular: `${manifiesto.tipoIdTitular}: ${manifiesto.numIdTitular}`,
           dirTitular: (titular?.NOMENCLATURADIRECCION || "").substring(0, 35),
           telTitular: titular?.NUMTELEFONOCONTACTO || "",
-          ciudadTitular: (titular?.CODMUNICIPIORNDC || settings.companyCity || "").substring(0, 18),
+          ciudadTitular: titularCiudadName.substring(0, 18),
           placa: details.NUMPLACA || "",
           marca: (vehiculoExtra?.MARCA || vehiculo?.CODMARCAVEHICULOCARGA || "").substring(0, 12),
           placaRemolque: details.NUMPLACAREMOLQUE || "",
@@ -1737,12 +1751,12 @@ export default function Despachos() {
           dirConductor: (conductor?.NOMENCLATURADIRECCION || "").substring(0, 35),
           telConductor: conductor?.NUMTELEFONOCONTACTO || "",
           numLicencia: conductor?.NUMLICENCIACONDUCCION || "",
-          ciudadConductor: conductor?.CODMUNICIPIORNDC || "",
+          ciudadConductor: conductorCiudadName,
           poseedorNombre: buildNombreTitular().substring(0, 35),
           docPoseedor: `${vehiculo?.CODTIPOIDTENEDOR || manifiesto.tipoIdTitular}: ${vehiculo?.NUMIDTENEDOR || manifiesto.numIdTitular}`,
           direccionPoseedor: (titular?.NOMENCLATURADIRECCION || "").substring(0, 30),
           telPoseedor: titular?.NUMTELEFONOCONTACTO || "",
-          ciudadPoseedor: titular?.CODMUNICIPIORNDC || "",
+          ciudadPoseedor: titularCiudadName,
           consecutivoRemesa: String(manifiesto.consecutivoRemesa),
           cantidad: associatedRemesa?.cantidadCargada || (associatedRow?.toneladas ? (parseFloat(associatedRow?.toneladas || "0") * 1000).toString() : ""),
           valorTotal: `$${parseInt(details.VALORFLETEPACTADOVIAJE || String(manifiesto.valorFlete) || "0").toLocaleString()}`,
