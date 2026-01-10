@@ -1196,20 +1196,31 @@ export async function registerRoutes(
       const titularId = numIdTitular || details.NUMIDTITULARMANIFIESTO;
       const placa = numPlaca || details.NUMPLACA;
 
+      console.log("[MANIFIESTO-ENHANCED] conductorId:", conductorId, "titularId:", titularId, "placa:", placa);
+
       // Query all data from RNDC in parallel
+      // Always query titular separately even if same as conductor (to ensure we get the data)
       const [conductorResult, titularResult, vehiculoResult, vehiculoExtraResult] = await Promise.all([
         conductorId ? queryTerceroDetails(username, password, companyNit, conductorId, wsUrl) : Promise.resolve(null),
-        titularId && titularId !== conductorId ? queryTerceroDetails(username, password, companyNit, titularId, wsUrl) : Promise.resolve(null),
+        titularId ? queryTerceroDetails(username, password, companyNit, titularId, wsUrl) : Promise.resolve(null),
         placa ? queryVehiculoDetails(username, password, companyNit, placa, wsUrl) : Promise.resolve(null),
         placa ? queryVehiculoExtraDetails(username, password, placa, wsUrl) : Promise.resolve(null),
       ]);
+
+      console.log("[MANIFIESTO-ENHANCED] conductorResult success:", conductorResult?.success);
+      console.log("[MANIFIESTO-ENHANCED] titularResult success:", titularResult?.success);
+      if (titularResult?.success) {
+        console.log("[MANIFIESTO-ENHANCED] titular data:", JSON.stringify(titularResult.details, null, 2));
+      } else if (titularResult) {
+        console.log("[MANIFIESTO-ENHANCED] titularResult message:", titularResult.message);
+      }
 
       // Build enhanced response with all available data
       res.json({ 
         success: true, 
         details,
         conductor: conductorResult?.success ? conductorResult.details : null,
-        titular: titularResult?.success ? titularResult.details : (conductorResult?.success && titularId === conductorId ? conductorResult.details : null),
+        titular: titularResult?.success ? titularResult.details : null,
         vehiculo: vehiculoResult?.success ? vehiculoResult.details : null,
         vehiculoExtra: vehiculoExtraResult?.success ? vehiculoExtraResult.details : null,
         companyInfo: {
