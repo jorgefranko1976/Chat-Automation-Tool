@@ -367,7 +367,10 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDO
  </documento>
 </root>`;
 
-  console.log("[queryTerceroDetails] Querying tercero:", numIdTercero, "for company:", companyNit);
+  console.log("[queryTerceroDetails] ========== XML ENVIADO ==========");
+  console.log(xml);
+  console.log("[queryTerceroDetails] =================================");
+  
   const result = await sendXmlToRndc(xml, targetUrl);
   
   if (!result.success) {
@@ -375,7 +378,9 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDO
     return { success: false, message: result.message, rawXml: result.rawXml };
   }
 
-  console.log("[queryTerceroDetails] Raw XML response for tercero", numIdTercero, ":", result.rawXml.substring(0, 800));
+  console.log("[queryTerceroDetails] ========== XML RESPUESTA ==========");
+  console.log(result.rawXml);
+  console.log("[queryTerceroDetails] ===================================");
 
   try {
     const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
