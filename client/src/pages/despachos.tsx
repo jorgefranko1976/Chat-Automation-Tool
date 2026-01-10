@@ -1659,24 +1659,24 @@ export default function Despachos() {
       
       const buildNombreConductor = () => {
         if (conductor) {
-          const nombres = [conductor.PRIMERNOMBREIDTERCERO, conductor.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
+          if (conductor.NOMBRERAZONSOCIAL && conductor.NOMBRERAZONSOCIAL.trim()) {
+            return conductor.NOMBRERAZONSOCIAL;
+          }
+          const nombre = conductor.NOMIDTERCERO || "";
           const apellidos = [conductor.PRIMERAPELLIDOIDTERCERO, conductor.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
-          return `${nombres} ${apellidos}`.trim() || conductor.NOMBRERAZONSOCIAL || "";
+          return `${nombre} ${apellidos}`.trim();
         }
         return associatedRow?.cedulaData?.nombre || "";
       };
       
       const buildNombreTitular = () => {
         if (titular) {
-          // Usar NOMIDTERCERO (primer nombre) + PRIMERAPELLIDOIDTERCERO como pide el usuario
-          // Si es empresa, usar NOMBRERAZONSOCIAL
           if (titular.NOMBRERAZONSOCIAL && titular.NOMBRERAZONSOCIAL.trim()) {
             return titular.NOMBRERAZONSOCIAL;
           }
-          // Formato: PRIMERNOMBREIDTERCERO PRIMERAPELLIDOIDTERCERO
-          const nombre = titular.PRIMERNOMBREIDTERCERO || "";
-          const apellido = titular.PRIMERAPELLIDOIDTERCERO || "";
-          const nombreCompleto = `${nombre} ${apellido}`.trim();
+          const nombre = titular.NOMIDTERCERO || "";
+          const apellidos = [titular.PRIMERAPELLIDOIDTERCERO, titular.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
+          const nombreCompleto = `${nombre} ${apellidos}`.trim();
           if (nombreCompleto) return nombreCompleto;
         }
         return details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular;
@@ -2273,19 +2273,24 @@ export default function Despachos() {
         
         const buildNombreConductor = () => {
           if (conductor) {
-            const nombres = [conductor.PRIMERNOMBREIDTERCERO, conductor.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
+            if (conductor.NOMBRERAZONSOCIAL && conductor.NOMBRERAZONSOCIAL.trim()) {
+              return conductor.NOMBRERAZONSOCIAL;
+            }
+            const nombre = conductor.NOMIDTERCERO || "";
             const apellidos = [conductor.PRIMERAPELLIDOIDTERCERO, conductor.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
-            return `${nombres} ${apellidos}`.trim() || conductor.NOMBRERAZONSOCIAL || "";
+            return `${nombre} ${apellidos}`.trim();
           }
           return associatedRow?.cedulaData?.nombre || "";
         };
         
         const buildNombreTitular = () => {
           if (titular) {
-            if (titular.NOMBRERAZONSOCIAL) return titular.NOMBRERAZONSOCIAL;
-            const nombres = [titular.PRIMERNOMBREIDTERCERO, titular.SEGUNDONOMBREIDTERCERO].filter(Boolean).join(" ");
+            if (titular.NOMBRERAZONSOCIAL && titular.NOMBRERAZONSOCIAL.trim()) {
+              return titular.NOMBRERAZONSOCIAL;
+            }
+            const nombre = titular.NOMIDTERCERO || "";
             const apellidos = [titular.PRIMERAPELLIDOIDTERCERO, titular.SEGUNDOAPELLIDOIDTERCERO].filter(Boolean).join(" ");
-            return `${nombres} ${apellidos}`.trim();
+            return `${nombre} ${apellidos}`.trim();
           }
           return details.NOMIDTITULARMANIFIESTOCARGA || manifiesto.numIdTitular;
         };
