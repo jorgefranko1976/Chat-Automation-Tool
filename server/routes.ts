@@ -1173,6 +1173,29 @@ export async function registerRoutes(
     }
   });
 
+  // Endpoint para consultar terceros directamente del RNDC (procesoid=11)
+  app.post("/api/rndc/tercero-query", async (req, res) => {
+    try {
+      const { username, password, companyNit, numIdTercero, codTipoId, wsUrl } = req.body;
+      
+      if (!username || !password || !companyNit || !numIdTercero) {
+        return res.status(400).json({ success: false, message: "Faltan parámetros requeridos" });
+      }
+
+      const result = await queryTerceroDetails(username, password, companyNit, numIdTercero, codTipoId || "C", wsUrl);
+      
+      res.json({ 
+        success: result.success, 
+        details: result.details,
+        message: result.message,
+        rawXml: result.rawXml,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al consultar tercero";
+      res.status(500).json({ success: false, message });
+    }
+  });
+
   // Enhanced endpoint that queries all manifest-related data for PDF generation
   app.post("/api/rndc/manifiesto-details-enhanced", async (req, res) => {
     try {
