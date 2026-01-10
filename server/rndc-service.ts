@@ -344,8 +344,10 @@ export async function queryTerceroDetails(
   password: string,
   companyNit: string,
   numIdTercero: string,
+  codIdTercero?: string,
   targetUrl?: string
 ): Promise<{ success: boolean; details?: TerceroDetails; message: string; rawXml: string }> {
+  const tipoId = codIdTercero || "C";
   const xml = `<?xml version='1.0' encoding='ISO-8859-1' ?>
 <root>
  <acceso>
@@ -361,6 +363,7 @@ INGRESOID,FECHAING,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,PRIMERNOMBRE
  </variables>
  <documento>
   <NUMNITEMPRESATRANSPORTE>${companyNit}</NUMNITEMPRESATRANSPORTE>
+  <CODIDTERCERO>${tipoId}</CODIDTERCERO>
   <NUMIDTERCERO>${numIdTercero}</NUMIDTERCERO>
  </documento>
 </root>`;

@@ -1191,20 +1191,18 @@ export async function registerRoutes(
 
       const details = manifestResult.details;
       
-      // Get conductor and titular IDs from response or parameters
+      // Get conductor and titular IDs and types from response or parameters
       const conductorId = numIdConductor || details.NUMIDCONDUCTOR;
+      const conductorTipoId = details.CODIDCONDUCTOR || "C";
       const titularId = numIdTitular || details.NUMIDTITULARMANIFIESTO;
+      const titularTipoId = details.CODIDTITULARMANIFIESTO || "C";
       const placa = numPlaca || details.NUMPLACA;
 
-      console.log("[MANIFIESTO-ENHANCED] Request params - numIdConductor:", numIdConductor, "numIdTitular:", numIdTitular, "numPlaca:", numPlaca);
-      console.log("[MANIFIESTO-ENHANCED] From details - NUMIDCONDUCTOR:", details.NUMIDCONDUCTOR, "NUMIDTITULARMANIFIESTO:", details.NUMIDTITULARMANIFIESTO, "NUMPLACA:", details.NUMPLACA);
-      console.log("[MANIFIESTO-ENHANCED] Final IDs - conductorId:", conductorId, "titularId:", titularId, "placa:", placa);
-
       // Query all data from RNDC in parallel
-      // Always query titular separately even if same as conductor (to ensure we get the data)
+      // Include CODIDTERCERO (document type) for proper RNDC lookups
       const [conductorResult, titularResult, vehiculoResult, vehiculoExtraResult] = await Promise.all([
-        conductorId ? queryTerceroDetails(username, password, companyNit, conductorId, wsUrl) : Promise.resolve(null),
-        titularId ? queryTerceroDetails(username, password, companyNit, titularId, wsUrl) : Promise.resolve(null),
+        conductorId ? queryTerceroDetails(username, password, companyNit, conductorId, conductorTipoId, wsUrl) : Promise.resolve(null),
+        titularId ? queryTerceroDetails(username, password, companyNit, titularId, titularTipoId, wsUrl) : Promise.resolve(null),
         placa ? queryVehiculoDetails(username, password, companyNit, placa, wsUrl) : Promise.resolve(null),
         placa ? queryVehiculoExtraDetails(username, password, placa, wsUrl) : Promise.resolve(null),
       ]);
