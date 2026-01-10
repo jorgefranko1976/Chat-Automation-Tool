@@ -1265,6 +1265,78 @@ export async function registerRoutes(
     }
   });
 
+  // Recover a range of manifests from RNDC (for reimporting lost data)
+  app.post("/api/rndc/recover-manifiestos-range", async (req, res) => {
+    try {
+      const { username, password, companyNit, fromConsecutivo, toConsecutivo, wsUrl } = req.body;
+      
+      if (!username || !password || !companyNit || !fromConsecutivo || !toConsecutivo) {
+        return res.status(400).json({ success: false, message: "Faltan parámetros requeridos" });
+      }
+
+      const from = parseInt(fromConsecutivo);
+      const to = parseInt(toConsecutivo);
+      
+      if (isNaN(from) || isNaN(to) || from > to) {
+        return res.status(400).json({ success: false, message: "Rango de consecutivos inválido" });
+      }
+
+      if (to - from > 100) {
+        return res.status(400).json({ success: false, message: "El rango máximo es de 100 manifiestos" });
+      }
+
+      const results: Array<{
+        consecutivo: number;
+        success: boolean;
+        details?: any;
+        message?: string;
+      }> = [];
+
+      // Query each manifest in the range
+      for (let consecutivo = from; consecutivo <= to; consecutivo++) {
+        try {
+          const result = await queryManifiestoDetails(username, password, companyNit, String(consecutivo), wsUrl);
+          
+          if (result.success && result.details) {
+            results.push({
+              consecutivo,
+              success: true,
+              details: result.details,
+            });
+          } else {
+            results.push({
+              consecutivo,
+              success: false,
+              message: result.message || "No encontrado",
+            });
+          }
+        } catch (error) {
+          results.push({
+            consecutivo,
+            success: false,
+            message: error instanceof Error ? error.message : "Error desconocido",
+          });
+        }
+      }
+
+      const successCount = results.filter(r => r.success).length;
+      const errorCount = results.filter(r => !r.success).length;
+
+      res.json({
+        success: true,
+        results,
+        summary: {
+          total: results.length,
+          success: successCount,
+          error: errorCount,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al recuperar manifiestos";
+      res.status(500).json({ success: false, message });
+    }
+  });
+
   // Generate QR code data URL for manifiesto
   // Format matches RNDC official QR: MEC, Fecha, Placa, Config, Orig, Dest, Mercancia, Conductor, Empresa, Valor, Seguro
   app.post("/api/rndc/manifiesto-qr", async (req, res) => {

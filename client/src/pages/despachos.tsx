@@ -177,6 +177,10 @@ export default function Despachos() {
   const [despachoSearch, setDespachoSearch] = useState("");
   const [despachoPage, setDespachoPage] = useState(1);
   const despachosPerPage = 10;
+  const [showRecoverDialog, setShowRecoverDialog] = useState(false);
+  const [recoverRange, setRecoverRange] = useState({ from: "", to: "" });
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoverProgress, setRecoverProgress] = useState({ current: 0, total: 0, success: 0, error: 0 });
 
   const { data: remesasHistoryData, refetch: refetchRemesasHistory } = useQuery({
     queryKey: ["/api/rndc/remesas/history"],
@@ -1038,6 +1042,97 @@ export default function Despachos() {
       .filter((r: any) => r.status === "success")
       .map((r: any) => r.id);
     setSelectedHistoryRemesas(new Set(successIds));
+  };
+
+  const handleRecoverManifiestos = async () => {
+    const from = parseInt(recoverRange.from);
+    const to = parseInt(recoverRange.to);
+    
+    if (isNaN(from) || isNaN(to) || from > to) {
+      toast({ title: "Error", description: "Rango de consecutivos inválido", variant: "destructive" });
+      return;
+    }
+
+    if (to - from > 100) {
+      toast({ title: "Error", description: "El rango máximo es de 100 manifiestos", variant: "destructive" });
+      return;
+    }
+
+    setIsRecovering(true);
+    const total = to - from + 1;
+    setRecoverProgress({ current: 0, total, success: 0, error: 0 });
+
+    try {
+      const wsUrl = settings.wsEnvironment === "production" ? settings.wsUrlProd : settings.wsUrlTest;
+      
+      const response = await apiRequest("POST", "/api/rndc/recover-manifiestos-range", {
+        username: settings.usernameRndc,
+        password: settings.passwordRndc,
+        companyNit: settings.companyNit,
+        fromConsecutivo: from,
+        toConsecutivo: to,
+        wsUrl,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const recoveredManifiestos: GeneratedManifiesto[] = [];
+        
+        for (const r of result.results) {
+          if (r.success && r.details) {
+            const d = r.details;
+            recoveredManifiestos.push({
+              consecutivo: r.consecutivo,
+              placa: d.NUMPLACA || "",
+              fechaExpedicion: d.FECHAEXPEDICIONMANIFIESTO || "",
+              codMunicipioOrigen: d.CODMUNICIPIOORIGENMANIFIESTO || "",
+              codMunicipioDestino: d.CODMUNICIPIODESTINOMANIFIESTO || "",
+              tipoIdTitular: d.CODIDTITULARMANIFIESTO || "N",
+              numIdTitular: d.NUMIDTITULARMANIFIESTO || "",
+              cedula: d.NUMIDCONDUCTOR || "",
+              valorFlete: parseInt(d.VALORFLETEPACTADOVIAJE || "0"),
+              fechaPagoSaldo: d.FECHAAPROBACION || "",
+              consecutivoRemesa: parseInt(d.NUMREMESA || "0"),
+              xmlRequest: "",
+              status: "success",
+              responseCode: d.INGRESOID || "",
+              responseMessage: "Recuperado del RNDC",
+              idManifiesto: d.INGRESOID || "",
+            });
+          }
+        }
+
+        if (recoveredManifiestos.length > 0) {
+          setGeneratedManifiestos(prev => {
+            const existingConsecutivos = new Set(prev.map(m => m.consecutivo));
+            const newManifiestos = recoveredManifiestos.filter(m => !existingConsecutivos.has(m.consecutivo));
+            return [...prev, ...newManifiestos];
+          });
+        }
+
+        setRecoverProgress({ 
+          current: total, 
+          total, 
+          success: result.summary.success, 
+          error: result.summary.error 
+        });
+
+        toast({ 
+          title: "Recuperación completa", 
+          description: `${result.summary.success} manifiestos recuperados, ${result.summary.error} no encontrados` 
+        });
+        
+        setShowRecoverDialog(false);
+        setRecoverRange({ from: "", to: "" });
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Error al recuperar manifiestos", variant: "destructive" });
+    } finally {
+      setIsRecovering(false);
+    }
   };
 
   const handleDownloadManifiestos = () => {
@@ -3615,6 +3710,15 @@ export default function Despachos() {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowRecoverDialog(true)}
+                    data-testid="button-recover-manifiestos"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Recuperar del RNDC
+                  </Button>
                   {generatedManifiestos.length === 0 ? (
                     <Button
                       onClick={generateManifiestosXml}
@@ -4069,6 +4173,81 @@ export default function Despachos() {
                 data-testid="button-confirm-manual-update"
               >
                 Actualizar Manifiesto
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRecoverDialog} onOpenChange={setShowRecoverDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recuperar Manifiestos del RNDC</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Ingresa el rango de consecutivos de manifiestos a recuperar del RNDC. 
+              Los manifiestos recuperados aparecerán en la lista para poder imprimir sus PDFs.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Desde</label>
+                <Input
+                  type="number"
+                  placeholder="600101"
+                  value={recoverRange.from}
+                  onChange={(e) => setRecoverRange(prev => ({ ...prev, from: e.target.value }))}
+                  data-testid="input-recover-from"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Hasta</label>
+                <Input
+                  type="number"
+                  placeholder="600118"
+                  value={recoverRange.to}
+                  onChange={(e) => setRecoverRange(prev => ({ ...prev, to: e.target.value }))}
+                  data-testid="input-recover-to"
+                />
+              </div>
+            </div>
+            {isRecovering && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Recuperando manifiestos...</span>
+                  <span>{recoverProgress.success} recuperados, {recoverProgress.error} no encontrados</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all" 
+                    style={{ width: `${recoverProgress.total > 0 ? (recoverProgress.current / recoverProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRecoverDialog(false);
+                  setRecoverRange({ from: "", to: "" });
+                }}
+                disabled={isRecovering}
+                data-testid="button-cancel-recover"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleRecoverManifiestos}
+                disabled={isRecovering || !recoverRange.from || !recoverRange.to}
+                className="bg-blue-600 hover:bg-blue-700"
+                data-testid="button-confirm-recover"
+              >
+                {isRecovering ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Recuperando...</>
+                ) : (
+                  <>Recuperar Manifiestos</>
+                )}
               </Button>
             </div>
           </div>
