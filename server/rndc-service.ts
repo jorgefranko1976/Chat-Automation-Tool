@@ -365,18 +365,25 @@ INGRESOID,FECHAING,PRIMERAPELLIDOIDTERCERO,SEGUNDOAPELLIDOIDTERCERO,PRIMERNOMBRE
  </documento>
 </root>`;
 
+  console.log("[queryTerceroDetails] Querying tercero:", numIdTercero, "for company:", companyNit);
   const result = await sendXmlToRndc(xml, targetUrl);
   
   if (!result.success) {
+    console.log("[queryTerceroDetails] RNDC request failed for tercero:", numIdTercero, "message:", result.message);
     return { success: false, message: result.message, rawXml: result.rawXml };
   }
+
+  console.log("[queryTerceroDetails] Raw XML response for tercero", numIdTercero, ":", result.rawXml.substring(0, 800));
 
   try {
     const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
     const parsed = parser.parse(result.rawXml);
     const doc = parsed?.root?.documento;
     
+    console.log("[queryTerceroDetails] Parsed doc for tercero", numIdTercero, ":", JSON.stringify(doc, null, 2)?.substring(0, 1200));
+    
     if (!doc) {
+      console.log("[queryTerceroDetails] No documento found for tercero:", numIdTercero);
       return { success: false, message: "No se encontró el tercero", rawXml: result.rawXml };
     }
 
