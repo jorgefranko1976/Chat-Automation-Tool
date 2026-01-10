@@ -385,7 +385,13 @@ INGRESOID,FECHAING,CODTIPOIDTERCERO,NOMIDTERCERO,PRIMERAPELLIDOIDTERCERO,SEGUNDO
   try {
     const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
     const parsed = parser.parse(result.rawXml);
-    const doc = parsed?.root?.documento;
+    let doc = parsed?.root?.documento;
+    
+    // Handle multiple documents (RNDC returns historical records) - take the most recent one
+    if (Array.isArray(doc)) {
+      console.log("[queryTerceroDetails] Found", doc.length, "documents for tercero", numIdTercero, "- using most recent");
+      doc = doc[doc.length - 1]; // Take the last (most recent) document
+    }
     
     console.log("[queryTerceroDetails] Parsed doc for tercero", numIdTercero, ":", JSON.stringify(doc, null, 2)?.substring(0, 1200));
     
